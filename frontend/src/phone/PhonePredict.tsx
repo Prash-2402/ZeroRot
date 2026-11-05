@@ -152,7 +152,7 @@ function Decide({ lot, onDispatched }: { lot: any; onDispatched: () => void }) {
           {explain?.error && <ErrorBox error={explain.error} />}
         </>
       )}
-      <ChoiceBar lot={lot} recommendation={d?.recommendation} onSell={() => document.getElementById("ph-sell")?.scrollIntoView({ behavior: "smooth" })} />
+      <ChoiceBar lot={lot} recommendation={d?.recommendation} decision={d} onSell={() => document.getElementById("ph-sell")?.scrollIntoView({ behavior: "smooth" })} />
       <div id="ph-sell" className="border-t border-paper-300 pt-4">
         <div className="ph-label">{t("Sell")} → {t("Destination")}</div>
         {!canSell ? <div className="text-sm text-ink-400">{lot.stage === "grading" ? "Sorting in progress; trucks leave when it finishes." : lot.stage === "intake" ? "Wait until loading finishes." : "Already dispatched."}</div> : (

@@ -116,3 +116,43 @@ export function SellPlanner({ d }: { d: any }) {
     </div>
   );
 }
+
+/* ---------------- Store: how long to keep it, and what that costs or earns ---------------- */
+export function StorePlan({ d, days, setDays }: { d: any; days: number; setDays: (n: number) => void }) {
+  const rows: any[] = d?.rows || [];
+  const n = rows.length - 1;
+  if (n < 1) return null;
+  const day = Math.max(1, Math.min(n, days));
+  const now = rows[0], x = rows[day];
+  const diff = x.net_profit - now.net_profit;
+  const life = d.shelf_life_days, cautious = d.shelf_life_p10_days;
+  const left = life != null ? life - day : null;
+  const risk = x.spoil_risk_pct;
+  const riskTone = risk >= 50 ? "text-critical" : risk >= 10 ? "text-[#c2410c]" : "text-ok";
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between"><b>Store for {day} day{day > 1 ? "s" : ""}</b><span className="text-[11px] text-ink-400">sell on {dayLabel(day)}</span></div>
+      <Spark series={rows.map((r) => r.spoil_risk_pct)} day={day} color="#e8542f" max={100} />
+      <Slider value={day} min={1} max={n} onChange={setDays} label="Days to store" />
+      <div>
+        <div className="flex justify-between text-xs"><span>Chance of spoiling by then</span><b className={cn("font-mono", riskTone)}>{num(risk, 0)}%</b></div>
+        <div className="mt-1 h-2 overflow-hidden rounded-full bg-paper-200"><div className="h-2 rounded-full" style={{ width: `${Math.max(2, risk)}%`, background: risk >= 50 ? "#d64545" : risk >= 10 ? "#f08a4b" : "#3f9b62" }} /></div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded-xl bg-paper-200 p-2"><div className="text-ink-400">Selling price that day</div><div className="font-mono text-lg font-bold">{inr(x.price_per_kg)}<span className="text-[10px] font-normal">/kg</span></div>
+          {x.price_low !== x.price_high ? <div className="text-[10px] text-ink-400">likely {inr(x.price_low)}–{inr(x.price_high)} (forecast)</div>
+            : <div className="text-[10px] text-ink-400">today's price (no reliable forecast for this market)</div>}</div>
+        <div className="rounded-xl bg-paper-200 p-2"><div className="text-ink-400">{x.net_profit >= 0 ? "Profit" : "Loss"}</div><div className={cn("font-mono text-lg font-bold", x.net_profit < 0 && "text-critical")}>{inr(Math.abs(x.net_profit))}</div>
+          <div className={cn("text-[10px] font-bold", diff >= 0 ? "text-ok" : "text-critical")}>{diff >= 0 ? "+" : "−"}{inr(Math.abs(diff))} vs selling today</div></div>
+        <div className="rounded-xl bg-paper-200 p-2"><div className="text-ink-400">Quality then</div><div className="font-mono text-lg font-bold">{num(x.quality, 0)}</div><div className="text-[10px] text-ink-400">spoiled {kg(x.spoilage_loss_kg)}</div></div>
+        <div className="rounded-xl bg-paper-200 p-2"><div className="text-ink-400">Storage cost</div><div className="font-mono text-lg font-bold">{inr(x.storage_cost)}</div><div className="text-[10px] text-ink-400">{x.storage_cost ? "cold storage charge" : "no charge (traditional)"}</div></div>
+      </div>
+      {life != null && (
+        <div className={cn("rounded-xl p-2 text-xs", left != null && left <= 0 ? "bg-critical/10 text-critical" : "bg-teal/5 text-teal")}>
+          Expires in about <b>{num(life, 1)} days</b> at today's godown conditions (cautious estimate {num(cautious, 1)} days).{" "}
+          {left != null && left > 0 ? <>After storing {day} day{day > 1 ? "s" : ""}, about <b>{num(left, 1)} days</b> would be left to sell it.</> : <>Storing {day} days goes past expiry.</>}
+        </div>
+      )}
+    </div>
+  );
+}

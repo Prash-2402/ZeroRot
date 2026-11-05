@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { voice } from "./voiceSignal";
+import { StorePlan } from "./PhoneSliders";
 
 const Avatar3D = lazy(() => import("./PhoneAvatar3D"));
 const hasWebGL = () => { try { return !!document.createElement("canvas").getContext("webgl2"); } catch { return false; } };
@@ -231,7 +232,7 @@ export function LogList({ events }: { events: any[] }) {
 }
 
 /* ---------------- sell / store / discard ---------------- */
-export function ChoiceBar({ lot, recommendation, onSell }: { lot: any; recommendation?: string; onSell: () => void }) {
+export function ChoiceBar({ lot, recommendation, onSell, decision }: { lot: any; recommendation?: string; onSell: () => void; decision?: any }) {
   const [mode, setMode] = useState<null | "store" | "discard">(null);
   const [days, setDays] = useState(3);
   const [busy, setBusy] = useState(false);
@@ -261,8 +262,9 @@ export function ChoiceBar({ lot, recommendation, onSell }: { lot: any; recommend
       </div>
       {mode === "store" && (
         <div className="rounded-2xl border border-paper-300 bg-white p-3 text-sm">
-          Keep for <div className="mt-2 grid grid-cols-4 gap-2">{[1, 3, 5, 7].map((d) => <button key={d} onClick={() => setDays(d)} className={cn("ph-chip text-xs", days === d && "ph-chip-on")}>{d} d</button>)}</div>
-          <button disabled={busy} onClick={() => go("store")} className="mt-3 w-full rounded-xl bg-teal py-3 font-bold text-white">{busy ? <Spinner /> : `Keep ${days} more days`}</button>
+          {decision?.rows?.length > 1 ? <StorePlan d={decision} days={days} setDays={setDays} />
+            : <>Keep for <div className="mt-2 grid grid-cols-4 gap-2">{[1, 3, 5, 7].map((d) => <button key={d} onClick={() => setDays(d)} className={cn("ph-chip text-xs", days === d && "ph-chip-on")}>{d} d</button>)}</div></>}
+          <button disabled={busy} onClick={() => go("store")} className="mt-3 w-full rounded-xl bg-teal py-3 font-bold text-white">{busy ? <Spinner /> : `Store for ${days} day${days > 1 ? "s" : ""}`}</button>
         </div>
       )}
       {mode === "discard" && (
