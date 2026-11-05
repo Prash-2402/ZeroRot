@@ -38,7 +38,7 @@ function Pair({ token }: { token: string }) {
   return (
     <div className="flex min-h-[80vh] flex-col justify-center px-6">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center bg-gold"><span className="font-display text-3xl font-black text-ink">Z</span></div>
+        <img src="/logo.png" alt="ZERO ROT" className="mx-auto mb-6 h-16 w-auto" />
         <h1 className="font-display text-3xl font-bold text-ink">{t("Enter PIN")}</h1>
         <p className="mt-2 text-sm text-ink-400">The 6-digit PIN is shown on the laptop next to the QR code.</p>
       </div>
@@ -290,8 +290,8 @@ function App({ stationId }: { stationId: number }) {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col bg-paper text-ink shadow-[0_0_60px_rgba(10,38,36,0.12)]">
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-paper-300 bg-paper/95 px-3 py-2 backdrop-blur">
-        <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center bg-gold font-display text-lg font-black text-ink">Z</div>
-          <div className="leading-tight"><div className="font-display text-sm font-bold tracking-wider">ZERO ROT</div><div className="flex items-center gap-1 text-[10px] text-ink-400"><span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-ok" : "bg-critical")} />{t("Live on laptop")}</div></div></div>
+        <div className="flex items-center gap-2"><img src="/logo.png" alt="ZERO ROT" className="h-8 w-auto" />
+          <div className="leading-tight"><div className="flex items-center gap-1 text-[10px] text-ink-400"><span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-ok" : "bg-critical")} />{t("Live on laptop")}</div></div></div>
         <div className="flex items-center gap-2">
           {pushSupported() && <button aria-label="Notifications" className="p-2 text-ink-400" onClick={async () => { try { await enablePush(true); setPushState("on"); } catch (e: any) { setPushState(e.message); } }}><Bell className={cn("h-5 w-5", pushState === "on" && "text-gold")} /></button>}
           <button onClick={() => set(lang === "en" ? "kn" : "en")} className="flex items-center gap-1 border border-paper-300 px-2 py-1 text-xs font-bold"><Languages className="h-3.5 w-3.5" />{lang === "en" ? "ಕನ್ನಡ" : "EN"}</button>
