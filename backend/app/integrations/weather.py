@@ -93,3 +93,34 @@ def history(lat: float, lng: float, days: int) -> dict:
         raise Unavailable("Not enough weather history for that period")
     return {"source": "Open-Meteo (forecast past_days + historical archive)", "times": [x[0] for x in rows],
             "t": [x[1][0] for x in rows], "rh": [x[1][1] for x in rows]}
+
+
+def daily(lat: float, lng: float, days_back: int = 400, days_ahead: int = 16) -> dict:
+    """Daily rainfall (mm) and maximum temperature (degC), observed for the past `days_back` days (Open-Meteo historical
+    archive, which lags about 5 days, plus the forecast API's recent past) and forecast for the next `days_ahead` days.
+    Returns {"source", "days": {date: (rain_mm, tmax_c)}} using Indian local dates."""
+    from datetime import date, timedelta
+    out: dict = {}
+
+    def take(j):
+        d = j.get("daily") or {}
+        for ts, rain, tmax in zip(d.get("time", []), d.get("precipitation_sum", []), d.get("temperature_2m_max", [])):
+            if rain is None or tmax is None:
+                continue
+            out[date.fromisoformat(ts)] = (float(rain), float(tmax))
+    try:
+        today = date.today()
+        r = httpx.get(ARCHIVE_URL, params={"latitude": lat, "longitude": lng, "start_date": (today - timedelta(days=days_back)).isoformat(),
+                                           "end_date": (today - timedelta(days=6)).isoformat(), "daily": "precipitation_sum,temperature_2m_max",
+                                           "timezone": "Asia/Kolkata"}, timeout=25)
+        r.raise_for_status()
+        take(r.json())
+        r = httpx.get(settings.open_meteo_url, params={"latitude": lat, "longitude": lng, "daily": "precipitation_sum,temperature_2m_max",
+                                                       "past_days": 10, "forecast_days": min(16, days_ahead), "timezone": "Asia/Kolkata"}, timeout=15)
+        r.raise_for_status()
+        take(r.json())
+    except httpx.HTTPError as e:
+        raise Unavailable(f"Weather history unreachable ({type(e).__name__})")
+    if len(out) < 30:
+        raise Unavailable("Not enough daily weather data")
+    return {"source": "Open-Meteo (historical archive + 16-day forecast)", "days": out}

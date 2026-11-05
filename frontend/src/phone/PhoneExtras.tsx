@@ -1,4 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { voice } from "./voiceSignal";
+
+const Avatar3D = lazy(() => import("./PhoneAvatar3D"));
+const hasWebGL = () => { try { return !!document.createElement("canvas").getContext("webgl2"); } catch { return false; } };
 import { motion } from "framer-motion";
 import { CheckCircle2, Mic, MicOff, Send, Trash2, Truck, Warehouse } from "lucide-react";
 import { api, post } from "../lib/api";
@@ -44,6 +48,7 @@ export function speak(text: string, lang: "en" | "kn", onStart?: () => void, onE
   u.lang = lang === "kn" ? "kn-IN" : "en-IN";
   u.rate = 0.98;
   u.onstart = () => onStart?.();
+  u.onboundary = () => { voice.pulse = 1; };
   u.onend = () => onEnd?.();
   u.onerror = () => onEnd?.();
   window.speechSynthesis.speak(u);
@@ -246,6 +251,9 @@ export function AssistantTab({ lot }: { lot: any }) {
   const t = useT();
   const lang = useLang((s) => s.lang);
   const { listening, error, start, stop } = useListen();
+  const [micLang, setMicLang] = useState<"en" | "kn">(lang);
+  useEffect(() => setMicLang(lang), [lang]);
+  const [webgl] = useState(hasWebGL);
   const [speaking, setSpeaking] = useState(false);
   const [msgs, setMsgs] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [text, setText] = useState("");
@@ -261,24 +269,30 @@ export function AssistantTab({ lot }: { lot: any }) {
     setMsgs((x) => [...x, { role: "user", content: q }]);
     setBusy(true);
     try {
-      const r = await post("/flow/chat", { lot_id: lot?.id, message: q, language: lang, history }, true);
+      const r = await post("/flow/chat", { lot_id: lot?.id, message: q, language: micLang, history }, true);
       setMsgs((x) => [...x, { role: "assistant", content: r.answer }]);
-      speak(r.answer, lang, () => setSpeaking(true), () => setSpeaking(false));
+      speak(r.answer, r.language === "kn" ? "kn" : r.language === "en" ? "en" : micLang, () => setSpeaking(true), () => setSpeaking(false));
     } catch (e) { setErr(e); } finally { setBusy(false); }
   };
   const quick = lang === "kn" ? ["ನನ್ನ ಬೆಳೆ ಎಷ್ಟು ದಿನ ಉಳಿಯುತ್ತದೆ?", "ಯಾವಾಗ ಮಾರಬೇಕು?", "ಟ್ರಕ್ ಎಲ್ಲಿದೆ?"] : ["How long will my produce last?", "When should I sell?", "Where is my truck?"];
   return (
     <div className="flex min-h-[calc(100vh-150px)] flex-col p-4 pb-24">
       <div className="rounded-3xl bg-gradient-to-b from-teal to-[#0f4f4b] p-4 text-center text-white shadow-xl">
-        <TalkingFace speaking={speaking} listening={listening} size={150} />
+        {webgl ? <Suspense fallback={<div className="mx-auto h-[170px] w-[170px]" />}><Avatar3D speaking={speaking} listening={listening} size={170} /></Suspense>
+          : <TalkingFace speaking={speaking} listening={listening} size={150} />}
         <div className="mt-3 font-display text-lg font-bold">{lang === "kn" ? "ಸಹಾಯಕಿ" : "Sahayaki"}</div>
         <div className="text-xs opacity-80">{listening ? (lang === "kn" ? "ಕೇಳುತ್ತಿದ್ದೇನೆ…" : "Listening…") : speaking ? (lang === "kn" ? "ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ…" : "Speaking…") : busy ? "…" : (lang === "kn" ? "ಮೈಕ್ ಒತ್ತಿ ಮಾತನಾಡಿ" : "Tap the mic and speak")}</div>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={() => (listening ? stop() : start(lang, ask))}
+        <div className="mx-auto mt-2 flex w-max overflow-hidden rounded-full border border-white/30 text-[11px] font-bold">
+          {(["kn", "en"] as const).map((l) => <button key={l} onClick={() => setMicLang(l)} className={cn("px-3 py-1", micLang === l ? "bg-white text-teal" : "text-white/80")}>{l === "kn" ? "ಕನ್ನಡ" : "English"}</button>)}
+        </div>
+        <motion.button whileTap={{ scale: 0.9 }} onClick={() => (listening ? stop() : start(micLang, ask))}
           className={cn("mx-auto mt-3 flex h-16 w-16 items-center justify-center rounded-full shadow-lg", listening ? "bg-white text-teal" : "bg-coral text-white")} aria-label="Speak">
           {listening ? <MicOff className="h-7 w-7" /> : <Mic className="h-7 w-7" />}
         </motion.button>
         {error && <div className="mt-2 text-xs text-[#ffd0c4]">{error}</div>}
-        <div className="mt-1 text-[10px] opacity-60">AI-generated face of a person who does not exist (public domain)</div>
+        {micLang === "kn" && speechOutSupported() && !window.speechSynthesis.getVoices().some((v) => v.lang.startsWith("kn")) && (
+          <div className="mt-1 text-[10px] text-[#ffd0c4]">This device has no Kannada voice installed, so replies may not be read aloud (install Kannada in the phone's text-to-speech settings).</div>
+        )}
       </div>
       <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
         {msgs.length === 0 && quick.map((q) => <button key={q} onClick={() => ask(q)} className="block w-full rounded-2xl border border-paper-300 bg-white p-3 text-left text-sm">{q}</button>)}

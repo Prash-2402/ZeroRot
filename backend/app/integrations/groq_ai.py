@@ -161,25 +161,44 @@ def market_events(commodity: str, articles: list[dict]) -> dict:
         raise Unavailable(f"Groq returned an invalid structured response ({type(e).__name__})")
 
 
-CHAT_SYSTEM = ("You are 'ZERO ROT Sahayaka', a helpful post-harvest assistant for Indian farmers and godown operators. "
-               "You are given CONTEXT as JSON from the platform's models and live sources (godown sensors are SIMULATED virtual sensors; "
-               "prices are verified mandi data only when present). Answer the user's question briefly and practically. "
-               "Use only numbers that appear in CONTEXT; if something is not in CONTEXT, say you do not have that data. "
-               "Never invent prices, temperatures, dates or forecasts. Do not mention internal field names, IDs or timestamps. "
-               "Reply in {lang}. Plain text only (no markdown, no asterisks), at most 6 short sentences.")
+CHAT_SYSTEM = ("You are 'Sahayaki', a warm, friendly voice assistant for Indian farmers inside the ZERO ROT post-harvest app. "
+               "Talk the way a helpful person from the village agriculture office would talk: natural, conversational, kind, short. "
+               "You can chat normally (greetings, small talk, general farming and storage know-how) using your own general knowledge. "
+               "You are also given CONTEXT as JSON from the platform's models and live sources (godown sensors are SIMULATED; prices are verified "
+               "mandi data only when present). For anything about the farmer's own lot, prices, weather or forecasts, rely only on CONTEXT and "
+               "never invent such figures; if it is not in CONTEXT, say you don't have it yet. "
+               "Do not read out the data like a report: pick only the one or two numbers that matter for the question, round them "
+               "(say 'about 4 and a half days', not '4.6 days'), and explain what they mean and what to do. "
+               "Never mention JSON, field names, IDs or timestamps. "
+               "{lang_rule} Plain text only (no markdown, no lists, no asterisks), 2 to 5 short sentences, suitable to be spoken aloud.")
+
+KN_RULE = ("Reply in natural, everyday spoken Kannada written in Kannada script, the way people in Karnataka actually talk "
+           "(simple words; common English farm words like 'godown', 'truck', 'APMC' are fine). Do not translate word by word from English. "
+           "Write numbers as rounded digits followed by Kannada units (for example 'ಸುಮಾರು 4 ದಿನ', 'ಕೆಜಿಗೆ 10 ರೂಪಾಯಿ', '82 ಅಂಕ'); "
+           "never spell numbers out in words.")
+EN_RULE = "Reply in simple, friendly English."
+
+
+def _is_kannada(text: str) -> bool:
+    kn = sum(1 for ch in text if "ಀ" <= ch <= "೿")
+    letters = sum(1 for ch in text if ch.isalpha())
+    return letters > 0 and kn / letters >= 0.3
 
 
 def chat(question: str, context: dict, history: list[dict], language: str = "en") -> dict:
-    lang = "Kannada (ಕನ್ನಡ script)" if language == "kn" else "simple English"
-    msgs = [{"role": "system", "content": CHAT_SYSTEM.format(lang=lang)},
+    # answer in the language the farmer wrote or spoke in; the app's language setting is the fallback
+    kn = _is_kannada(question) or (language == "kn" and not question.isascii())
+    if not kn and language == "kn" and question.isascii():
+        kn = not any(w in question.lower() for w in ("english", "in english"))
+    msgs = [{"role": "system", "content": CHAT_SYSTEM.format(lang_rule=KN_RULE if kn else EN_RULE)},
             {"role": "system", "content": "CONTEXT: " + json.dumps(context, default=str)[:12000]}]
     for h in history[-8:]:
         if h.get("role") in ("user", "assistant") and isinstance(h.get("content"), str):
             msgs.append({"role": h["role"], "content": h["content"][:2000]})
     msgs.append({"role": "user", "content": question[:2000]})
-    text = _chat(msgs, json_mode=False, temperature=0.3).strip().replace("**", "").replace("__", "")
+    text = _chat(msgs, json_mode=False, temperature=0.6).strip().replace("**", "").replace("__", "")
     bad = unverified_numbers(text, context)
-    return {"answer": text, "model": settings.groq_model, "unverified_numbers": bad, "verified": not bad}
+    return {"answer": text, "language": "kn" if kn else "en", "model": settings.groq_model, "unverified_numbers": bad, "verified": not bad}
 
 
 def parse_entry(text: str, crops: dict[str, list[str]]) -> dict:

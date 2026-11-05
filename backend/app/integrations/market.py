@@ -115,3 +115,41 @@ def news(commodity: str, max_records: int = 12) -> list[dict]:
 
 def now_utc() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+# Agmarknet variety-wise daily prices on data.gov.in: keeps roughly the last year per market and supports filters by market
+VARIETY_HISTORY_RESOURCE = "35985678-0d79-46b4-9ed6-6f13308a1d24"
+
+
+def history(commodity: str, market: str, n: int = 400) -> dict:
+    """The latest ~n daily records of one market (oldest first), restricted to its most-traded variety so that
+    varieties with very different prices are not averaged together. Returns {"source", "variety", "rows": [(date, Rs/kg)]}."""
+    if not settings.data_gov_api_key:
+        raise Unavailable("DATA_GOV_API_KEY not configured")
+    rid = settings.agmarknet_history_resource_id or VARIETY_HISTORY_RESOURCE
+    base = {"api-key": settings.data_gov_api_key, "format": "json", "filters[Commodity]": AGMARK_NAMES.get(commodity, commodity.title()),
+            "filters[Market]": market}
+    url = f"https://api.data.gov.in/resource/{rid}"
+    try:
+        total = int(httpx.get(url, params={**base, "limit": 1}, headers=HEADERS, timeout=40).json().get("total") or 0)
+        if not total:
+            raise Unavailable(f"No price history for {market}")
+        recs = httpx.get(url, params={**base, "limit": n, "offset": max(0, total - n)}, headers=HEADERS, timeout=60).json().get("records", [])
+    except (httpx.HTTPError, ValueError) as e:
+        raise Unavailable(f"data.gov.in history request failed ({type(e).__name__})")
+    rows = []
+    for rec in recs:
+        try:
+            d = datetime.strptime(rec.get("Arrival_Date") or rec.get("arrival_date"), "%d/%m/%Y").date()
+            modal = float(rec.get("Modal_Price") or rec.get("modal_price"))
+        except (TypeError, ValueError):
+            continue
+        if modal > 0:
+            rows.append((d, rec.get("Variety") or rec.get("variety") or "", modal / 100.0))
+    if not rows:
+        raise Unavailable(f"No usable price history for {market}")
+    last = max(r[0] for r in rows)
+    recent = [r[1] for r in rows if (last - r[0]).days <= 60]
+    variety = max(set(recent), key=recent.count)
+    return {"source": f"{DataGovAgmarknet.name} variety-wise daily prices ({rid})", "variety": variety,
+            "rows": sorted((d, p) for d, v, p in rows if v == variety)}

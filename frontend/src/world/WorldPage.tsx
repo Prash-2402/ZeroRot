@@ -224,11 +224,13 @@ export default function WorldPage() {
   const [scripts, setScripts] = useState<any[]>([]);
   const [showLogs, setShowLogs] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showStart, setShowStart] = useState(false);   // after deliveries the QR/start screen opens only on request
   const resetDemo = () => { if (station && window.confirm("Remove every lot of this station and start the demo again?")) act("reset", () => post(`/flow/stations/${station.id}/reset`, {})); };
   useEffect(() => { api("/flow/scripts").then((d) => setScripts(d.scripts)).catch(() => undefined); }, []);
   const startScript = (name: string) => act(`script-${name}`, () => api(`/flow/scripts/${name}`, { method: "POST", timeoutMs: 60000, json: { station_id: station?.id } }));
   const lots = state?.lots || [];
   const lot = useMemo(() => lots.find((l: any) => l.id === activeId) || lots[0] || null, [lots, activeId]);
+  useEffect(() => { if (lots.length) setShowStart(false); }, [lots.length]);
   useEffect(() => { if (lots[0] && (!activeId || !lots.some((l: any) => l.id === activeId))) setActiveId(lots[0].id); }, [lots.map((l: any) => l.id).join(",")]);
   useEffect(() => {
     const e = events[events.length - 1];
@@ -290,8 +292,8 @@ export default function WorldPage() {
         </div>
       </div>
 
-      {/* no lot yet: pairing */}
-      {!lots.length && station && (
+      {/* no lot yet: pairing (a station that has finished lots before shows it only when asked) */}
+      {!lots.length && station && state && (!(state.history?.length) || showStart) && (
         <div className="absolute inset-x-0 bottom-0 top-24 z-20 overflow-y-auto">
           <div className="flex min-h-full flex-wrap items-start justify-center gap-4 px-4 pb-20 pt-4">
             <div className="max-w-sm space-y-3">
@@ -425,8 +427,15 @@ export default function WorldPage() {
       )}
 
       {showHistory && <HistoryPanel history={state?.history || []} onClose={() => setShowHistory(false)} />}
+      {!lots.length && station && (state?.history?.length || 0) > 0 && !showStart && (
+        <div className="hud pointer-events-auto absolute left-1/2 top-28 z-30 -translate-x-1/2 px-4 py-3 text-center">
+          <div className="text-sm font-semibold">All lots are finished.</div>
+          <div className="text-[11px] text-ink-500">Enter a new crop on the paired phone; it appears here live.</div>
+        </div>
+      )}
       {!lots.length && station && (state?.history?.length || 0) > 0 && (
         <div className="pointer-events-auto absolute bottom-3 right-3 z-40 flex gap-1">
+          <button className={cn("hud flex items-center gap-1 px-3 py-2 text-[11px] font-semibold", showStart ? "text-gold" : "hover:text-gold")} onClick={() => setShowStart((x) => !x)}><QrCode className="h-4 w-4" />{showStart ? "Hide QR" : "QR & samples"}</button>
           <button className="hud flex items-center gap-1 px-3 py-2 text-[11px] font-semibold hover:text-gold" onClick={() => setShowHistory((x) => !x)}><History className="h-4 w-4" />History ({state.history.length})</button>
           <button className="hud flex items-center gap-1 px-3 py-2 text-[11px] font-semibold hover:text-critical" onClick={resetDemo}><RotateCcw className="h-4 w-4" />Demo reset</button>
         </div>

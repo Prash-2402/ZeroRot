@@ -114,11 +114,17 @@ def test_advanced_lot_full_journey(H):
     # predict: spoilage + decision (no verified price -> asks for a quoted price)
     sp = client.get(f"/api/v1/flow/lots/{lot['id']}/spoilage", headers=P).json()
     assert sp["current"]["shelf_life_p10"] <= sp["current"]["shelf_life_p90"] and "at_recommended" in sp
+    cur, rec = sp["curves"]["current"], sp["curves"]["recommended"]
+    assert len(cur) == sp["horizon_days"] + 1 and cur[0]["day"] == 0 and cur[-1]["quality"] <= cur[0]["quality"]
+    assert all(c["quality_p10"] <= c["quality"] <= c["quality_p90"] and 0 <= c["spoil_risk_pct"] <= 100 for c in cur)
+    assert cur[-1]["lost_kg"] >= cur[0]["lost_kg"] and rec[-1]["quality"] >= cur[-1]["quality"] - 0.5
     rates = client.get(f"/api/v1/flow/lots/{lot['id']}/rates", headers=P).json()
     if rates["status"] == "data_unavailable":   # no verified prices stored -> a quoted price is required, never invented
         assert client.get(f"/api/v1/flow/lots/{lot['id']}/decision", headers=P).status_code == 409
     d = client.get(f"/api/v1/flow/lots/{lot['id']}/decision?price_per_kg=22", headers=P).json()
     assert d["recommendation"] in ("sell_now", "store_and_sell_later") and d["price_per_kg"] == 22
+    assert d["forecast"]["status"] == "unavailable" and all(r["price_per_kg"] == 22 for r in d["rows"])   # no history -> flat, labelled
+    assert len(d["rows"]) == 15 and all(0 <= r["spoil_risk_pct"] <= 100 for r in d["rows"])
     # scan & bag with the bundled reference photos
     g = client.post(f"/api/v1/flow/lots/{lot['id']}/grade-sample", headers=P)
     assert g.status_code == 201, g.text

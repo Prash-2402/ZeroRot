@@ -643,6 +643,91 @@ def mandi_rates(db: Session, commodity: str, lat: float, lng: float) -> dict:
     return {"status": "ok", "markets": markets[:15], "unit": "Rs/kg", "label": "Verified Agmarknet prices (data.gov.in)"}
 
 
+_FC_CACHE: dict = {}
+FC_TTL_S = 6 * 3600
+
+
+def price_forecast(db: Session, commodity: str, markets: list[dict], horizon: int = 14) -> dict:
+    """Weather-aware statistical price forecast for the chosen market (first in `markets`); if that market has too little
+    history, the next ones are tried and their trend is used (labelled). Cached for 6 hours per commodity and market."""
+    import time as _t
+    from app.db.models import PriceForecast
+    from app.integrations import market as mk
+    from app.ml import forecasting
+    tried = []
+    for m in markets[:3]:
+        key = (commodity, m["market"])
+        hit = _FC_CACHE.get(key)
+        if hit and _t.time() - hit[0] < FC_TTL_S:
+            res = hit[1]
+        else:
+            try:
+                h = mk.history(commodity, m["market"])
+            except mk.Unavailable as e:
+                tried.append(f"{m['market']}: {e}")
+                continue
+            wx, wsrc = None, None
+            if m.get("lat") is not None:
+                try:
+                    w = weather.daily(m["lat"], m["lng"])
+                    wx, wsrc = w["days"], w["source"]
+                except weather.Unavailable:
+                    pass
+            res = forecasting.forecast([(d, v) for d, v in h["rows"]], horizon, wx)
+            res.update({"market": m["market"], "variety": h["variety"], "price_source": h["source"], "weather_source": wsrc})
+            if res["status"] == "ok":
+                db.add(PriceForecast(commodity_id=commodity, market=m["market"], model=res["model"], horizon_days=res["horizon_days"],
+                                     trained_points=res["trained_points"], metrics=res["metrics"], points=res["points"]))
+                db.commit()
+            _FC_CACHE[key] = (_t.time(), res)
+        if res["status"] == "ok":
+            res = dict(res)
+            res["trend_from_other_market"] = m["market"] != markets[0]["market"]
+            return res
+        tried.append(f"{m['market']}: {res.get('message', res['status'])}")
+    return {"status": "unavailable", "message": "; ".join(tried) or "No market to forecast"}
+
+
+def _forecast_by_day(fc: dict, price_now: float, horizon: int) -> list[dict] | None:
+    """Turn forecast points (by date) into per-day prices from today, scaled to today's price: the forecast gives the
+    relative change, today's verified (or quoted) price the level."""
+    from datetime import date, timedelta
+    if fc.get("status") != "ok" or not fc.get("last_price"):
+        return None
+    by_date = {pt["date"]: pt for pt in fc["points"]}
+    today = date.today()
+    out = []
+    for d in range(1, horizon + 1):
+        pt = by_date.get((today + timedelta(days=d)).isoformat())
+        if pt is None:
+            break
+        k = price_now / fc["last_price"]
+        out.append({"price": pt["price"] * k, "low": pt["low"] * k, "high": pt["high"] * k})
+    return out or None
+
+
+def _curve(commodity: str, maturity: str | None, st, temp: float, rh: float, days: int, base_kg: float, seed: str) -> list[dict]:
+    """Day-by-day projection at fixed conditions: median quality with its P10-P90 range, the chance of being below the
+    sellable minimum, and the kg lost (weight loss + rot, all of it once quality is below the minimum)."""
+    import zlib
+    import numpy as np
+    from app.engine.decay import State, make_params, simulate
+    pp = get_produce(commodity)
+    hours = days * 24 + 1
+    prm = make_params(pp, maturity, draws=100, seed=zlib.crc32(seed.encode()))
+    Q, W, R, _ = simulate(prm, State(q=st.q, w=st.w, r=st.r, e=st.e), np.full(hours, temp), np.full(hours, rh))
+    qmin = pp.v("q_min")
+    out = []
+    for d in range(days + 1):
+        h = d * 24
+        q50, w50, r50 = float(np.median(Q[:, h])), float(np.median(W[:, h])), float(np.median(R[:, h]))
+        saleable = base_kg * (1 - w50) * (1 - r50) if q50 >= qmin else 0.0
+        out.append({"day": d, "quality": round(q50, 1), "quality_p10": round(float(np.percentile(Q[:, h], 10)), 1),
+                    "quality_p90": round(float(np.percentile(Q[:, h], 90)), 1), "spoil_risk_pct": round(float(np.mean(Q[:, h] < qmin)) * 100, 1),
+                    "saleable_kg": round(saleable, 1), "lost_kg": round(base_kg - saleable, 1), "lost_pct": round((1 - saleable / base_kg) * 100, 1)})
+    return out
+
+
 def spoilage(db: Session, lot: Lot) -> dict:
     sim, rt = _runtime(db, lot.storage_sim_id)
     if rt is None:
@@ -654,7 +739,11 @@ def spoilage(db: Session, lot: Lot) -> dict:
     ideal_t, ideal_rh = max(pp.v("t_ref"), pp.v("t_chill") + 0.5), (pp.v("rh_low") + pp.v("rh_high")) / 2
     here = live["prediction"] or predict(p, r["temperature_c"], r["rh_pct"], 0.0, f"lot-{lot.id}-now", draws=100)
     ideal = predict(ProduceState(p.commodity, p.maturity, p.mass_kg, p.q, p.w, p.r, p.e), ideal_t, ideal_rh, 0.0, f"lot-{lot.id}-ideal", draws=100)
-    return {"quality": round(p.q, 1), "q_min": pp.v("q_min"), "saleable_kg": round(saleable_kg(rt), 1), "weight_loss_pct": round(p.w * 100, 2),
+    life = max(here.get("shelf_life_p90") or 0, ideal.get("shelf_life_p90") or 0, here.get("shelf_life_days") or 0)
+    horizon = int(min(60, max(5, math.ceil(life * 1.15))))
+    curves = {"current": _curve(p.commodity, p.maturity, p, r["temperature_c"], r["rh_pct"], horizon, p.mass_kg, f"lot-{lot.id}-curve"),
+              "recommended": _curve(p.commodity, p.maturity, p, ideal_t, ideal_rh, horizon, p.mass_kg, f"lot-{lot.id}-curve")}
+    return {"curves": curves, "horizon_days": horizon,"quality": round(p.q, 1), "q_min": pp.v("q_min"), "saleable_kg": round(saleable_kg(rt), 1), "weight_loss_pct": round(p.w * 100, 2),
             "conditions": {"temperature_c": r["temperature_c"], "rh_pct": r["rh_pct"]}, "current": here,
             "at_recommended": {"temperature_c": ideal_t, "rh_pct": ideal_rh, **ideal}, "sim_time": live["sim_time"],
             "label": "Model estimate (Q10 decay, Monte Carlo P10-P90); assumes conditions stay as stated."}
@@ -681,10 +770,23 @@ def decision(db: Session, lot: Lot, price_per_kg: float | None, market: str | No
         raise FlowError(409, "price_unavailable", "No verified mandi price available. Enter today's price you were quoted (Rs/kg) to get a decision.")
     r = rt.readings()
     dist_km = chosen["distance_km"] if chosen and chosen.get("distance_km") else 60.0
+    horizon = 14
+    fc = {"status": "unavailable", "message": "No verified market to forecast"}
+    if chosen:
+        near = sorted([m for m in rates["markets"] if m is not chosen and m.get("distance_km") is not None], key=lambda m: m["distance_km"])
+        fc = dict(price_forecast(db, b.commodity_id, [chosen] + near, horizon + 6))   # +6: the last mandi report is usually a few days old
+    fpts = None
+    if fc.get("status") == "ok":
+        skill = [m for m in (fc.get("metrics") or {}).values() if m.get("model_mape_pct") is not None]
+        fc["used"] = any(m["model_mape_pct"] < m["naive_mape_pct"] for m in skill)
+        if fc["used"]:
+            fpts = _forecast_by_day(fc, price_per_kg, horizon)
+        else:
+            fc["message"] = "the forecast did not beat 'price stays the same' in its backtest for this market, so today's price is used"
     res = profit.evaluate(commodity=b.commodity_id, maturity=b.maturity, quantity_kg=saleable_kg(rt), quality=rt.s.produce.q,
-                          price_now_per_kg=price_per_kg, price_origin=origin, forecast_points=None, storage_temp=r["temperature_c"], storage_rh=r["rh_pct"],
+                          price_now_per_kg=price_per_kg, price_origin=origin, forecast_points=fpts, storage_temp=r["temperature_c"], storage_rh=r["rh_pct"],
                           storage_cost_per_kg_day=0.6 if lot.mode == "advanced" else 0.0, transport_cost=dist_km * TRANSPORT_RS_PER_KM,
-                          commission_rate=0.06, other_costs=0.0, max_days=10, seed_key=f"lot-{lot.id}")
+                          commission_rate=0.06, other_costs=0.0, max_days=len(fpts) if fpts else horizon, seed_key=f"lot-{lot.id}")
     per_grade = None
     if lot.grading and chosen:
         price_for = {"A1": chosen["max_per_kg"], "A2": chosen["modal_per_kg"], "A3": chosen["min_per_kg"]}
@@ -699,6 +801,8 @@ def decision(db: Session, lot: Lot, price_per_kg: float | None, market: str | No
            "rows": res["rows"], "assumptions": res["assumptions"] + [f"Transport {TRANSPORT_RS_PER_KM:.0f} Rs/km for {dist_km:.0f} km (assumption).",
                                                                      "Commission 6% (typical APMC; assumption)."],
            "price_per_kg": price_per_kg, "price_origin": origin, "market": chosen, "per_grade": per_grade,
+           "forecast": {k: fc.get(k) for k in ("status", "message", "model", "trained_points", "last_observation", "metrics", "beats_naive_baseline_7d",
+                                                "weather_features", "market", "variety", "price_source", "weather_source", "trend_from_other_market", "label", "used")},
            "grade_price_basis": "A1 at the mandi maximum, A2 at modal, A3 at minimum price" if per_grade else None}
     lot.decision = {k: out[k] for k in ("recommendation", "best_day", "gain_vs_now", "price_per_kg", "price_origin", "shelf_life_days")} | {
         "net_now": res["sell_now"]["net_profit"], "net_best": res["best"]["net_profit"], "at": datetime.utcnow().isoformat(timespec="seconds")}

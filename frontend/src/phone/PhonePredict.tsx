@@ -1,4 +1,5 @@
 import { ChoiceBar } from "./PhoneExtras";
+import { SellPlanner, SpoilageSlider } from "./PhoneSliders";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, post } from "../lib/api";
@@ -70,6 +71,7 @@ function Spoilage({ lot }: { lot: any }) {
         <div className="mt-1 font-mono text-3xl font-bold text-coldlight">{days(d.at_recommended.shelf_life_days)}</div>
         <div className="mt-2">{bar(d.at_recommended.shelf_life_days, max, "#7FC4FF")}</div>
       </div>
+      <SpoilageSlider curves={d.curves} horizon={d.horizon_days} qMin={d.q_min} />
       <div className="grid grid-cols-3 gap-2 text-center text-xs">
         <div className="border border-paper-300 p-2"><div className="font-mono text-xl font-bold">{num(d.quality, 0)}</div>quality now</div>
         <div className="border border-paper-300 p-2"><div className="font-mono text-xl font-bold">{kg(d.saleable_kg)}</div>saleable</div>
@@ -138,6 +140,7 @@ function Decide({ lot, onDispatched }: { lot: any; onDispatched: () => void }) {
             <div className="mt-1 text-sm">Net today {inr(d.sell_now.net_profit)}{d.recommendation === "store_and_sell_later" ? ` · on day ${d.best_day} ${inr(d.best.net_profit)} (+${inr(d.gain_vs_now)})` : ""}</div>
             <div className="mt-1 text-[11px] opacity-70">Price {inr(d.price_per_kg)}/kg · {d.price_origin}</div>
           </div>
+          <SellPlanner d={d} />
           {d.per_grade && (
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               {Object.entries(d.per_grade).map(([g, v]: any) => <div key={g} className="border border-paper-300 p-2"><div className="font-bold text-gold">{g}</div>{kg(v.kg)}<div>{inr(v.price_per_kg)}/kg</div></div>)}
