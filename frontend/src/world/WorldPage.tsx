@@ -292,8 +292,8 @@ export default function WorldPage() {
 
       {/* no lot yet: pairing */}
       {!lots.length && station && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-ink/25">
-          <div className="flex flex-wrap items-start justify-center gap-4">
+        <div className="absolute inset-x-0 bottom-0 top-24 z-20 overflow-y-auto">
+          <div className="flex min-h-full flex-wrap items-start justify-center gap-4 px-4 pb-20 pt-4">
             <div className="max-w-sm space-y-3">
               <div className="hud p-5">
                 <div className="font-display text-3xl font-bold leading-tight">Field to market,<br /><span className="text-gold">live.</span></div>
