@@ -45,6 +45,7 @@ class BatchCreate(BaseModel):
     variety: str | None = None
     quantity_kg: float
     harvest_time: datetime | None = None
+    harvest_hours_ago: float | None = Field(None, ge=0, le=720)
     maturity: str | None = None
     initial_quality: float | None = None
     district: str = "kolar"
@@ -79,7 +80,10 @@ def next_batch_id(db: Session, produce: str) -> str:
 
 def create_batch(db: Session, body: BatchCreate) -> Batch:
     now = domain.sim_now(db)
-    harvest = body.harvest_time or (now - timedelta(hours=6))
+    if body.harvest_time is not None:
+        harvest = body.harvest_time
+    else:
+        harvest = now - timedelta(hours=body.harvest_hours_ago if body.harvest_hours_ago is not None else 6)
     errors = validate_batch(produce=body.produce, quantity_kg=body.quantity_kg, harvest_time=harvest, now=now, maturity=body.maturity,
                             initial_quality=body.initial_quality, storage_type=body.storage_type)
     pts = geo.points()

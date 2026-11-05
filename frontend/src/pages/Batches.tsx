@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Camera, Plus, Sprout } from "lucide-react";
 import { api, post } from "../lib/api";
 import { days, inr, kg, MATURITY, PRODUCE_EMOJI, RISK_STYLE, STORAGE } from "../lib/format";
-import { useLive, useSelection } from "../stores/live";
+import { useSelection } from "../stores/live";
 import { Badge, Card, cn, ErrorBox, Loading, Note, OriginTag, PageHeader, Spinner } from "../components/ui";
 
 const EMPTY = { produce: "tomato", variety: "", quantity_kg: 500, maturity: "mature_green", initial_quality: 95 as number | "", district: "kolar",
@@ -13,8 +13,6 @@ const EMPTY = { produce: "tomato", variety: "", quantity_kg: 500, maturity: "mat
 function RegisterForm({ onDone, prefill }: { onDone: (id: string) => void; prefill?: any }) {
   const [f, setF] = useState<any>({ ...EMPTY, ...(prefill || {}) });
   const { data: pts } = useQuery({ queryKey: ["points"], queryFn: () => api("/geo/points"), staleTime: Infinity });
-  const { data: dash } = useQuery({ queryKey: ["dashboard"], queryFn: () => api("/dashboard") });
-  const simNow = useLive((s) => s.simNow) || dash?.sim_now;
   const qc = useQueryClient();
   const [img, setImg] = useState<any>(null);
   const [imgBusy, setImgBusy] = useState(false);
@@ -22,11 +20,8 @@ function RegisterForm({ onDone, prefill }: { onDone: (id: string) => void; prefi
   const storages = (pts?.points || []).filter((p: any) => p.kind === "cold_storage");
   const create = useMutation({
     mutationFn: () => {
-      const harvest = simNow ? new Date(Date.parse(simNow) - f.harvest_hours_ago * 3600e3) : undefined;
-      const pad = (n: number) => String(n).padStart(2, "0");
-      const iso = harvest ? `${harvest.getFullYear()}-${pad(harvest.getMonth() + 1)}-${pad(harvest.getDate())}T${pad(harvest.getHours())}:${pad(harvest.getMinutes())}:00` : undefined;
       return post("/batches", {
-        produce: f.produce, variety: f.variety || null, quantity_kg: Number(f.quantity_kg), harvest_time: iso,
+        produce: f.produce, variety: f.variety || null, quantity_kg: Number(f.quantity_kg), harvest_hours_ago: Number(f.harvest_hours_ago),
         maturity: f.maturity_known ? f.maturity : null, initial_quality: f.quality_known && f.initial_quality !== "" ? Number(f.initial_quality) : null,
         district: f.district, storage_type: f.storage_type, facility_id: f.storage_type === "cold_storage" ? f.facility_id || null : null,
         farmer_name: f.farmer_name || null,

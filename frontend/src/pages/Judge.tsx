@@ -9,6 +9,7 @@ import { Logo } from "../components/Layout";
 import { Badge, cn, ConfidenceBadge, Loading, Spinner } from "../components/ui";
 
 const KEY = "zr-judge-batch";
+let creating = false; // guards against double creation (React StrictMode runs effects twice in dev)
 
 /** Mobile farmer view opened from the Control Room QR code. */
 export default function Judge() {
@@ -18,7 +19,11 @@ export default function Judge() {
   const [bid, setBid] = useState<string | null>(() => { try { return localStorage.getItem(KEY); } catch { return null; } });
   const create = useMutation({ mutationFn: () => post("/judge/session"), onSuccess: (b: any) => { try { localStorage.setItem(KEY, b.id); } catch { /* ignore */ } setBid(b.id); } });
   const { data: batch, error } = useQuery({ queryKey: ["batch", bid, version], queryFn: () => api(`/batches/${bid}`), enabled: !!bid, retry: false, refetchInterval: 8000 });
-  useEffect(() => { if (!bid && !create.isPending && !create.isSuccess) create.mutate(); }, [bid]); // eslint-disable-line
+  useEffect(() => {
+    if (bid || creating) return;
+    creating = true;
+    create.mutate(undefined, { onSettled: () => { creating = false; } });
+  }, [bid]); // eslint-disable-line
   useEffect(() => { if (error && (error as any).status === 404) { try { localStorage.removeItem(KEY); } catch { /* ignore */ } setBid(null); } }, [error]);
   const { data: twin } = useQuery({ queryKey: ["twin", bid, version], queryFn: () => api(`/batches/${bid}/twin?horizon_days=7`), enabled: !!batch, refetchInterval: 15000 });
   const { data: dec } = useQuery({ queryKey: ["decide", bid, version], queryFn: () => api(`/decide/${bid}`), enabled: !!batch });

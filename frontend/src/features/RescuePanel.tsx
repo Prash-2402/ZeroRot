@@ -76,7 +76,7 @@ export function RescuePanel({ tripId, dark }: { tripId: string; dark?: boolean }
       {cmp && (
         <div className={cn("mt-4 rounded-lg border p-3", dark ? "border-leaf/40 bg-leaf/10" : "border-leaf/40 bg-leaf/5")}>
           <div className={cn("label", dark && "text-sage-500")}>Ghost comparison · same start state</div>
-          <div className="mt-2 grid grid-cols-2 gap-3 text-xs">
+          <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
             {[["Ghost: original plan", cmp.ghost], ["Approved reroute", cmp.reroute]].map(([l, r]: any) => (
               <div key={l} className={cn("rounded-md p-2", dark ? "bg-night-700" : "bg-white")}>
                 <div className={cn("font-semibold", strong)}>{l}</div>
@@ -88,9 +88,9 @@ export function RescuePanel({ tripId, dark }: { tripId: string; dark?: boolean }
               </div>
             ))}
           </div>
-          <div className="mt-3 flex items-baseline justify-between">
+          <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-2">
             <span className={cn("text-sm", strong)}>Value protected</span>
-            <span className={cn("num text-2xl font-semibold", cmp.value_protected > 0 ? "text-leaf" : "text-rot")}>{cmp.value_protected > 0 ? inr(cmp.value_protected) : "₹0"}</span>
+            <span className={cn("num whitespace-nowrap text-xl font-semibold", cmp.value_protected > 0 ? "text-leaf" : "text-rot")}>{cmp.value_protected > 0 ? inr(cmp.value_protected) : "₹0"}</span>
           </div>
           {!cmp.reroute_better && <div className="text-xs text-rot">The reroute is not better than continuing; no value protected.</div>}
           <div className={cn("mt-1 text-[11px]", muted)}>{cmp.label}</div>

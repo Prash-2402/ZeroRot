@@ -188,7 +188,7 @@ export default function ControlRoom() {
         <LiveMap dark trips={data?.trips || []} facilities={data?.facilities || []} stored={data?.stored_batches || []} focusTrip={activeTrip}
           onPick={(id) => { setBatch(id); nav("/twin"); }} />
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3 md:flex-row">
-          <div className="pointer-events-auto flex flex-col gap-3">
+          <div className="pointer-events-auto flex max-h-full flex-col gap-3 overflow-y-auto pb-10 [scrollbar-width:thin]">
             <StatsPanel stats={liveStats || data?.stats} />
             {activeTrip && <div className="w-full md:w-72"><RescuePanel tripId={activeTrip} dark /></div>}
           </div>
