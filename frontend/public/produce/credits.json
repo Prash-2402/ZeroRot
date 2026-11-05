@@ -1,72 +1,170 @@
 {
-  "_note": "Photos from Wikimedia Commons, cropped to 640x480. Each stage photo is chosen by the predicted quality (fresh >= 75, aging 55-75, spoiling < 55). Photos illustrate the stage; they are not pictures of the actual batch.",
-  "tomato_fresh": {
-    "title": "Red tomatoes. img 05.jpg",
-    "artist": "Dmitry Makeev",
-    "license": "CC BY-SA 4.0",
-    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "page": "https://commons.wikimedia.org/wiki/File:Red_tomatoes._img_05.jpg"
-  },
-  "tomato_aging": {
-    "title": "Tomato Mold 1 2021-05-06.jpeg",
-    "artist": "FASTILY",
-    "license": "CC BY-SA 4.0",
-    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "page": "https://commons.wikimedia.org/wiki/File:Tomato_Mold_1_2021-05-06.jpeg"
-  },
-  "tomato_spoiling": {
-    "title": "Mold on tomatoes (proxy).jpg",
-    "artist": "Calimo",
-    "license": "CC BY-SA 3.0",
-    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
-    "page": "https://commons.wikimedia.org/wiki/File:Mold_on_tomatoes_(proxy).jpg"
-  },
-  "mango_fresh": {
-    "title": "Near ripe mangoes.jpg",
-    "artist": "ChimaBee",
-    "license": "CC BY-SA 4.0",
-    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "page": "https://commons.wikimedia.org/wiki/File:Near_ripe_mangoes.jpg"
-  },
-  "mango_aging": {
-    "title": "Mango fruit Nam Dok Mai.jpg",
-    "artist": "Ivar Leidus",
-    "license": "CC BY-SA 4.0",
-    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "page": "https://commons.wikimedia.org/wiki/File:Mango_fruit_Nam_Dok_Mai.jpg"
-  },
-  "mango_spoiling": {
-    "title": "Rotten mango.jpg",
-    "artist": "Jessephu",
-    "license": "CC BY-SA 4.0",
-    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "page": "https://commons.wikimedia.org/wiki/File:Rotten_mango.jpg"
-  },
-  "banana_fresh": {
-    "title": "Green raw bananas.jpg",
-    "artist": "Vitaium",
-    "license": "CC BY-SA 4.0",
-    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "page": "https://commons.wikimedia.org/wiki/File:Green_raw_bananas.jpg"
-  },
-  "banana_aging": {
-    "title": "Ripe bananas in West Bengal, India.jpg",
-    "artist": "Billjones94",
-    "license": "CC BY-SA 4.0",
-    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "page": "https://commons.wikimedia.org/wiki/File:Ripe_bananas_in_West_Bengal,_India.jpg"
-  },
-  "banana_spoiling": {
-    "title": "Overripe lacatan bananas.jpg",
-    "artist": "Obsidi♠nSoul",
-    "license": "Public domain",
-    "license_url": null,
-    "page": "https://commons.wikimedia.org/wiki/File:Overripe_lacatan_bananas.jpg"
-  },
-  "assistant_face": {
-    "file": "/assistant/face.jpg",
-    "source": "https://commons.wikimedia.org/wiki/File:Woman_1.jpg",
-    "license": "Public domain (AI-generated image of a person who does not exist)",
-    "note": "Used as the voice assistant's face"
-  }
+ "_note": "Photos from Wikimedia Commons, cropped to 640x480. Each stage photo is chosen by the predicted quality (fresh >= 75, aging 55-75, spoiling < 55). Photos illustrate the stage; they are not pictures of the actual batch.",
+ "tomato_fresh": {
+  "title": "Red tomatoes. img 05.jpg",
+  "artist": "Dmitry Makeev",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Red_tomatoes._img_05.jpg"
+ },
+ "tomato_aging": {
+  "title": "Tomato Mold 1 2021-05-06.jpeg",
+  "artist": "FASTILY",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Tomato_Mold_1_2021-05-06.jpeg"
+ },
+ "tomato_spoiling": {
+  "title": "Mold on tomatoes (proxy).jpg",
+  "artist": "Calimo",
+  "license": "CC BY-SA 3.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Mold_on_tomatoes_(proxy).jpg"
+ },
+ "mango_fresh": {
+  "title": "Near ripe mangoes.jpg",
+  "artist": "ChimaBee",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Near_ripe_mangoes.jpg"
+ },
+ "mango_aging": {
+  "title": "Mango fruit Nam Dok Mai.jpg",
+  "artist": "Ivar Leidus",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Mango_fruit_Nam_Dok_Mai.jpg"
+ },
+ "mango_spoiling": {
+  "title": "Rotten mango.jpg",
+  "artist": "Jessephu",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Rotten_mango.jpg"
+ },
+ "banana_fresh": {
+  "title": "Green raw bananas.jpg",
+  "artist": "Vitaium",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Green_raw_bananas.jpg"
+ },
+ "banana_aging": {
+  "title": "Ripe bananas in West Bengal, India.jpg",
+  "artist": "Billjones94",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Ripe_bananas_in_West_Bengal,_India.jpg"
+ },
+ "banana_spoiling": {
+  "title": "Overripe lacatan bananas.jpg",
+  "artist": "Obsidi♠nSoul",
+  "license": "Public domain",
+  "license_url": null,
+  "page": "https://commons.wikimedia.org/wiki/File:Overripe_lacatan_bananas.jpg"
+ },
+ "assistant_face": {
+  "file": "/assistant/face.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Woman_1.jpg",
+  "license": "Public domain (AI-generated image of a person who does not exist)",
+  "note": "Used as the voice assistant's face"
+ },
+ "brinjal_fresh": {
+  "title": "Green brinjals at Gara market, Srikakulam.jpg",
+  "artist": "K.Venkataramana",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "page": "https://commons.wikimedia.org/wiki/File:Green_brinjals_at_Gara_market,_Srikakulam.jpg"
+ },
+ "cabbage_fresh": {
+  "title": "Cabbage on farm.jpg",
+  "artist": "Yusuf Muhammed Thanni",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Cabbage_on_farm.jpg"
+ },
+ "carrot_fresh": {
+  "title": "Nilgiris organic farm fresh carrots.jpg",
+  "artist": "Karthikasiva03",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Nilgiris_organic_farm_fresh_carrots.jpg"
+ },
+ "cauliflower_fresh": {
+  "title": "Chou-fleur 02.jpg",
+  "artist": "Coyau",
+  "license": "CC BY-SA 3.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Chou-fleur_02.jpg"
+ },
+ "grapes_fresh": {
+  "title": "\"Bunch of Green Grapes in Salem\".jpg",
+  "artist": "Thamizhpparithi Maari",
+  "license": "CC BY-SA 3.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:%22Bunch_of_Green_Grapes_in_Salem%22.jpg"
+ },
+ "green_chilli_fresh": {
+  "title": "Green chillies variety.jpg",
+  "artist": "Medhi jyoti",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Green_chillies_variety.jpg"
+ },
+ "maize_fresh": {
+  "title": "Corn on the cob (sweet corn).jpg",
+  "artist": "Nutrition, Food Safety &amp; Health",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "page": "https://commons.wikimedia.org/wiki/File:Corn_on_the_cob_(sweet_corn).jpg"
+ },
+ "okra_fresh": {
+  "title": "Ladies Fingers.jpg",
+  "artist": "ChanakaW",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Ladies_Fingers.jpg"
+ },
+ "orange_fresh": {
+  "title": "Oranges - whole-halved-segment.jpg",
+  "artist": "Ivar Leidus",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Oranges_-_whole-halved-segment.jpg"
+ },
+ "papaya_fresh": {
+  "title": "Papaya cut half.jpg",
+  "artist": "Maksym Kozlenko",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Papaya_cut_half.jpg"
+ },
+ "pomegranate_fresh": {
+  "title": "Pomegranate (opened).jpg",
+  "artist": "Ivar Leidus",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Pomegranate_(opened).jpg"
+ },
+ "rice_fresh": {
+  "title": "Ripening rice plants in paddy field, Indonesia.jpg",
+  "artist": "Undeka 11",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Ripening_rice_plants_in_paddy_field,_Indonesia.jpg"
+ },
+ "wheat_fresh": {
+  "title": "Wheat close-up.JPG",
+  "artist": "User:Bluemoose",
+  "license": "CC BY-SA 3.0",
+  "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+  "page": "https://commons.wikimedia.org/wiki/File:Wheat_close-up.JPG"
+ },
+ "potato_fresh": {
+  "title": "Solanales - Solanum tuberosum - 3.jpg",
+  "artist": "DenesFeri",
+  "license": "CC BY-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Solanales_-_Solanum_tuberosum_-_3.jpg"
+ }
 }

@@ -22,6 +22,8 @@ export const CROPS = [
   { id: "banana", name: "Banana", kn: "ಬಾಳೆಹಣ್ಣು", img: "/produce/banana_fresh.jpg" },
   { id: "potato", name: "Potato", kn: "ಆಲೂಗಡ್ಡೆ", img: null },
 ];
+// openly licensed Wikimedia Commons photos (credits in public/produce/credits.json)
+const PHOTO_CROPS = ["brinjal", "cabbage", "carrot", "cauliflower", "grapes", "green_chilli", "maize", "okra", "orange", "papaya", "pomegranate", "potato", "rice", "wheat"];
 export const STAGE_LABEL: Record<string, string> = { intake: "Loading", storage: "Stored", grading: "Scanning", graded: "Sorted", dispatched: "In transit", arrived: "Arrived", delivered: "Delivered" };
 
 /* ---------------- pairing ---------------- */
@@ -75,7 +77,8 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
   const [error, setError] = useState<any>(null);
   const kgVal = (Number(qty) || 0) * (unit === "t" ? 1000 : 1);
   const comms = useQuery({ queryKey: ["commodities"], queryFn: () => api("/commodities"), staleTime: 3600000 });
-  const PHOTO = Object.fromEntries(CROPS.filter((c) => c.img).map((c) => [c.id, c.img]));
+  const PHOTO: Record<string, string | null> = { ...Object.fromEntries(CROPS.filter((c) => c.img).map((c) => [c.id, c.img])),
+    ...Object.fromEntries(PHOTO_CROPS.map((id) => [id, `/produce/${id}_fresh.jpg`])) };
   const crops = (comms.data?.commodities || []).filter((c: any) => c.prediction_supported)
     .map((c: any) => ({ id: c.id, name: c.name, kn: c.name_kn || c.name, img: PHOTO[c.id] || null, life: c.storage?.storage_life_days, t: c.storage?.temperature_c }));
   const gps = () => {
