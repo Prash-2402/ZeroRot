@@ -498,6 +498,30 @@ def parse_entry(body: ParseIn, request: Request, p: Principal = Depends(current_
     return {**d, "commodity": local["commodity"] or d["commodity"], "quantity_kg": local["quantity_kg"] or d["quantity_kg"], "parser": "rules+groq"}
 
 
+# ---------------- Kannada voice (offline female TTS) ----------------
+class TtsIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=600)
+
+
+@router.post("/tts")
+def tts(body: TtsIn, request: Request, p: Principal = Depends(current_principal)):
+    from fastapi import Response
+    from app.integrations import tts_kn
+    if not ai_limiter.check(f"tts:{request.client.host if request.client else '?'}"):
+        err(429, "rate_limited", "Too many voice requests; wait a little")
+    try:
+        wav = tts_kn.synthesize(body.text)
+    except tts_kn.Unavailable as e:
+        err(503, "voice_unavailable", str(e))
+    return Response(content=wav, media_type="audio/wav", headers={"Cache-Control": "no-store"})
+
+
+@router.get("/tts/status")
+def tts_status(p: Principal = Depends(current_principal)):
+    from app.integrations import tts_kn
+    return {"kannada_voice": tts_kn.available(), "credit": tts_kn.CREDIT}
+
+
 # ---------------- assistant ----------------
 class ChatIn(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)

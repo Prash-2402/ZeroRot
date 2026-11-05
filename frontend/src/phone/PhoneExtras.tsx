@@ -38,13 +38,69 @@ export function useListen() {
   return { listening, error, start, stop };
 }
 
+const FEMALE = /female|woman|zira|heera|neerja|swara|kalpana|veena|lekha|samantha|susan|hazel|libby|sonia|aria|jenny|google uk english female|google हिन्दी/i;
+const MALE = /\bmale\b|ravi|hemant|prabhat|madhur|david|mark|george|daniel|guy|ryan/i;
+export const deviceHasKannadaVoice = () => speechOutSupported() && window.speechSynthesis.getVoices().some((v) => v.lang.startsWith("kn"));
+
+/* the app's own female Kannada voice (backend, offline model), played sentence by sentence */
+let playing: { stop: () => void } | null = null;
+async function speakWithAppVoice(text: string, onStart?: () => void, onEnd?: () => void) {
+  const { useAuth } = await import("../stores/auth");
+  const st = useAuth.getState();
+  const token = st.mobileToken || st.token;
+  const parts = text.split(/(?<=[.!?।])\s+/).map((x) => x.trim()).filter(Boolean).slice(0, 12);
+  let stopped = false, started = false;
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 512;
+  analyser.connect(ctx.destination);
+  const buf = new Uint8Array(analyser.fftSize);
+  let raf = 0;
+  const meter = () => {   // loudness drives the avatar's mouth
+    analyser.getByteTimeDomainData(buf);
+    let sum = 0;
+    for (const b of buf) sum += ((b - 128) / 128) ** 2;
+    voice.pulse = Math.max(voice.pulse, Math.min(1, Math.sqrt(sum / buf.length) * 6));
+    raf = requestAnimationFrame(meter);
+  };
+  let current: AudioBufferSourceNode | null = null;
+  playing = { stop: () => { stopped = true; try { current?.stop(); } catch { /* already stopped */ } } };
+  const fetchPart = (t: string) => fetch("/api/v1/flow/tts", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ text: t }) })
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`voice ${r.status}`)))).then((b) => ctx.decodeAudioData(b));
+  try {
+    let next = fetchPart(parts[0]);
+    for (let i = 0; i < parts.length && !stopped; i++) {
+      const audio = await next;
+      if (i + 1 < parts.length) next = fetchPart(parts[i + 1]);   // fetch the next sentence while this one plays
+      if (stopped) break;
+      if (!started) { started = true; onStart?.(); meter(); }
+      await new Promise<void>((res) => {
+        current = ctx.createBufferSource();
+        current.buffer = audio;
+        current.connect(analyser);
+        current.onended = () => res();
+        current.start();
+      });
+    }
+  } catch { /* voice unavailable: the text reply is still shown */ }
+  cancelAnimationFrame(raf);
+  ctx.close().catch(() => undefined);
+  onEnd?.();
+}
+
 export function speak(text: string, lang: "en" | "kn", onStart?: () => void, onEnd?: () => void) {
+  playing?.stop();
+  playing = null;
+  if (lang === "kn" && !deviceHasKannadaVoice()) { speakWithAppVoice(text, onStart, onEnd); return; }
   if (!speechOutSupported()) { onEnd?.(); return; }
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   const voices = window.speechSynthesis.getVoices();
   const want = lang === "kn" ? ["kn-IN", "kn"] : ["en-IN", "en-GB", "en"];
-  u.voice = voices.find((v) => want.some((w) => v.lang.startsWith(w))) || null;
+  const langOk = voices.filter((v) => want.some((w) => v.lang.startsWith(w)));
+  // the assistant is a woman: prefer a female voice, avoid known male ones
+  u.voice = langOk.find((v) => FEMALE.test(v.name)) || langOk.find((v) => !MALE.test(v.name)) || langOk[0] || null;
+  u.pitch = u.voice && FEMALE.test(u.voice.name) ? 1 : 1.15;
   u.lang = lang === "kn" ? "kn-IN" : "en-IN";
   u.rate = 0.98;
   u.onstart = () => onStart?.();
@@ -261,7 +317,7 @@ export function AssistantTab({ lot }: { lot: any }) {
   const [err, setErr] = useState<any>(null);
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
-  useEffect(() => () => { if (speechOutSupported()) window.speechSynthesis.cancel(); }, []);
+  useEffect(() => () => { playing?.stop(); if (speechOutSupported()) window.speechSynthesis.cancel(); }, []);
   const ask = async (q: string) => {
     if (!q.trim()) return;
     setText(""); setErr(null);
@@ -290,9 +346,7 @@ export function AssistantTab({ lot }: { lot: any }) {
           {listening ? <MicOff className="h-7 w-7" /> : <Mic className="h-7 w-7" />}
         </motion.button>
         {error && <div className="mt-2 text-xs text-[#ffd0c4]">{error}</div>}
-        {micLang === "kn" && speechOutSupported() && !window.speechSynthesis.getVoices().some((v) => v.lang.startsWith("kn")) && (
-          <div className="mt-1 text-[10px] text-[#ffd0c4]">This device has no Kannada voice installed, so replies may not be read aloud (install Kannada in the phone's text-to-speech settings).</div>
-        )}
+        {micLang === "kn" && !deviceHasKannadaVoice() && <div className="mt-1 text-[10px] opacity-60">Kannada voice: SYSPIN Kannada Female (CC BY 4.0)</div>}
       </div>
       <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
         {msgs.length === 0 && quick.map((q) => <button key={q} onClick={() => ask(q)} className="block w-full rounded-2xl border border-paper-300 bg-white p-3 text-left text-sm">{q}</button>)}

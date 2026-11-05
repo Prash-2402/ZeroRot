@@ -120,6 +120,8 @@ async def startup():
     with SessionLocal() as db:
         sync_commodities(db)
     manager.start()
+    from app.integrations import tts_kn
+    tts_kn.warm_up()   # optional offline Kannada voice; loads in the background
 
 
 DIST = ROOT / "frontend" / "dist"

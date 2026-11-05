@@ -16,3 +16,6 @@ backend/models/*.onnx
 
 .vapid.json
 backend/.dev_admin
+
+# downloaded voice models (large; fetched separately)
+backend/models/tts_kn_female/*.pt
