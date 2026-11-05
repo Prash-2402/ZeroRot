@@ -39,10 +39,10 @@ function Pair({ token }: { token: string }) {
     <div className="flex min-h-[80vh] flex-col justify-center px-6">
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center bg-gold"><span className="font-display text-3xl font-black text-ink">Z</span></div>
-        <h1 className="font-display text-3xl font-bold text-paper">{t("Enter PIN")}</h1>
-        <p className="mt-2 text-sm text-ink-300">The 6-digit PIN is shown on the laptop next to the QR code.</p>
+        <h1 className="font-display text-3xl font-bold text-ink">{t("Enter PIN")}</h1>
+        <p className="mt-2 text-sm text-ink-400">The 6-digit PIN is shown on the laptop next to the QR code.</p>
       </div>
-      <input className="w-full border-2 border-ink-500 bg-ink-800 py-4 text-center font-mono text-4xl tracking-[0.5em] text-paper outline-none focus:border-gold"
+      <input className="w-full border-2 border-paper-400 bg-white py-4 text-center font-mono text-4xl tracking-[0.5em] text-ink outline-none focus:border-teal"
         inputMode="numeric" maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} autoFocus aria-label="PIN" />
       {error && <div className="mt-3"><ErrorBox error={error} /></div>}
       <button className="mt-4 w-full bg-gold py-4 text-lg font-bold text-ink disabled:opacity-40" disabled={pin.length !== 6 || busy} onClick={go}>{busy ? <Spinner /> : t("Connect")}</button>
@@ -93,9 +93,9 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
         <div className="ph-label">1 · {t("Crop")}</div>
         <div className="grid grid-cols-4 gap-2">
           {CROPS.map((c) => (
-            <button key={c.id} onClick={() => setCrop(c.id)} className={cn("overflow-hidden border-2 text-center", crop === c.id ? "border-gold" : "border-ink-600")}>
-              {c.img ? <img src={c.img} alt="" className="aspect-square w-full object-cover" /> : <div className="flex aspect-square items-center justify-center bg-ink-700 text-3xl">🥔</div>}
-              <div className={cn("py-1 text-[11px] font-semibold", crop === c.id ? "bg-gold text-ink" : "bg-ink-800 text-paper")}>{lang === "kn" ? c.kn : c.name}</div>
+            <button key={c.id} onClick={() => setCrop(c.id)} className={cn("overflow-hidden border-2 text-center", crop === c.id ? "border-teal" : "border-paper-300")}>
+              {c.img ? <img src={c.img} alt="" className="aspect-square w-full object-cover" /> : <div className="flex aspect-square items-center justify-center bg-paper-200 text-3xl">🥔</div>}
+              <div className={cn("py-1 text-[11px] font-semibold", crop === c.id ? "bg-teal text-white" : "bg-white text-ink")}>{lang === "kn" ? c.kn : c.name}</div>
             </button>
           ))}
         </div>
@@ -104,9 +104,9 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
         <div className="ph-label">2 · {t("Quantity")}</div>
         <div className="flex">
           <input className="ph-input min-w-0 flex-1 text-2xl font-bold" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ""))} aria-label="Quantity" />
-          {(["t", "kg"] as const).map((u) => <button key={u} onClick={() => setUnit(u)} className={cn("w-16 shrink-0 border-2 text-sm font-bold", unit === u ? "border-gold bg-gold text-ink" : "border-ink-600 text-paper")}>{u === "t" ? "tonne" : "kg"}</button>)}
+          {(["t", "kg"] as const).map((u) => <button key={u} onClick={() => setUnit(u)} className={cn("w-16 shrink-0 border-2 text-sm font-bold", unit === u ? "border-teal bg-teal text-white" : "border-paper-300 text-ink")}>{u === "t" ? "tonne" : "kg"}</button>)}
         </div>
-        <div className="mt-1 text-xs text-ink-300">= {kg(kgVal)}{kgVal > 50000 || kgVal < 50 ? " · must be 50 kg – 50 t" : ""}</div>
+        <div className="mt-1 text-xs text-ink-400">= {kg(kgVal)}{kgVal > 50000 || kgVal < 50 ? " · must be 50 kg – 50 t" : ""}</div>
       </section>
       <section>
         <div className="ph-label">3 · {t("Harvest condition")}</div>
@@ -126,8 +126,8 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
       <section>
         <div className="ph-label">4 · {t("Location")}</div>
         {loc ? (
-          <div className="flex items-center justify-between border-2 border-gold bg-ink-800 p-3 text-paper">
-            <span className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-gold" />{loc.name}</span>
+          <div className="flex items-center justify-between border-2 border-gold bg-white p-3 text-ink">
+            <span className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-teal" />{loc.name}</span>
             <button className="text-xs font-bold text-gold underline" onClick={() => { setLoc(null); setResults(null); }}>Change</button>
           </div>
         ) : (
@@ -138,12 +138,12 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
               <button className="ph-btn-line w-14" onClick={search} aria-label="Search">{busy === "search" ? <Spinner /> : <Search className="h-5 w-5" />}</button>
             </div>
             {results && (
-              <div className="border border-ink-600 bg-ink-800">
-                {results.length === 0 && <div className="p-3 text-sm text-ink-300">No places found.</div>}
+              <div className="border border-paper-300 bg-white">
+                {results.length === 0 && <div className="p-3 text-sm text-ink-400">No places found.</div>}
                 {results.map((r, i) => (
-                  <button key={i} className="block w-full border-b border-ink-700 px-3 py-2.5 text-left text-sm text-paper last:border-0"
+                  <button key={i} className="block w-full border-b border-paper-300 px-3 py-2.5 text-left text-sm text-ink last:border-0"
                     onClick={() => setLoc({ name: [r.name, r.admin1].filter(Boolean).join(", "), lat: r.lat, lng: r.lng })}>
-                    {r.name}<span className="text-ink-300">{r.admin1 ? `, ${r.admin1}` : ""}</span>
+                    {r.name}<span className="text-ink-400">{r.admin1 ? `, ${r.admin1}` : ""}</span>
                   </button>
                 ))}
               </div>
@@ -155,10 +155,10 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
         <div className="ph-label">5 · {t("Choose godown")}</div>
         <div className="grid grid-cols-2 gap-2">
           {([["traditional", Warehouse, "Weather-based predictions, alerts and suggestions. No sensors."], ["advanced", Snowflake, "Sensors inside; temperature and humidity adjusted automatically. Scan & bag."]] as const).map(([m, Icon, d]) => (
-            <button key={m} onClick={() => setMode(m)} className={cn("border-2 p-3 text-left", mode === m ? "border-gold bg-gold/10" : "border-ink-600")}>
-              <Icon className={cn("h-6 w-6", mode === m ? "text-gold" : "text-ink-300")} />
-              <div className="mt-2 font-bold text-paper">{t(m === "traditional" ? "Traditional" : "Advanced")}</div>
-              <div className="mt-1 text-[11px] leading-snug text-ink-300">{d}</div>
+            <button key={m} onClick={() => setMode(m)} className={cn("border-2 p-3 text-left", mode === m ? "border-teal bg-teal/10" : "border-paper-300")}>
+              <Icon className={cn("h-6 w-6", mode === m ? "text-teal" : "text-ink-400")} />
+              <div className="mt-2 font-bold text-ink">{t(m === "traditional" ? "Traditional" : "Advanced")}</div>
+              <div className="mt-1 text-[11px] leading-snug text-ink-400">{d}</div>
             </button>
           ))}
         </div>
@@ -179,10 +179,10 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
 /* ---------------- godown ---------------- */
 function Big({ icon: Icon, label, value, unit, color, sub }: any) {
   return (
-    <div className="border border-ink-600 bg-ink-800 p-3">
-      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-ink-300"><Icon className="h-3.5 w-3.5" />{label}</div>
-      <div className="mt-1 font-mono text-3xl font-bold" style={{ color: color || "#F3EEE8" }}>{value}<span className="ml-1 text-sm text-ink-300">{unit}</span></div>
-      {sub && <div className="text-[11px] text-ink-300">{sub}</div>}
+    <div className="border border-paper-300 bg-white p-3">
+      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-ink-400"><Icon className="h-3.5 w-3.5" />{label}</div>
+      <div className="mt-1 font-mono text-3xl font-bold" style={{ color: color || "#17645F" }}>{value}<span className="ml-1 text-sm text-ink-400">{unit}</span></div>
+      {sub && <div className="text-[11px] text-ink-400">{sub}</div>}
     </div>
   );
 }
@@ -192,7 +192,7 @@ function GodownTab({ lot, refresh }: { lot: any; refresh: () => void }) {
   const st = lot.storage;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<any>(null);
-  if (!st) return <div className="p-6 text-ink-300">Godown state unavailable.</div>;
+  if (!st) return <div className="p-6 text-ink-400">Godown state unavailable.</div>;
   const r = st.readings, eq = st.equipment, pred = st.prediction;
   const sp = st.setpoint ?? 13;
   const ctl = async (name: string, value: any) => {
@@ -207,10 +207,10 @@ function GodownTab({ lot, refresh }: { lot: any; refresh: () => void }) {
   return (
     <div className="space-y-4 p-4 pb-28">
       {st.loading && !st.loading.done && (
-        <div className="border border-gold bg-gold/10 p-3">
-          <div className="flex justify-between text-sm font-bold text-gold"><span>{t("Loading")}…</span><span>{kg(st.loading.kg_loaded)} / {kg(lot.quantity_kg)}</span></div>
-          <div className="mt-2 h-2 bg-ink-700"><div className="h-2 bg-gold transition-all" style={{ width: `${st.loading.progress * 100}%` }} /></div>
-          <div className="mt-1 text-[11px] text-ink-300">Door stays open while crates are carried in.</div>
+        <div className="border border-teal/40 bg-teal/10 p-3">
+          <div className="flex justify-between text-sm font-bold text-teal"><span>{t("Loading")}…</span><span>{kg(st.loading.kg_loaded)} / {kg(lot.quantity_kg)}</span></div>
+          <div className="mt-2 h-2 bg-paper-200"><div className="h-2 bg-teal transition-all" style={{ width: `${st.loading.progress * 100}%` }} /></div>
+          <div className="mt-1 text-[11px] text-ink-400">Door stays open while crates are carried in.</div>
         </div>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -220,11 +220,11 @@ function GodownTab({ lot, refresh }: { lot: any; refresh: () => void }) {
         <Big icon={LineChart} label={t("Shelf life")} value={pred ? days(pred.shelf_life_days) : "—"} sub={pred ? `range ${days(pred.shelf_life_p10)} – ${days(pred.shelf_life_p90)}` : "calculating…"} />
       </div>
       <div className="grid grid-cols-3 gap-2 text-center text-xs">
-        <div className={cn("border p-2", eq.door_open ? "border-abnormal text-abnormal" : "border-ink-600 text-paper")}><DoorOpen className="mx-auto h-5 w-5" />{t("Door")}: {eq.door_open ? t("Open") : t("Closed")}</div>
+        <div className={cn("border p-2", eq.door_open ? "border-abnormal text-abnormal" : "border-paper-300 text-ink")}><DoorOpen className="mx-auto h-5 w-5" />{t("Door")}: {eq.door_open ? t("Open") : t("Closed")}</div>
         {lot.mode === "traditional"
-          ? <div className={cn("border p-2", eq.vents_open ? "border-gold text-gold" : "border-ink-600 text-paper")}><Wind className="mx-auto h-5 w-5" />{t("Vents")}: {eq.vents_open ? t("Open") : t("Closed")}</div>
-          : <div className={cn("border p-2", st.flows?.q_cool_w > 0 ? "border-coldlight text-coldlight" : "border-ink-600 text-paper")}><Fan className="mx-auto h-5 w-5" />{t("Cooling")}: {num((st.flows?.q_cool_w || 0) / 1000, 1)} kW</div>}
-        <div className="border border-ink-600 p-2 text-paper"><Snowflake className="mx-auto h-5 w-5" />{lot.mode === "advanced" ? `set ${num(sp)} °C` : "no cooling"}</div>
+          ? <div className={cn("border p-2", eq.vents_open ? "border-gold text-gold" : "border-paper-300 text-ink")}><Wind className="mx-auto h-5 w-5" />{t("Vents")}: {eq.vents_open ? t("Open") : t("Closed")}</div>
+          : <div className={cn("border p-2", st.flows?.q_cool_w > 0 ? "border-coldlight text-coldlight" : "border-paper-300 text-ink")}><Fan className="mx-auto h-5 w-5" />{t("Cooling")}: {num((st.flows?.q_cool_w || 0) / 1000, 1)} kW</div>}
+        <div className="border border-paper-300 p-2 text-ink"><Snowflake className="mx-auto h-5 w-5" />{lot.mode === "advanced" ? `set ${num(sp)} °C` : "no cooling"}</div>
       </div>
       {active && (
         <div className="space-y-2">
@@ -236,17 +236,17 @@ function GodownTab({ lot, refresh }: { lot: any; refresh: () => void }) {
               : <div className="flex"><button disabled={busy} className="ph-btn-line flex-1" onClick={() => ctl("setpoint", sp - 0.5)}>− 0.5°</button><button disabled={busy} className="ph-btn-line flex-1" onClick={() => ctl("setpoint", sp + 0.5)}>+ 0.5°</button></div>}
           </div>
           {error && <ErrorBox error={error} />}
-          {lot.mode === "advanced" && <div className="text-[11px] text-ink-300">Automatic control is on: it corrects temperature, humidity and gases within safe limits and logs each action.</div>}
+          {lot.mode === "advanced" && <div className="text-[11px] text-ink-400">Automatic control is on: it corrects temperature, humidity and gases within safe limits and logs each action.</div>}
         </div>
       )}
       <div>
         <div className="ph-label">{t("Alerts")} & {t("Suggestions")}</div>
-        {alerts.length === 0 && <div className="border border-ink-600 p-3 text-sm text-ink-300">No alerts. Conditions are within the recommended range.</div>}
+        {alerts.length === 0 && <div className="border border-paper-300 p-3 text-sm text-ink-400">No alerts. Conditions are within the recommended range.</div>}
         <div className="space-y-2">
           {alerts.map((a: any, i: number) => (
-            <div key={i} className={cn("border-l-4 bg-ink-800 p-3", a.severity === "CRITICAL" ? "border-critical" : "border-gold")}>
-              <div className="text-sm font-bold text-paper">{a.title}</div>
-              <div className="text-xs text-ink-300">{a.message}</div>
+            <div key={i} className={cn("border-l-4 bg-white p-3", a.severity === "CRITICAL" ? "border-critical" : "border-gold")}>
+              <div className="text-sm font-bold text-ink">{a.title}</div>
+              <div className="text-xs text-ink-400">{a.message}</div>
               {a.recommendation && <div className="mt-1 text-xs text-gold">→ {a.recommendation}</div>}
             </div>
           ))}
@@ -288,20 +288,20 @@ function App({ stationId }: { stationId: number }) {
   const refresh = () => undefined;   // WebSocket pushes the new state within a second
   const visible = TABS.filter((x) => x.id !== "bag" || lot?.mode === "advanced");
   return (
-    <div className="flex min-h-screen flex-col bg-ink text-paper">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-ink-700 bg-ink/95 px-3 py-2 backdrop-blur">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-paper text-ink shadow-[0_0_60px_rgba(10,38,36,0.12)]">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-paper-300 bg-paper/95 px-3 py-2 backdrop-blur">
         <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center bg-gold font-display text-lg font-black text-ink">Z</div>
-          <div className="leading-tight"><div className="font-display text-sm font-bold tracking-wider">ZERO ROT</div><div className="flex items-center gap-1 text-[10px] text-ink-300"><span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-ok" : "bg-critical")} />{t("Live on laptop")}</div></div></div>
+          <div className="leading-tight"><div className="font-display text-sm font-bold tracking-wider">ZERO ROT</div><div className="flex items-center gap-1 text-[10px] text-ink-400"><span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-ok" : "bg-critical")} />{t("Live on laptop")}</div></div></div>
         <div className="flex items-center gap-2">
-          {pushSupported() && <button aria-label="Notifications" className="p-2 text-ink-300" onClick={async () => { try { await enablePush(true); setPushState("on"); } catch (e: any) { setPushState(e.message); } }}><Bell className={cn("h-5 w-5", pushState === "on" && "text-gold")} /></button>}
-          <button onClick={() => set(lang === "en" ? "kn" : "en")} className="flex items-center gap-1 border border-ink-600 px-2 py-1 text-xs font-bold"><Languages className="h-3.5 w-3.5" />{lang === "en" ? "ಕನ್ನಡ" : "EN"}</button>
+          {pushSupported() && <button aria-label="Notifications" className="p-2 text-ink-400" onClick={async () => { try { await enablePush(true); setPushState("on"); } catch (e: any) { setPushState(e.message); } }}><Bell className={cn("h-5 w-5", pushState === "on" && "text-gold")} /></button>}
+          <button onClick={() => set(lang === "en" ? "kn" : "en")} className="flex items-center gap-1 border border-paper-300 px-2 py-1 text-xs font-bold"><Languages className="h-3.5 w-3.5" />{lang === "en" ? "ಕನ್ನಡ" : "EN"}</button>
         </div>
       </header>
-      {pushState && pushState !== "on" && <div className="bg-ink-800 px-3 py-1.5 text-[11px] text-gold">{pushState}</div>}
+      {pushState && pushState !== "on" && <div className="bg-white px-3 py-1.5 text-[11px] text-gold">{pushState}</div>}
       {lots.length > 0 && tab !== "entry" && (
-        <div className="flex gap-2 overflow-x-auto border-b border-ink-700 px-3 py-2">
+        <div className="flex gap-2 overflow-x-auto border-b border-paper-300 px-3 py-2">
           {lots.map((l: any) => (
-            <button key={l.id} onClick={() => setLotId(l.id)} className={cn("shrink-0 border px-2.5 py-1.5 text-left text-[11px]", lot?.id === l.id ? "border-gold text-paper" : "border-ink-600 text-ink-300")}>
+            <button key={l.id} onClick={() => setLotId(l.id)} className={cn("shrink-0 border px-2.5 py-1.5 text-left text-[11px]", lot?.id === l.id ? "border-teal bg-teal text-white" : "border-paper-300 text-ink-400")}>
               <b className="capitalize">{l.commodity}</b> · {kg(l.quantity_kg)} · <span className="text-gold">{STAGE_LABEL[l.stage]}</span>
             </button>
           ))}
@@ -316,19 +316,19 @@ function App({ stationId }: { stationId: number }) {
           : tab === "track" ? <TrackTab lot={lot} onHelp={() => setTab("help")} />
           : <HelpTab lot={lot} />}
       </main>
-      <div className="pointer-events-none fixed inset-x-3 bottom-20 z-40 space-y-2">
+      <div className="pointer-events-none fixed inset-x-3 bottom-20 z-40 mx-auto max-w-[420px] space-y-2">
         <AnimatePresence>
           {toasts.map((e) => (
             <motion.div key={e.key} initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className={cn("border border-ink-600 border-l-4 bg-ink-800 p-3 shadow-2xl", e.severity === "CRITICAL" ? "border-critical" : e.severity === "WARNING" ? "border-gold" : "border-ok")}>
-              <div className="text-sm font-bold">{e.title}</div><div className="text-xs text-ink-300">{e.message}</div>
+              className={cn("border border-paper-300 border-l-4 bg-white p-3 shadow-2xl", e.severity === "CRITICAL" ? "border-critical" : e.severity === "WARNING" ? "border-gold" : "border-ok")}>
+              <div className="text-sm font-bold">{e.title}</div><div className="text-xs text-ink-400">{e.message}</div>
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid border-t border-ink-700 bg-ink/95 backdrop-blur" style={{ gridTemplateColumns: `repeat(${visible.length}, 1fr)` }}>
+      <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-md border-t border-paper-300 bg-paper/95 backdrop-blur" style={{ gridTemplateColumns: `repeat(${visible.length}, 1fr)` }}>
         {visible.map((x) => (
-          <button key={x.id} onClick={() => setTab(x.id)} disabled={x.id !== "entry" && !lot} className={cn("flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold disabled:opacity-30", tab === x.id ? "text-gold" : "text-ink-300")}>
+          <button key={x.id} onClick={() => setTab(x.id)} disabled={x.id !== "entry" && !lot} className={cn("flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold disabled:opacity-30", tab === x.id ? "text-teal" : "text-ink-400")}>
             <x.icon className="h-5 w-5" />{t(x.label)}
           </button>
         ))}
@@ -348,8 +348,8 @@ export default function PhoneApp() {
     api("/flow/me", { mobile: true }).then((d) => setSid(d.station_id)).catch((e) => { setErr(e); useAuth.getState().setMobile("", null); });
   }, [valid]);
   return (
-    <div className="min-h-screen bg-ink">
-      {!valid ? <Pair token={token} /> : err ? <div className="p-6"><ErrorBox error={err} /></div> : sid ? <App stationId={sid} /> : <div className="p-8 text-center text-paper"><Spinner /></div>}
+    <div className="min-h-screen bg-paper-200">
+      {!valid ? <div className="mx-auto max-w-md bg-paper"><Pair token={token} /></div> : err ? <div className="p-6"><ErrorBox error={err} /></div> : sid ? <App stationId={sid} /> : <div className="p-8 text-center text-ink"><Spinner /></div>}
     </div>
   );
 }
