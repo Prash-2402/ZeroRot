@@ -1,29 +1,37 @@
-"""ZERO ROT API. Run: uvicorn app.main:app --reload --port 8000  (from backend/)"""
+"""ZERO ROT API. Run: python -m uvicorn app.main:app --app-dir backend --port 8000"""
 from __future__ import annotations
 
 import asyncio
 import logging
-import pathlib
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import inspect
 
-from app.api.v1 import assistant, core, farm, ops, prove
-from app.core.config import ROOT
-from app.db.session import SessionLocal, engine
-from app.simulation.loop import simulator
+from app.api.v1 import auth, catalog, intelligence, operations, simulations
+from app.core.config import BACKEND, ROOT, settings
+from app.core.deps import limiter, principal_from_ws_token
+from app.db.session import SessionLocal
+from app.simulation.manager import manager
 from app.ws.hub import hub
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logging.basicConfig(level=logging.INFO, format='{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}')
 log = logging.getLogger("zerorot")
 
-app = FastAPI(title="ZERO ROT API", version="1.0.0",
-              description="Post-harvest quality, shelf-life and market value prediction. Decay Engine + Rule-Based Decision Engine.")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app = FastAPI(title="ZERO ROT API", version="2.0.0",
+              description="Post-harvest loss prevention and cold-chain digital twin. Numerical models + Groq explanations. "
+                          "Virtual sensors are SIMULATED; external data is LIVE or reported unavailable.")
+app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=False, allow_methods=["GET", "POST", "PATCH", "DELETE"],
+                   allow_headers=["Authorization", "Content-Type"])
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    if request.url.path.startswith("/api/") and not limiter.check(f"ip:{request.client.host if request.client else '?'}"):
+        return JSONResponse(status_code=429, content={"detail": {"error": "rate_limited", "message": "Too many requests; slow down"}})
+    return await call_next(request)
 
 
 @app.exception_handler(RequestValidationError)
@@ -37,42 +45,74 @@ async def value_handler(_: Request, exc: ValueError):
     return JSONResponse(status_code=422, content={"detail": {"error": "invalid_input", "message": str(exc)}})
 
 
-for r in (core.router, ops.router, prove.router, farm.router, assistant.router):
+for r in (auth.router, catalog.router, operations.router, simulations.router, intelligence.router):
     app.include_router(r, prefix="/api/v1")
 
 
 @app.get("/api/v1/health")
 def health():
-    return {"ok": True, "sim_error": simulator.last_error}
+    return {"ok": True, "simulation_loop_error": manager.last_error, "running": len(manager.runtimes)}
 
 
-@app.websocket("/ws/live")
-async def ws_live(ws: WebSocket):
-    await hub.connect(ws)
+async def _ws(ws: WebSocket, topic_for):
+    await ws.accept()
+    db = SessionLocal()
     try:
+        p = principal_from_ws_token(ws.query_params.get("token"), db)
+        topic = topic_for(p)
+        if topic is None:
+            await ws.close(code=4403)
+            return
+        hub.subscribe(topic, ws)
         while True:
             await ws.receive_text()
     except WebSocketDisconnect:
-        hub.disconnect(ws)
+        pass
     except Exception:
-        hub.disconnect(ws)
+        try:
+            await ws.close(code=4401)
+        except Exception:
+            pass
+    finally:
+        hub.unsubscribe(ws)
+        db.close()
+
+
+@app.websocket("/ws/simulations/{sid}")
+async def ws_sim(ws: WebSocket, sid: int):
+    def topic(p):
+        if p.kind == "user" or p.can_access("simulation", sid):
+            return f"sim:{sid}"
+        with SessionLocal() as db:
+            from app.db.models import Simulation
+            s = db.get(Simulation, sid)
+            return f"sim:{sid}" if s and s.batch_id and p.can_access("batch", s.batch_id) else None
+    await _ws(ws, topic)
+
+
+@app.websocket("/ws/alerts")
+async def ws_alerts(ws: WebSocket):
+    await _ws(ws, lambda p: "alerts" if p.kind == "user" else None)
+
+
+def migrate():
+    from alembic import command
+    from alembic.config import Config
+    cfg = Config(str(BACKEND / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BACKEND / "alembic"))
+    command.upgrade(cfg, "head")
 
 
 @app.on_event("startup")
 async def startup():
     hub.loop = asyncio.get_running_loop()
-    if not inspect(engine).has_table("batches"):
-        from app.db.seed import seed
-        log.info("empty database: seeding demo state")
-        await asyncio.to_thread(seed)
+    await asyncio.to_thread(migrate)
+    from app.db.bootstrap import sync_commodities
     with SessionLocal() as db:
-        ops.check_integrations(db)
-    simulator.start()
-    from app.providers.notify import telegram
-    telegram.start_polling(ops.handle_telegram_update)
+        sync_commodities(db)
+    manager.start()
 
 
-# Serve the built frontend (single port for LAN / judge mode) when frontend/dist exists.
 DIST = ROOT / "frontend" / "dist"
 if DIST.exists():
     app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")

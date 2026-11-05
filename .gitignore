@@ -13,3 +13,5 @@ frontend/dist/
 
 # local admin bootstrap secrets
 backend/models/*.onnx
+
+.vapid.json

@@ -77,10 +77,10 @@ def initial_state(kind: str, cfg: dict) -> SimState:
         raise ValueError("Outside weather is unavailable for this location and no manual ambient value was given")
     p_atm = amb["p"]
     if kind == "traditional_storage":
-        t0 = cfg.get("initial_internal_temp", amb["t"])
+        t0 = cfg.get("initial_internal_temp") if cfg.get("initial_internal_temp") is not None else amb["t"]
         s.air = AirState(t=t0, w=humidity_ratio(t0, min(100.0, amb["rh"]), p_atm))
     else:
-        t0 = cfg.get("initial_internal_temp", cfg["setpoint"])
+        t0 = cfg.get("initial_internal_temp") if cfg.get("initial_internal_temp") is not None else cfg["setpoint"]
         rh0 = cfg.get("rh_setpoint") or 90.0
         s.air = AirState(t=t0, w=humidity_ratio(t0, rh0, p_atm))
     if kind == "cold_chain":
