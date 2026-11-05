@@ -1,0 +1,463 @@
+{
+  "produce": "tomato",
+  "display_name": "Tomato",
+  "kannada": "ಟೊಮೇಟೊ",
+  "ethylene": "producer_moderate",
+  "ethylene_sensitive": true,
+  "default_price_per_kg": 20.0,
+  "varieties": [
+    "Local hybrid",
+    "Arka Rakshak",
+    "Roma"
+  ],
+  "maturity_stages": [
+    "mature_green",
+    "turning",
+    "ripe"
+  ],
+  "params": [
+    {
+      "id": "tomato.t_ref",
+      "name": "Reference storage temperature (mature-green)",
+      "value": 12.5,
+      "range": [
+        12.5,
+        15.0
+      ],
+      "unit": "degC",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "Mature Green optimum 12.5-15 degC",
+      "applicability": "Mature-green fruit",
+      "limitations": "Light-red 10-12.5 degC and firm-ripe 7-10 degC differ.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.rh_low",
+      "name": "Recommended RH lower bound",
+      "value": 90.0,
+      "range": null,
+      "unit": "%",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "Optimum RH 90-95%",
+      "applicability": "All stages",
+      "limitations": "Range, not a kinetic parameter.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.rh_high",
+      "name": "Recommended RH upper bound",
+      "value": 95.0,
+      "range": null,
+      "unit": "%",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "Optimum RH 90-95%; prolonged higher RH encourages molds",
+      "applicability": "All stages",
+      "limitations": "Range, not a kinetic parameter.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.storage_life",
+      "name": "Published storage life at T_ref",
+      "value": 14.0,
+      "range": [
+        11.0,
+        17.0
+      ],
+      "unit": "days",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "Mature-green tomatoes can be stored up to 14 days prior to ripening at 12.5 degC",
+      "applicability": "Mature-green at 12.5 degC",
+      "limitations": "'Up to 14 days without significant reduction' then ripening; using it as the time to Q_min is conservative.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.k_ref",
+      "name": "Reference decay rate k_ref",
+      "value": 0.065449,
+      "range": [
+        0.05389945481612677,
+        0.08329915744310501
+      ],
+      "unit": "1/day",
+      "classification": "calibrated",
+      "classification_label": "Calibrated demonstration assumption",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "Derived from storage life at 12.5 degC",
+      "applicability": "Mature-green at T_ref",
+      "limitations": "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
+      "derivation": "k_ref = ln(Q0/Q_min)/L = ln(100/40)/14 = 0.06545 /day",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.q10",
+      "name": "Temperature coefficient Q10",
+      "value": 2.333,
+      "range": [
+        2.0,
+        2.8
+      ],
+      "unit": "dimensionless",
+      "classification": "derived",
+      "classification_label": "Derived parameter",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "Respiration, mature-green ripening: 6-9 mL CO2/kg.h at 10 degC, 14-21 at 20 degC",
+      "applicability": "5-25 degC (respiration table range)",
+      "limitations": "Assumes quality loss scales with respiration rate.",
+      "derivation": "Q10 = (17.5/7.5)^(10/(20-10)) = 2.333 (midpoints); range from 15-25 degC pair (2.00) to 5-15 degC pair (3.14)",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.t_chill",
+      "name": "Chilling-injury threshold",
+      "value": 10.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "experimental",
+      "classification_label": "Published experimental parameter",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "Chilling sensitive below 10 degC if held >2 weeks, or at 5 degC for >6-8 days; injury is cumulative",
+      "applicability": "All stages",
+      "limitations": "Threshold is a published range edge.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.e_crit",
+      "name": "Critical chilling exposure E_crit",
+      "value": 840.0,
+      "range": null,
+      "unit": "degC.h",
+      "classification": "derived",
+      "classification_label": "Derived parameter",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "5 degC for ~7 days causes injury",
+      "applicability": "Below 10 degC",
+      "limitations": "Converts duration figure into degree-hours assuming linear dose.",
+      "derivation": "E_crit = (10 - 5) degC x 24 h x 7 d = 840 degC.h",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.m_turning",
+      "name": "Maturity multiplier: turning / light red",
+      "value": 1.478,
+      "range": null,
+      "unit": "x k_ref",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Geometric mean of mature-green (1.0) and ripe multipliers",
+      "applicability": "Turning stage",
+      "limitations": "Interpolated, not measured.",
+      "derivation": "sqrt(2.183)",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.m_ripe",
+      "name": "Maturity multiplier: firm-ripe",
+      "value": 2.183,
+      "range": null,
+      "unit": "x k_ref",
+      "classification": "derived",
+      "classification_label": "Derived parameter",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "8-10 days of shelf life at 7-10 degC after reaching firm-ripe",
+      "applicability": "Firm-ripe fruit",
+      "limitations": "Depends on the Q10 conversion from 8.5 degC to 12.5 degC.",
+      "derivation": "k_ripe(8.5C) = ln(2.5)/9 = 0.1018; at 12.5C = 0.1429; / k_ref = 2.183",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.t_app_low",
+      "name": "Applicability: lowest temperature in source data",
+      "value": 5.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "experimental",
+      "classification_label": "Published experimental parameter",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "Respiration table lower bound",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.t_app_high",
+      "name": "Applicability: highest temperature in source data",
+      "value": 25.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "experimental",
+      "classification_label": "Published experimental parameter",
+      "source": {
+        "title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
+      },
+      "conditions": "Respiration table upper bound",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.h_low_slope",
+      "name": "Humidity penalty slope below recommended RH",
+      "value": 0.02,
+      "range": [
+        0.013999999999999999,
+        0.026000000000000002
+      ],
+      "unit": "per %RH",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Applied linearly per %RH below the published RH range.",
+      "applicability": "Any RH below range",
+      "limitations": "Shape not fitted to data; anchor (range edge) is published, slope is assumed.",
+      "derivation": "h(RH) = 1 + slope x (RH_low - RH) for RH < RH_low",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.h_high_slope",
+      "name": "Humidity penalty slope above recommended RH (rot / condensation)",
+      "value": 0.08,
+      "range": [
+        0.055999999999999994,
+        0.10400000000000001
+      ],
+      "unit": "per %RH",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Applied linearly per %RH above the published RH range.",
+      "applicability": "RH above range",
+      "limitations": "Shape not fitted to data.",
+      "derivation": "h(RH) = 1 + slope x (RH - RH_high) for RH > RH_high",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.chill_gamma",
+      "name": "Chilling penalty strength",
+      "value": 1.5,
+      "range": [
+        1.0499999999999998,
+        1.9500000000000002
+      ],
+      "unit": "dimensionless",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "c = 1 + gamma x min(E / E_crit, 3), E = cumulative degree-hours below chilling threshold.",
+      "applicability": "After any chilling exposure",
+      "limitations": "Penalty shape is assumed; real chilling injury often appears after transfer to warm conditions.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.kw",
+      "name": "Weight-loss coefficient (transpiration)",
+      "value": 0.006,
+      "range": null,
+      "unit": "fraction / day / kPa VPD",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "dW/dt = kw x VPD(T, RH) x (1 - W)",
+      "applicability": "Whole fruit, unpackaged",
+      "limitations": "Not from a measured transpiration coefficient; order of magnitude only.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.r0",
+      "name": "Rot onset rate below Q_rot",
+      "value": 0.25,
+      "range": null,
+      "unit": "fraction / day",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "dR/dt = r0 x max(0, (Q_rot - Q)/Q_rot) x (1 + 0.1 x max(0, RH - RH_high)) + heat and chilling terms",
+      "applicability": "All conditions",
+      "limitations": "Rejection dynamics assumed; not fitted.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.q_rot",
+      "name": "Quality at which rot rejection begins",
+      "value": 60.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Rejection starts accumulating when Q falls below this value.",
+      "applicability": "All conditions",
+      "limitations": "Assumed threshold.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.r_heat",
+      "name": "Heat-excursion rejection rate",
+      "value": 0.004,
+      "range": null,
+      "unit": "fraction / day / degC above T_ref+12",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Extra rejection while temperature exceeds T_ref + 12 degC.",
+      "applicability": "Excursions",
+      "limitations": "Assumed.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.q_min",
+      "name": "Minimum sellable quality",
+      "value": 40.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "demo",
+      "classification_label": "Unvalidated demo parameter",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Quality score below which a unit is unsellable (category Unsellable < 40).",
+      "applicability": "All",
+      "limitations": "Scale is a ZERO ROT index, not a grading standard.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "tomato.min_arrival_quality",
+      "name": "Minimum market grade on arrival",
+      "value": 55.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "demo",
+      "classification_label": "Unvalidated demo parameter",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Ship/store options must keep quality at or above this value.",
+      "applicability": "All",
+      "limitations": "Demo default, configurable.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    }
+  ],
+  "version": "1.0.0",
+  "last_reviewed": "2026-11-05"
+}

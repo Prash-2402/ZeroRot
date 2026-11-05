@@ -1,0 +1,57 @@
+{
+  "_note": "Approximate city/town coordinates for demo facilities. Facility names are generic demo names, not real businesses.",
+  "districts": [
+    {"id": "kolar", "name": "Kolar", "lat": 13.1367, "lng": 78.1292},
+    {"id": "chikkaballapur", "name": "Chikkaballapur", "lat": 13.4355, "lng": 77.7315},
+    {"id": "bengaluru_rural", "name": "Bengaluru Rural", "lat": 13.2846, "lng": 77.6078},
+    {"id": "tumakuru", "name": "Tumakuru", "lat": 13.3409, "lng": 77.1010},
+    {"id": "mandya", "name": "Mandya", "lat": 12.5218, "lng": 76.8951},
+    {"id": "mysuru", "name": "Mysuru", "lat": 12.2958, "lng": 76.6394},
+    {"id": "ramanagara", "name": "Ramanagara", "lat": 12.7209, "lng": 77.2799},
+    {"id": "hassan", "name": "Hassan", "lat": 13.0072, "lng": 76.0962},
+    {"id": "chitradurga", "name": "Chitradurga", "lat": 14.2251, "lng": 76.3980},
+    {"id": "davanagere", "name": "Davanagere", "lat": 14.4644, "lng": 75.9218},
+    {"id": "haveri", "name": "Haveri", "lat": 14.7951, "lng": 75.3991},
+    {"id": "dharwad", "name": "Dharwad", "lat": 15.4589, "lng": 75.0078},
+    {"id": "belagavi", "name": "Belagavi", "lat": 15.8497, "lng": 74.4977},
+    {"id": "ballari", "name": "Ballari", "lat": 15.1394, "lng": 76.9214},
+    {"id": "chamarajanagar", "name": "Chamarajanagar", "lat": 11.9261, "lng": 76.9437}
+  ],
+  "mandis": [
+    {"id": "m_kolar", "name": "Kolar APMC", "district": "kolar", "lat": 13.1420, "lng": 78.1350},
+    {"id": "m_bengaluru", "name": "Bengaluru APMC", "district": "bengaluru_rural", "lat": 12.9634, "lng": 77.5763},
+    {"id": "m_mysuru", "name": "Mysuru APMC", "district": "mysuru", "lat": 12.3180, "lng": 76.6550},
+    {"id": "m_tumakuru", "name": "Tumakuru APMC", "district": "tumakuru", "lat": 13.3300, "lng": 77.1150},
+    {"id": "m_chikkaballapur", "name": "Chikkaballapur APMC", "district": "chikkaballapur", "lat": 13.4300, "lng": 77.7200},
+    {"id": "m_hubballi", "name": "Hubballi APMC", "district": "dharwad", "lat": 15.3647, "lng": 75.1240},
+    {"id": "m_davanagere", "name": "Davanagere APMC", "district": "davanagere", "lat": 14.4700, "lng": 75.9300},
+    {"id": "m_belagavi", "name": "Belagavi APMC", "district": "belagavi", "lat": 15.8600, "lng": 74.5100},
+    {"id": "m_mangaluru", "name": "Mangaluru APMC", "district": "dakshina_kannada", "lat": 12.9141, "lng": 74.8560},
+    {"id": "m_chitradurga", "name": "Chitradurga APMC", "district": "chitradurga", "lat": 14.2300, "lng": 76.4050}
+  ],
+  "cold_storages": [
+    {"id": "cs_malur", "name": "Malur Cold Store (demo)", "district": "kolar", "lat": 13.0037, "lng": 77.9381, "capacity_t": 400, "rent_per_kg_day": 0.45},
+    {"id": "cs_hoskote", "name": "Hoskote Cold Store (demo)", "district": "bengaluru_rural", "lat": 13.0707, "lng": 77.7982, "capacity_t": 800, "rent_per_kg_day": 0.55},
+    {"id": "cs_tumakuru", "name": "Tumakuru Cold Store (demo)", "district": "tumakuru", "lat": 13.3159, "lng": 77.1350, "capacity_t": 300, "rent_per_kg_day": 0.40},
+    {"id": "cs_chitradurga", "name": "Chitradurga Cold Store (demo)", "district": "chitradurga", "lat": 14.2420, "lng": 76.4210, "capacity_t": 250, "rent_per_kg_day": 0.40},
+    {"id": "cs_davanagere", "name": "Davanagere Cold Store (demo)", "district": "davanagere", "lat": 14.4500, "lng": 75.9000, "capacity_t": 350, "rent_per_kg_day": 0.42},
+    {"id": "cs_hubballi", "name": "Hubballi Cold Store (demo)", "district": "dharwad", "lat": 15.3500, "lng": 75.1400, "capacity_t": 500, "rent_per_kg_day": 0.45}
+  ],
+  "lanes": [
+    {"id": "T01", "from": "kolar", "to": "m_bengaluru", "produce": "tomato", "reefer": false},
+    {"id": "T02", "from": "chikkaballapur", "to": "m_bengaluru", "produce": "tomato", "reefer": false},
+    {"id": "T03", "from": "kolar", "to": "m_mysuru", "produce": "tomato", "reefer": true},
+    {"id": "T04", "from": "tumakuru", "to": "m_bengaluru", "produce": "banana", "reefer": false},
+    {"id": "T05", "from": "mandya", "to": "m_bengaluru", "produce": "banana", "reefer": false},
+    {"id": "T06", "from": "mysuru", "to": "m_mangaluru", "produce": "banana", "reefer": true},
+    {"id": "T07", "from": "chitradurga", "to": "m_davanagere", "produce": "tomato", "reefer": false},
+    {"id": "T08", "from": "dharwad", "to": "m_belagavi", "produce": "mango", "reefer": false},
+    {"id": "T09", "from": "belagavi", "to": "m_hubballi", "produce": "tomato", "reefer": false},
+    {"id": "T10", "from": "ramanagara", "to": "m_bengaluru", "produce": "mango", "reefer": false},
+    {"id": "T11", "from": "hassan", "to": "m_mangaluru", "produce": "banana", "reefer": true},
+    {"id": "T12", "from": "davanagere", "to": "m_hubballi", "produce": "banana", "reefer": false},
+    {"id": "T13", "from": "chikkaballapur", "to": "m_tumakuru", "produce": "mango", "reefer": false},
+    {"id": "T14", "from": "haveri", "to": "m_davanagere", "produce": "mango", "reefer": false},
+    {"id": "S2", "from": "kolar", "to": "m_hubballi", "produce": "tomato", "reefer": true, "scenario": 2}
+  ]
+}

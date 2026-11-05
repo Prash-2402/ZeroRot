@@ -1,0 +1,460 @@
+{
+  "produce": "mango",
+  "display_name": "Mango",
+  "kannada": "ಮಾವು",
+  "ethylene": "producer_moderate",
+  "ethylene_sensitive": true,
+  "default_price_per_kg": 55.0,
+  "varieties": [
+    "Alphonso (Badami)",
+    "Totapuri",
+    "Mallika"
+  ],
+  "maturity_stages": [
+    "mature_green",
+    "turning",
+    "ripe"
+  ],
+  "params": [
+    {
+      "id": "mango.t_ref",
+      "name": "Reference storage temperature (mature-green)",
+      "value": 13.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Mango: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"
+      },
+      "conditions": "13 degC for mature-green mangoes",
+      "applicability": "Mature-green",
+      "limitations": "Ripe fruit: 10 degC.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.rh_low",
+      "name": "Recommended RH lower bound",
+      "value": 90.0,
+      "range": null,
+      "unit": "%",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Mango: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"
+      },
+      "conditions": "Optimum RH 90-95%",
+      "applicability": "All",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.rh_high",
+      "name": "Recommended RH upper bound",
+      "value": 95.0,
+      "range": null,
+      "unit": "%",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Mango: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"
+      },
+      "conditions": "Optimum RH 90-95%",
+      "applicability": "All",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.storage_life",
+      "name": "Published postharvest life at T_ref",
+      "value": 21.0,
+      "range": [
+        14.0,
+        28.0
+      ],
+      "unit": "days",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Mango: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"
+      },
+      "conditions": "Postharvest life potential at 13 degC: 2-4 weeks in air",
+      "applicability": "Air, 13 degC",
+      "limitations": "Cultivar and maturity dependent.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.k_ref",
+      "name": "Reference decay rate k_ref",
+      "value": 0.043633,
+      "range": [
+        0.03272466899550554,
+        0.06544933799101108
+      ],
+      "unit": "1/day",
+      "classification": "calibrated",
+      "classification_label": "Calibrated demonstration assumption",
+      "source": {
+        "title": "Mango: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"
+      },
+      "conditions": "Derived from 21-day life at 13 degC",
+      "applicability": "Mature-green at T_ref",
+      "limitations": "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
+      "derivation": "k_ref = ln(100/40)/21 = 0.04363 /day",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.q10",
+      "name": "Temperature coefficient Q10",
+      "value": 4.107,
+      "range": [
+        2.917,
+        5.0
+      ],
+      "unit": "dimensionless",
+      "classification": "derived",
+      "classification_label": "Derived parameter",
+      "source": {
+        "title": "Mango: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"
+      },
+      "conditions": "Respiration 12-16 mL CO2/kg.h at 10 degC and 35-80 at 20 degC",
+      "applicability": "10-20 degC",
+      "limitations": "Respiration across the climacteric inflates Q10; large extrapolation error above 20 degC.",
+      "derivation": "Q10 = (57.5/14)^(10/10) = 4.107; low ends 2.92, high ends 5.00",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.t_chill",
+      "name": "Chilling-injury threshold",
+      "value": 10.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Mango: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"
+      },
+      "conditions": "Recommended 10 degC for partially-ripe and ripe fruit; chilling severity depends on cultivar and ripeness",
+      "applicability": "All",
+      "limitations": "No explicit threshold published on the sheet; anchored on the lowest recommended temperature.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.e_crit",
+      "name": "Critical chilling exposure E_crit",
+      "value": 240.0,
+      "range": null,
+      "unit": "degC.h",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Assumed 5 degC below threshold for 2 days",
+      "applicability": "Below 10 degC",
+      "limitations": "Assumed.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.m_turning",
+      "name": "Maturity multiplier: partially ripe",
+      "value": 1.414,
+      "range": null,
+      "unit": "x k_ref",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Geometric mean of 1 and 2",
+      "applicability": "",
+      "limitations": "Assumed.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.m_ripe",
+      "name": "Maturity multiplier: ripe",
+      "value": 2.0,
+      "range": null,
+      "unit": "x k_ref",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Assumed doubling of decay rate for ripe fruit",
+      "applicability": "",
+      "limitations": "Assumed.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.t_app_low",
+      "name": "Applicability: lowest temperature in source data",
+      "value": 10.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "experimental",
+      "classification_label": "Published experimental parameter",
+      "source": {
+        "title": "Mango: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"
+      },
+      "conditions": "Respiration table",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.t_app_high",
+      "name": "Applicability: highest temperature in source data",
+      "value": 20.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "experimental",
+      "classification_label": "Published experimental parameter",
+      "source": {
+        "title": "Mango: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader",
+        "year": 1997,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"
+      },
+      "conditions": "Respiration table",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.h_low_slope",
+      "name": "Humidity penalty slope below recommended RH",
+      "value": 0.02,
+      "range": [
+        0.013999999999999999,
+        0.026000000000000002
+      ],
+      "unit": "per %RH",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Applied linearly per %RH below the published RH range.",
+      "applicability": "Any RH below range",
+      "limitations": "Shape not fitted to data; anchor (range edge) is published, slope is assumed.",
+      "derivation": "h(RH) = 1 + slope x (RH_low - RH) for RH < RH_low",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.h_high_slope",
+      "name": "Humidity penalty slope above recommended RH (rot / condensation)",
+      "value": 0.08,
+      "range": [
+        0.055999999999999994,
+        0.10400000000000001
+      ],
+      "unit": "per %RH",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Applied linearly per %RH above the published RH range.",
+      "applicability": "RH above range",
+      "limitations": "Shape not fitted to data.",
+      "derivation": "h(RH) = 1 + slope x (RH - RH_high) for RH > RH_high",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.chill_gamma",
+      "name": "Chilling penalty strength",
+      "value": 1.5,
+      "range": [
+        1.0499999999999998,
+        1.9500000000000002
+      ],
+      "unit": "dimensionless",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "c = 1 + gamma x min(E / E_crit, 3), E = cumulative degree-hours below chilling threshold.",
+      "applicability": "After any chilling exposure",
+      "limitations": "Penalty shape is assumed; real chilling injury often appears after transfer to warm conditions.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.kw",
+      "name": "Weight-loss coefficient (transpiration)",
+      "value": 0.005,
+      "range": null,
+      "unit": "fraction / day / kPa VPD",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "dW/dt = kw x VPD(T, RH) x (1 - W)",
+      "applicability": "Whole fruit, unpackaged",
+      "limitations": "Not from a measured transpiration coefficient; order of magnitude only.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.r0",
+      "name": "Rot onset rate below Q_rot",
+      "value": 0.25,
+      "range": null,
+      "unit": "fraction / day",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "dR/dt = r0 x max(0, (Q_rot - Q)/Q_rot) x (1 + 0.1 x max(0, RH - RH_high)) + heat and chilling terms",
+      "applicability": "All conditions",
+      "limitations": "Rejection dynamics assumed; not fitted.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.q_rot",
+      "name": "Quality at which rot rejection begins",
+      "value": 60.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Rejection starts accumulating when Q falls below this value.",
+      "applicability": "All conditions",
+      "limitations": "Assumed threshold.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.r_heat",
+      "name": "Heat-excursion rejection rate",
+      "value": 0.004,
+      "range": null,
+      "unit": "fraction / day / degC above T_ref+12",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Extra rejection while temperature exceeds T_ref + 12 degC.",
+      "applicability": "Excursions",
+      "limitations": "Assumed.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.q_min",
+      "name": "Minimum sellable quality",
+      "value": 40.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "demo",
+      "classification_label": "Unvalidated demo parameter",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Quality score below which a unit is unsellable (category Unsellable < 40).",
+      "applicability": "All",
+      "limitations": "Scale is a ZERO ROT index, not a grading standard.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "mango.min_arrival_quality",
+      "name": "Minimum market grade on arrival",
+      "value": 55.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "demo",
+      "classification_label": "Unvalidated demo parameter",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Ship/store options must keep quality at or above this value.",
+      "applicability": "All",
+      "limitations": "Demo default, configurable.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    }
+  ],
+  "version": "1.0.0",
+  "last_reviewed": "2026-11-05"
+}

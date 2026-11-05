@@ -1,0 +1,229 @@
+"""Build the versioned parameter registry (data/parameters/*.json) and docs/parameter_audit.md.
+
+Every derived coefficient is computed here from the published figure so the working is reproducible.
+Run: python backend/scripts/build_registry.py
+"""
+import json
+import math
+import pathlib
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+OUT = ROOT / "data" / "parameters"
+DOCS = ROOT / "docs"
+VERSION = "1.0.0"
+REVIEWED = "2026-11-05"
+Q0, QMIN = 100.0, 40.0
+
+UCD = {
+    "tomato": {"title": "Tomato: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+               "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & M. Cantwell", "year": 1997,
+               "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"},
+    "banana": {"title": "Banana (Cavendish): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+               "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader", "year": 1996,
+               "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/banana"},
+    "mango": {"title": "Mango: Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+              "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader", "year": 1997,
+              "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"},
+}
+NONE_SRC = {"title": "ZERO ROT engineering assumption (no published source)", "publisher": "ZERO ROT team", "year": 2026, "url": None}
+
+CLASS = {
+    "experimental": "Published experimental parameter",
+    "operating_range": "Published recommended operating range",
+    "derived": "Derived parameter",
+    "calibrated": "Calibrated demonstration assumption",
+    "assumption": "Engineering assumption",
+    "demo": "Unvalidated demo parameter",
+}
+
+
+def k_from_life(L):
+    return math.log(Q0 / QMIN) / L
+
+
+def q10(r1, t1, r2, t2):
+    return (r2 / r1) ** (10.0 / (t2 - t1))
+
+
+def p(pid, name, value, unit, cls, src, conditions, applicability, limitations, derivation=None, rng=None):
+    return {"id": pid, "name": name, "value": value, "range": rng, "unit": unit, "classification": cls,
+            "classification_label": CLASS[cls], "source": src, "conditions": conditions,
+            "applicability": applicability, "limitations": limitations, "derivation": derivation, "last_reviewed": REVIEWED}
+
+
+def shared_assumptions(prod, kw, rh_lo_slope=0.02, rh_hi_slope=0.08, gamma=1.5):
+    return [
+        p(f"{prod}.h_low_slope", "Humidity penalty slope below recommended RH", rh_lo_slope, "per %RH", "assumption", NONE_SRC,
+          "Applied linearly per %RH below the published RH range.", "Any RH below range", "Shape not fitted to data; anchor (range edge) is published, slope is assumed.",
+          "h(RH) = 1 + slope x (RH_low - RH) for RH < RH_low", [rh_lo_slope * 0.7, rh_lo_slope * 1.3]),
+        p(f"{prod}.h_high_slope", "Humidity penalty slope above recommended RH (rot / condensation)", rh_hi_slope, "per %RH", "assumption", NONE_SRC,
+          "Applied linearly per %RH above the published RH range.", "RH above range", "Shape not fitted to data.",
+          "h(RH) = 1 + slope x (RH - RH_high) for RH > RH_high", [rh_hi_slope * 0.7, rh_hi_slope * 1.3]),
+        p(f"{prod}.chill_gamma", "Chilling penalty strength", gamma, "dimensionless", "assumption", NONE_SRC,
+          "c = 1 + gamma x min(E / E_crit, 3), E = cumulative degree-hours below chilling threshold.", "After any chilling exposure",
+          "Penalty shape is assumed; real chilling injury often appears after transfer to warm conditions.", None, [gamma * 0.7, gamma * 1.3]),
+        p(f"{prod}.kw", "Weight-loss coefficient (transpiration)", kw, "fraction / day / kPa VPD", "assumption", NONE_SRC,
+          "dW/dt = kw x VPD(T, RH) x (1 - W)", "Whole fruit, unpackaged", "Not from a measured transpiration coefficient; order of magnitude only.", None),
+        p(f"{prod}.r0", "Rot onset rate below Q_rot", 0.25, "fraction / day", "assumption", NONE_SRC,
+          "dR/dt = r0 x max(0, (Q_rot - Q)/Q_rot) x (1 + 0.1 x max(0, RH - RH_high)) + heat and chilling terms", "All conditions",
+          "Rejection dynamics assumed; not fitted.", None),
+        p(f"{prod}.q_rot", "Quality at which rot rejection begins", 60.0, "quality score", "assumption", NONE_SRC,
+          "Rejection starts accumulating when Q falls below this value.", "All conditions", "Assumed threshold.", None),
+        p(f"{prod}.r_heat", "Heat-excursion rejection rate", 0.004, "fraction / day / degC above T_ref+12", "assumption", NONE_SRC,
+          "Extra rejection while temperature exceeds T_ref + 12 degC.", "Excursions", "Assumed.", None),
+        p(f"{prod}.q_min", "Minimum sellable quality", QMIN, "quality score", "demo", NONE_SRC,
+          "Quality score below which a unit is unsellable (category Unsellable < 40).", "All", "Scale is a ZERO ROT index, not a grading standard.", None),
+        p(f"{prod}.min_arrival_quality", "Minimum market grade on arrival", 55.0, "quality score", "demo", NONE_SRC,
+          "Ship/store options must keep quality at or above this value.", "All", "Demo default, configurable.", None),
+    ]
+
+
+def tomato():
+    s = UCD["tomato"]
+    L = 14.0
+    k = k_from_life(L)
+    q = q10(7.5, 10, 17.5, 20)  # mature-green midpoints 6-9 @10C and 14-21 @20C
+    q_lo, q_hi = q10(11, 15, 22, 25), q10(3.5, 5, 11, 15)
+    k_ripe_85 = k_from_life(9.0)  # firm-ripe 8-10 days at 7-10C
+    k_ripe_ref = k_ripe_85 * q ** ((12.5 - 8.5) / 10)
+    m_ripe = k_ripe_ref / k
+    params = [
+        p("tomato.t_ref", "Reference storage temperature (mature-green)", 12.5, "degC", "operating_range", s,
+          "Mature Green optimum 12.5-15 degC", "Mature-green fruit", "Light-red 10-12.5 degC and firm-ripe 7-10 degC differ.", None, [12.5, 15.0]),
+        p("tomato.rh_low", "Recommended RH lower bound", 90.0, "%", "operating_range", s, "Optimum RH 90-95%", "All stages", "Range, not a kinetic parameter."),
+        p("tomato.rh_high", "Recommended RH upper bound", 95.0, "%", "operating_range", s, "Optimum RH 90-95%; prolonged higher RH encourages molds", "All stages", "Range, not a kinetic parameter."),
+        p("tomato.storage_life", "Published storage life at T_ref", L, "days", "operating_range", s,
+          "Mature-green tomatoes can be stored up to 14 days prior to ripening at 12.5 degC", "Mature-green at 12.5 degC",
+          "'Up to 14 days without significant reduction' then ripening; using it as the time to Q_min is conservative.", None, [11.0, 17.0]),
+        p("tomato.k_ref", "Reference decay rate k_ref", round(k, 6), "1/day", "calibrated", s,
+          "Derived from storage life at 12.5 degC", "Mature-green at T_ref", "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
+          f"k_ref = ln(Q0/Q_min)/L = ln({Q0:.0f}/{QMIN:.0f})/{L:.0f} = {k:.5f} /day", [k_from_life(17.0), k_from_life(11.0)]),
+        p("tomato.q10", "Temperature coefficient Q10", round(q, 3), "dimensionless", "derived", s,
+          "Respiration, mature-green ripening: 6-9 mL CO2/kg.h at 10 degC, 14-21 at 20 degC", "5-25 degC (respiration table range)",
+          "Assumes quality loss scales with respiration rate.", f"Q10 = (17.5/7.5)^(10/(20-10)) = {q:.3f} (midpoints); range from 15-25 degC pair ({q_lo:.2f}) to 5-15 degC pair ({q_hi:.2f})",
+          [round(q_lo, 3), round(min(q_hi, 2.8), 3)]),
+        p("tomato.t_chill", "Chilling-injury threshold", 10.0, "degC", "experimental", s,
+          "Chilling sensitive below 10 degC if held >2 weeks, or at 5 degC for >6-8 days; injury is cumulative", "All stages", "Threshold is a published range edge."),
+        p("tomato.e_crit", "Critical chilling exposure E_crit", 840.0, "degC.h", "derived", s,
+          "5 degC for ~7 days causes injury", "Below 10 degC", "Converts duration figure into degree-hours assuming linear dose.",
+          "E_crit = (10 - 5) degC x 24 h x 7 d = 840 degC.h"),
+        p("tomato.m_turning", "Maturity multiplier: turning / light red", round(math.sqrt(m_ripe), 3), "x k_ref", "assumption", NONE_SRC,
+          "Geometric mean of mature-green (1.0) and ripe multipliers", "Turning stage", "Interpolated, not measured.", f"sqrt({m_ripe:.3f})"),
+        p("tomato.m_ripe", "Maturity multiplier: firm-ripe", round(m_ripe, 3), "x k_ref", "derived", s,
+          "8-10 days of shelf life at 7-10 degC after reaching firm-ripe", "Firm-ripe fruit",
+          "Depends on the Q10 conversion from 8.5 degC to 12.5 degC.",
+          f"k_ripe(8.5C) = ln(2.5)/9 = {k_ripe_85:.4f}; at 12.5C = {k_ripe_ref:.4f}; / k_ref = {m_ripe:.3f}"),
+        p("tomato.t_app_low", "Applicability: lowest temperature in source data", 5.0, "degC", "experimental", s, "Respiration table lower bound", "", ""),
+        p("tomato.t_app_high", "Applicability: highest temperature in source data", 25.0, "degC", "experimental", s, "Respiration table upper bound", "", ""),
+    ] + shared_assumptions("tomato", 0.006)
+    return {"produce": "tomato", "display_name": "Tomato", "kannada": "ಟೊಮೇಟೊ", "ethylene": "producer_moderate",
+            "ethylene_sensitive": True, "default_price_per_kg": 20.0, "varieties": ["Local hybrid", "Arka Rakshak", "Roma"],
+            "maturity_stages": ["mature_green", "turning", "ripe"], "params": params}
+
+
+def banana():
+    s = UCD["banana"]
+    L = 21.0
+    k = k_from_life(L)
+    q = q10(10, 13, 20, 20)
+    q_hi = q10(30, 13, 70, 20)
+    m_ripe = 30 / 10
+    params = [
+        p("banana.t_ref", "Reference storage temperature", 14.0, "degC", "operating_range", s, "13-14 degC for storage and transport", "Mature-green", "", None, [13.0, 14.0]),
+        p("banana.rh_low", "Recommended RH lower bound", 90.0, "%", "operating_range", s, "Optimum RH 90-95%", "All", ""),
+        p("banana.rh_high", "Recommended RH upper bound", 95.0, "%", "operating_range", s, "Optimum RH 90-95%", "All", ""),
+        p("banana.storage_life", "Published postharvest life at T_ref", L, "days", "operating_range", s,
+          "Postharvest life potential of mature-green bananas: 2-4 weeks in air at 14 degC", "Mature-green, air, 14 degC", "Midpoint of a 2-4 week range.", None, [14.0, 28.0]),
+        p("banana.k_ref", "Reference decay rate k_ref", round(k, 6), "1/day", "calibrated", s, "Derived from 21-day life at 14 degC", "Mature-green at T_ref",
+          "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
+          f"k_ref = ln(100/40)/{L:.0f} = {k:.5f} /day", [k_from_life(28.0), k_from_life(14.0)]),
+        p("banana.q10", "Temperature coefficient Q10", round(q, 3), "dimensionless", "derived", s,
+          "Respiration 10-30 mL CO2/kg.h at 13 degC, 20-70 at 20 degC (low end mature-green)", "13-20 degC",
+          "Assumes quality loss scales with respiration.", f"Q10 = (20/10)^(10/7) = {q:.3f}; ripening high end gives {q_hi:.2f}", [2.3, round(q_hi, 3)]),
+        p("banana.t_chill", "Chilling-injury threshold", 13.0, "degC", "experimental", s, "Chilling injury below 13 degC for a few hours to a few days", "All", "Cultivar dependent."),
+        p("banana.e_crit", "Critical chilling exposure E_crit", 10.0, "degC.h", "derived", s,
+          "Moderate injury: 1 h at 10 degC, 5 h at 11.7, 24 h at 12.2, 72 h at 12.8 degC", "Below 13 degC",
+          "Linear dose assumption; the four published points give 3-19 degC.h.", "Degree-hours of the four points: 3.0, 6.5, 19.2, 14.4 -> rounded median ~10"),
+        p("banana.m_turning", "Maturity multiplier: turning", round(math.sqrt(m_ripe), 3), "x k_ref", "assumption", NONE_SRC, "Geometric mean", "Turning", "Interpolated."),
+        p("banana.m_ripe", "Maturity multiplier: ripening/ripe", m_ripe, "x k_ref", "derived", s,
+          "Respiration at 13 degC: low end (mature-green) 10, high end (ripening) 30 mL CO2/kg.h", "Ripening fruit",
+          "Assumes decay rate proportional to respiration.", "30 / 10 = 3.0"),
+        p("banana.t_app_low", "Applicability: lowest temperature in source data", 13.0, "degC", "experimental", s, "Respiration table", "", ""),
+        p("banana.t_app_high", "Applicability: highest temperature in source data", 20.0, "degC", "experimental", s, "Respiration table", "", ""),
+    ] + shared_assumptions("banana", 0.005)
+    return {"produce": "banana", "display_name": "Banana", "kannada": "ಬಾಳೆಹಣ್ಣು", "ethylene": "producer_high",
+            "ethylene_sensitive": True, "default_price_per_kg": 28.0, "varieties": ["Robusta (Cavendish)", "Yelakki", "Nendran"],
+            "maturity_stages": ["mature_green", "turning", "ripe"], "params": params}
+
+
+def mango():
+    s = UCD["mango"]
+    L = 21.0
+    k = k_from_life(L)
+    q = q10(14, 10, 57.5, 20)
+    q_lo, q_hi = q10(12, 10, 35, 20), q10(16, 10, 80, 20)
+    params = [
+        p("mango.t_ref", "Reference storage temperature (mature-green)", 13.0, "degC", "operating_range", s, "13 degC for mature-green mangoes", "Mature-green", "Ripe fruit: 10 degC."),
+        p("mango.rh_low", "Recommended RH lower bound", 90.0, "%", "operating_range", s, "Optimum RH 90-95%", "All", ""),
+        p("mango.rh_high", "Recommended RH upper bound", 95.0, "%", "operating_range", s, "Optimum RH 90-95%", "All", ""),
+        p("mango.storage_life", "Published postharvest life at T_ref", L, "days", "operating_range", s,
+          "Postharvest life potential at 13 degC: 2-4 weeks in air", "Air, 13 degC", "Cultivar and maturity dependent.", None, [14.0, 28.0]),
+        p("mango.k_ref", "Reference decay rate k_ref", round(k, 6), "1/day", "calibrated", s, "Derived from 21-day life at 13 degC", "Mature-green at T_ref",
+          "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
+          f"k_ref = ln(100/40)/{L:.0f} = {k:.5f} /day", [k_from_life(28.0), k_from_life(14.0)]),
+        p("mango.q10", "Temperature coefficient Q10", round(q, 3), "dimensionless", "derived", s,
+          "Respiration 12-16 mL CO2/kg.h at 10 degC and 35-80 at 20 degC", "10-20 degC",
+          "Respiration across the climacteric inflates Q10; large extrapolation error above 20 degC.",
+          f"Q10 = (57.5/14)^(10/10) = {q:.3f}; low ends {q_lo:.2f}, high ends {q_hi:.2f}", [round(q_lo, 3), round(q_hi, 3)]),
+        p("mango.t_chill", "Chilling-injury threshold", 10.0, "degC", "operating_range", s,
+          "Recommended 10 degC for partially-ripe and ripe fruit; chilling severity depends on cultivar and ripeness", "All",
+          "No explicit threshold published on the sheet; anchored on the lowest recommended temperature."),
+        p("mango.e_crit", "Critical chilling exposure E_crit", 240.0, "degC.h", "assumption", NONE_SRC, "Assumed 5 degC below threshold for 2 days", "Below 10 degC", "Assumed."),
+        p("mango.m_turning", "Maturity multiplier: partially ripe", 1.414, "x k_ref", "assumption", NONE_SRC, "Geometric mean of 1 and 2", "", "Assumed."),
+        p("mango.m_ripe", "Maturity multiplier: ripe", 2.0, "x k_ref", "assumption", NONE_SRC, "Assumed doubling of decay rate for ripe fruit", "", "Assumed."),
+        p("mango.t_app_low", "Applicability: lowest temperature in source data", 10.0, "degC", "experimental", s, "Respiration table", "", ""),
+        p("mango.t_app_high", "Applicability: highest temperature in source data", 20.0, "degC", "experimental", s, "Respiration table", "", ""),
+    ] + shared_assumptions("mango", 0.005)
+    return {"produce": "mango", "display_name": "Mango", "kannada": "ಮಾವು", "ethylene": "producer_moderate",
+            "ethylene_sensitive": True, "default_price_per_kg": 55.0, "varieties": ["Alphonso (Badami)", "Totapuri", "Mallika"],
+            "maturity_stages": ["mature_green", "turning", "ripe"], "params": params}
+
+
+PENDING_REFS = [
+    ("Mango (journal article)", "https://ccsenet.org/journal/index.php/jas/article/view/66567"),
+    ("Mango (ICAR IJAgS)", "https://epubs.icar.org.in/index.php/IJAgS/article/download/101489/39854/340992"),
+    ("Banana India (IAHS)", "https://www.journal.iahs.org.in/index.php/ijh/article/view/1311"),
+    ("FAO general handling", "https://www.fao.org/4/ae075e/ae075e13.htm"),
+    ("FAO temperature and humidity", "https://www.fao.org/4/y5431e/y5431e04.htm"),
+]
+
+
+def main():
+    OUT.mkdir(parents=True, exist_ok=True)
+    DOCS.mkdir(parents=True, exist_ok=True)
+    regs = [tomato(), mango(), banana()]
+    lines = [f"# ZERO ROT parameter evidence audit (registry v{VERSION}, reviewed {REVIEWED})", "",
+             "Generated by `backend/scripts/build_registry.py`. Every coefficient used by the decay engine is listed with its value, source, conditions, classification and limitations.", "",
+             "**Calibration caveat.** `k_ref` is calibrated so that quality falls from 100 to the minimum sellable score (40) exactly at the published storage life. "
+             "This guarantees the curve hits Q_min at day L by construction; it does NOT validate the shape of the deterioration curve. "
+             "It will be upgraded only if experimental quality-over-time observations are found and fitted.", "",
+             "**Weight loss (W) and rejection (R) functions are engineering assumptions.** The humidity and chilling penalty shapes are engineering assumptions anchored on published range edges.", ""]
+    for r in regs:
+        r["version"] = VERSION
+        r["last_reviewed"] = REVIEWED
+        (OUT / f"{r['produce']}.json").write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding="utf-8")
+        lines += [f"## {r['display_name']}", "", "| Parameter | Value | Unit | Classification | Source | Conditions | Limitations | Derivation |", "|---|---|---|---|---|---|---|---|"]
+        for x in r["params"]:
+            src = f"[{x['source']['publisher'].split(';')[0]}]({x['source']['url']})" if x["source"]["url"] else "none"
+            val = f"{x['value']}" + (f" (range {x['range'][0]:.4g}-{x['range'][1]:.4g})" if x["range"] else "")
+            lines.append(f"| {x['name']} | {val} | {x['unit']} | {x['classification_label']} | {src} | {x['conditions']} | {x['limitations']} | {x['derivation'] or ''} |")
+        lines.append("")
+    lines += ["## Starting references not yet used for coefficients", "",
+              "These were listed in the brief. They have not been reviewed in this build, so no coefficient is taken from them.", ""]
+    lines += [f"- {n}: {u}" for n, u in PENDING_REFS]
+    (DOCS / "parameter_audit.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("registry written:", [r["produce"] for r in regs])
+
+
+if __name__ == "__main__":
+    main()
