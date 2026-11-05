@@ -16,7 +16,9 @@ export const SITES = {
   yard: new THREE.Vector3(0, 0, 8),
 };
 const GRADE_COLOR: Record<string, string> = { A1: "#5FB37C", A2: "#FFC900", A3: "#F2994A", rejected: "#EB4D3D", uncertain: "#8A9099" };
-const PRODUCE: Record<string, string> = { tomato: "#d6402c", mango: "#e8a93a", banana: "#e5c640", potato: "#b48a5a", onion: "#b5577a" };
+const PRODUCE: Record<string, string> = { tomato: "#d6402c", mango: "#e8a93a", banana: "#e5c640", potato: "#b48a5a", onion: "#b5577a", cabbage: "#8fc26a",
+  cauliflower: "#efe7cf", carrot: "#e8742a", brinjal: "#5b2c6f", okra: "#5d9b3b", green_chilli: "#3f8f2f", grapes: "#7c3d8f", papaya: "#f0a347",
+  pomegranate: "#b3283b", orange: "#f39c25", rice: "#d9c07a", wheat: "#d8b46a", maize: "#f2c94c" };
 
 export function Label({ position, children, show = true, dim = false }: { position: [number, number, number]; children: React.ReactNode; show?: boolean; dim?: boolean }) {
   if (!show) return null;

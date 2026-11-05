@@ -102,7 +102,8 @@ function Decide({ lot, onDispatched }: { lot: any; onDispatched: () => void }) {
   const dispatch = async () => {
     setBusy("dispatch"); setError(null);
     try {
-      await post(`/flow/lots/${lot.id}/dispatch`, { grade: lot.stage === "graded" ? grade : "ALL", destination_name: dest.name, lat: dest.lat, lng: dest.lng }, true);
+      await post(`/flow/lots/${lot.id}/dispatch`, { grade: lot.stage === "graded" ? grade : "ALL", destination_name: dest.name, lat: dest.lat, lng: dest.lng,
+        plan: sortFirst ? plan : undefined }, true);
       onDispatched();
     } catch (e) { setError(e); } finally { setBusy(null); }
   };
@@ -110,6 +111,9 @@ function Decide({ lot, onDispatched }: { lot: any; onDispatched: () => void }) {
   const shipped = new Set((lot.shipments || []).map((s: any) => s.grade));
   const canSell = ["storage", "graded"].includes(lot.stage);
   const destinations = d?.market?.lat ? [{ name: d.market.market, lat: d.market.lat, lng: d.market.lng, distance_km: d.market.distance_km }] : [];
+  const sortFirst = lot.mode === "advanced" && lot.stage === "storage";
+  const local = (towns.data?.towns || []).find((x: any) => x.name !== dest?.name);
+  const plan = dest ? { A1: dest, A2: dest, A3: local ? { name: local.name, lat: local.lat, lng: local.lng } : dest } : null;
   const allDest = [...destinations, ...(towns.data?.towns || []).map((x: any) => ({ name: x.name, lat: x.lat, lng: x.lng, distance_km: x.distance_km }))].slice(0, 8);
   return (
     <div className="space-y-4">
@@ -144,7 +148,7 @@ function Decide({ lot, onDispatched }: { lot: any; onDispatched: () => void }) {
       )}
       <div className="border-t border-paper-300 pt-4">
         <div className="ph-label">{t("Sell")} → {t("Destination")}</div>
-        {!canSell ? <div className="text-sm text-ink-400">{lot.stage === "grading" ? "Wait until bagging finishes." : lot.stage === "intake" ? "Wait until loading finishes." : "Already dispatched."}</div> : (
+        {!canSell ? <div className="text-sm text-ink-400">{lot.stage === "grading" ? "Sorting in progress; trucks leave when it finishes." : lot.stage === "intake" ? "Wait until loading finishes." : "Already dispatched."}</div> : (
           <div className="space-y-2">
             {graded && (
               <div className="grid grid-cols-3 gap-2">
@@ -159,8 +163,14 @@ function Decide({ lot, onDispatched }: { lot: any; onDispatched: () => void }) {
               {allDest.map((x: any) => <button key={x.name} onClick={() => setDest(x)} className={cn("border-2 p-2 text-left text-xs", dest?.name === x.name ? "border-teal bg-teal/10" : "border-paper-300")}><b>{x.name}</b><div className="text-ink-400">{x.distance_km} km</div></button>)}
             </div>
             {graded && <div className="text-[11px] text-ink-400">Tip: A1 to the highest-price mandi, A2 to a standard market, A3 to local low-budget outlets.</div>}
+            {sortFirst && plan && (
+              <div className="rounded-2xl border border-teal/30 bg-teal/5 p-3 text-xs">
+                <div className="mb-1 font-bold text-teal">Scanned and sorted first, then each grade ships:</div>
+                {(["A1", "A2", "A3"] as const).map((g) => <div key={g}><b>{g}</b> → {(plan as any)[g].name}</div>)}
+              </div>
+            )}
             <button className="w-full bg-gold py-4 text-lg font-bold text-ink disabled:opacity-40" disabled={!dest || busy === "dispatch" || (graded && shipped.has(grade))} onClick={dispatch}>
-              {busy === "dispatch" ? <Spinner /> : `${t("Dispatch")} ${graded ? grade : ""} → ${dest?.name || "…"}`}
+              {busy === "dispatch" ? <Spinner /> : sortFirst ? "Scan, sort & dispatch" : `${t("Dispatch")} ${graded ? grade : ""} → ${dest?.name || "…"}`}
             </button>
           </div>
         )}

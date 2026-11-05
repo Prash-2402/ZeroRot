@@ -3,7 +3,8 @@ import { useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Bot, Crosshair, DoorOpen, Fan, Languages, LineChart, MapPin, PackageCheck, Plus, Search, Snowflake, Thermometer, Truck, Warehouse, Wind } from "lucide-react";
 import { api, post } from "../lib/api";
-import { days, kg, num, qualityColor, tempColor } from "../lib/format";
+import { COMMODITY_EMOJI, days, kg, num, qualityColor, tempColor } from "../lib/format";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../stores/auth";
 import { enablePush, pushSupported } from "../lib/push";
 import { ErrorBox, Spinner, cn } from "../components/ui";
@@ -68,6 +69,10 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<any>(null);
   const kgVal = (Number(qty) || 0) * (unit === "t" ? 1000 : 1);
+  const comms = useQuery({ queryKey: ["commodities"], queryFn: () => api("/commodities"), staleTime: 3600000 });
+  const PHOTO = Object.fromEntries(CROPS.filter((c) => c.img).map((c) => [c.id, c.img]));
+  const crops = (comms.data?.commodities || []).filter((c: any) => c.prediction_supported)
+    .map((c: any) => ({ id: c.id, name: c.name, kn: c.name_kn || c.name, img: PHOTO[c.id] || null, life: c.storage?.storage_life_days, t: c.storage?.temperature_c }));
   const gps = () => {
     if (!window.isSecureContext || !navigator.geolocation) { setError({ message: "GPS needs a secure (HTTPS) connection on phones. Search your village or town instead." }); return; }
     setBusy("gps"); setError(null);
@@ -93,13 +98,14 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
       <section>
         <div className="ph-label">1 · {t("Crop")}</div>
         <div className="grid grid-cols-4 gap-2">
-          {CROPS.map((c) => (
+          {(crops.length ? crops : CROPS).map((c: any) => (
             <button key={c.id} onClick={() => setCrop(c.id)} className={cn("overflow-hidden border-2 text-center", crop === c.id ? "border-teal" : "border-paper-300")}>
-              {c.img ? <img src={c.img} alt="" className="aspect-square w-full object-cover" /> : <div className="flex aspect-square items-center justify-center bg-paper-200 text-3xl">🥔</div>}
+              {c.img ? <img src={c.img} alt="" className="aspect-square w-full object-cover" /> : <div className="flex aspect-square items-center justify-center bg-paper-200 text-4xl">{COMMODITY_EMOJI[c.id] || "🌱"}</div>}
               <div className={cn("py-1 text-[11px] font-semibold", crop === c.id ? "bg-teal text-white" : "bg-white text-ink")}>{lang === "kn" ? c.kn : c.name}</div>
             </button>
           ))}
         </div>
+        {(() => { const c = crops.find((x: any) => x.id === crop); return c ? <div className="mt-2 text-[11px] text-ink-400">Keeps about {Math.round(c.life)} days at {c.t} °C (published storage life); faster when warmer.</div> : null; })()}
       </section>
       <section>
         <div className="ph-label">2 · {t("Quantity")}</div>

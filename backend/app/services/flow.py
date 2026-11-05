@@ -173,11 +173,13 @@ def pending_fixes(db: Session, lot: Lot) -> list[dict]:
     out = []
     for sid, where in sims.items():
         seen = set()
+        handled = set(db.scalars(select(CorrectiveAction.alert_id).where(CorrectiveAction.simulation_id == sid, CorrectiveAction.applied == True,  # noqa: E712
+                                                                         CorrectiveAction.automatic == False)).all()) if sid else set()  # noqa: E712
         for c in db.execute(select(CorrectiveAction, Alert).join(Alert, Alert.id == CorrectiveAction.alert_id)
                             .where(CorrectiveAction.simulation_id == sid, CorrectiveAction.applied == False, CorrectiveAction.automatic == False,  # noqa: E712
                                    Alert.status == "open").order_by(CorrectiveAction.id.desc())).all() if sid else []:
             ca, al = c
-            if ca.action in seen or ca.action not in FIX_LABEL:
+            if ca.action in seen or ca.action not in FIX_LABEL or al.id in handled:
                 continue
             seen.add(ca.action)
             out.append({"id": ca.id, "action": ca.action, "label": FIX_LABEL[ca.action], "where": where, "alert": al.title, "severity": al.severity,

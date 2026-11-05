@@ -307,6 +307,17 @@ export default function WorldPage() {
               })}
             </div>
           </div>
+          {lot.pending_fixes?.length > 0 && (
+            <div className="hud space-y-1.5 border-critical/40 p-3">
+              <div className="hud-label !text-critical">Needs approval</div>
+              {lot.pending_fixes.map((f: any) => (
+                <div key={f.id} className="flex items-center justify-between gap-2 rounded-lg bg-white/70 p-2 text-[11px]">
+                  <div className="min-w-0"><b>{f.alert}</b> · {f.where}<div className="text-ink-500">{f.label}</div></div>
+                  <button className="shrink-0 bg-teal px-2.5 py-1.5 font-bold text-white" disabled={!!busy} onClick={() => act(`fix-${f.id}`, () => post(`/flow/lots/${lot.id}/fixes/${f.id}/approve`, {}))}>Approve</button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="hud max-h-[46vh] overflow-y-auto p-3"><ContextPanel lot={lot} /></div>
         </div>
       )}

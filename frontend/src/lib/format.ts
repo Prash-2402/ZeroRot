@@ -31,7 +31,8 @@ export function when(iso?: string | null) {
   return new Date(iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z").toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-export const COMMODITY_EMOJI: Record<string, string> = { tomato: "🍅", mango: "🥭", banana: "🍌", potato: "🥔", onion: "🧅" };
+export const COMMODITY_EMOJI: Record<string, string> = { tomato: "🍅", mango: "🥭", banana: "🍌", potato: "🥔", onion: "🧅", cabbage: "🥬", cauliflower: "🥦",
+  carrot: "🥕", brinjal: "🍆", okra: "🫛", green_chilli: "🌶️", grapes: "🍇", papaya: "🍈", pomegranate: "🍎", orange: "🍊", rice: "🌾", wheat: "🌾", maize: "🌽" };
 
 /** Semantic temperature colour relative to a setpoint: blue cold → light blue normal → yellow → orange → red. */
 export function tempColor(t: number, setpoint: number) {
