@@ -207,7 +207,7 @@ export default function WorldPage() {
       <div className="absolute inset-0"><WorldScene lots={lots} activeLot={lot} view={resolved.view} ship={resolved.ship} quality={quality} labels={labels} onQuality={setQuality} onReady={() => setReady(true)} /></div>
       {!ready && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-ink">
-          <div className="animate-pulse rounded-lg bg-paper px-4 py-3"><img src="/logo.png" alt="ZERO ROT" className="h-14 w-auto" /></div>
+          <img src="/logo.png" alt="ZERO ROT" className="h-14 w-auto animate-pulse drop-shadow-[0_0_8px_rgba(243,238,232,0.35)]" />
           <div className="text-xs uppercase tracking-[0.2em] text-ink-300">Building the world on your GPU…</div>
         </div>
       )}
@@ -216,7 +216,7 @@ export default function WorldPage() {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 p-3">
         <div className="pointer-events-auto flex flex-col gap-2">
           <div className="hud flex items-center gap-3 px-3 py-2">
-            <div className="rounded-md bg-paper px-2 py-1"><img src="/logo.png" alt="ZERO ROT" className="h-8 w-auto" /></div>
+            <img src="/logo.png" alt="ZERO ROT" className="h-9 w-auto drop-shadow-[0_0_6px_rgba(243,238,232,0.35)]" />
             <div className="leading-tight"><div className="flex items-center gap-1.5 text-[10px] text-ink-300"><span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-ok" : "bg-critical")} />{connected ? "live · backend authoritative" : "reconnecting"}</div></div>
             <button className="ml-2 flex items-center gap-1 border border-gold/50 px-2 py-1 text-[11px] font-semibold text-gold hover:bg-gold hover:text-ink" onClick={() => setShowQR((x) => !x)}><QrCode className="h-3.5 w-3.5" /> Pair phone</button>
           </div>
