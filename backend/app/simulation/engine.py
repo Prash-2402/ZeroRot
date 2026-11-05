@@ -13,6 +13,7 @@ from .environment import humidity_ratio
 from .state import AirState, Equipment, Overrides, ProduceState, SimState
 
 SUBSTEP_S = 30.0
+ALERT_CLEAR_S = 3600.0   # an alert must stay clear for 1 h (sim time) before it resolves
 MAX_STORAGE_DAYS = 14   # keeps every simulated hour inside the live weather forecast window (16 days)
 
 
@@ -196,6 +197,8 @@ class Runtime:
         active = self.meta["active_alerts"]
         for code, f in findings.items():
             prev = active.get(code)
+            if prev is not None:
+                prev.pop("clear_t", None)
             if prev is None or (prev["severity"] != f.severity and f.severity == "CRITICAL"):
                 active[code] = {"severity": f.severity, "t": self.s.t_seconds}
                 out["alerts_opened"].append(f)
@@ -205,8 +208,11 @@ class Runtime:
                         out["actions"].append(act)
         for code in list(active):
             if code not in findings:
-                active.pop(code)
-                out["alerts_resolved"].append(code)
+                # hysteresis: resolve only after the condition has stayed clear for ALERT_CLEAR_S of sim time
+                clear_t = active[code].setdefault("clear_t", self.s.t_seconds)
+                if self.s.t_seconds - clear_t >= ALERT_CLEAR_S:
+                    active.pop(code)
+                    out["alerts_resolved"].append(code)
 
     def _auto(self, f: event_manager.Finding) -> dict | None:
         """Automatic control within safety limits; every action is returned for the audit trail."""

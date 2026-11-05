@@ -141,6 +141,8 @@ def test_cooling_failure_alert_opens_and_resolves():
     assert "COOLING_FAILURE" in {f.code for f in res["alerts_opened"]}
     rt.scenario("normal")
     res = rt.advance(600, predictions=False)
+    assert "COOLING_FAILURE" not in res["alerts_resolved"]   # hysteresis: must stay clear for 1 h first
+    res = rt.advance(3600, predictions=False)
     assert "COOLING_FAILURE" in res["alerts_resolved"]
 
 

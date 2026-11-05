@@ -56,7 +56,8 @@ def sim_dict(s: Simulation, live: bool = False) -> dict:
          "duration_days": cfg.get("duration_days"), "setpoint": cfg.get("setpoint"), "summary": cfg.get("summary"), "last_error": cfg.get("last_error"),
          "weather": {"source": (cfg.get("weather") or {}).get("source"), "retrieved_at": (cfg.get("weather") or {}).get("retrieved_at"),
                      "status": (cfg.get("weather") or {}).get("status")}, "manual_ambient": cfg.get("manual_ambient"),
-         "route_geometry": cfg.get("route_geometry") if live else None, "auto_control": cfg.get("auto_control"), "price_per_kg": cfg.get("price_per_kg")}
+         "route_geometry": cfg.get("route_geometry") if live else None, "auto_control": cfg.get("auto_control"), "price_per_kg": cfg.get("price_per_kg"),
+         "dimensions_m": cfg.get("dimensions_m"), "structure": cfg.get("structure")}
     return d
 
 

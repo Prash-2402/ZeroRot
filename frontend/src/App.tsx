@@ -1,44 +1,51 @@
-import { Route, Routes } from "react-router-dom";
-import { Layout, Toasts } from "./components/Layout";
-import { useLiveSocket } from "./lib/ws";
-import FarmPage from "./farm/FarmPage";
-import ControlRoom from "./pages/ControlRoom";
-import Batches from "./pages/Batches";
-import Twin from "./pages/Twin";
-import Decide from "./pages/Decide";
-import Markets from "./pages/Markets";
-import Transport from "./pages/Transport";
-import Passport, { PublicPassport } from "./pages/Passport";
-import Impact from "./pages/Impact";
-import Settings from "./pages/Settings";
-import Judge from "./pages/Judge";
+import { lazy, Suspense, type ReactNode } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { AppLayout } from "./components/AppLayout";
+import { Loading } from "./components/ui";
+import { useAuth } from "./stores/auth";
 
-function Shell({ children }: { children: React.ReactNode }) {
-  return <Layout>{children}</Layout>;
+const Landing = lazy(() => import("./pages/Landing"));
+const Login = lazy(() => import("./pages/Login"));
+const Overview = lazy(() => import("./pages/Overview"));
+const PostHarvest = lazy(() => import("./pages/PostHarvest"));
+const Traditional = lazy(() => import("./pages/Traditional"));
+const Advanced = lazy(() => import("./pages/Advanced"));
+const ColdStorage = lazy(() => import("./pages/ColdStorage"));
+const Price = lazy(() => import("./pages/Price"));
+const ColdChain = lazy(() => import("./pages/ColdChain"));
+const Lab = lazy(() => import("./pages/Lab"));
+const Alerts = lazy(() => import("./pages/Alerts"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Mobile = lazy(() => import("./pages/Mobile"));
+
+function Protected({ children }: { children: ReactNode }) {
+  const token = useAuth((s) => s.token);
+  if (!token) return <Navigate to="/login" replace />;
+  return <AppLayout>{children}</AppLayout>;
 }
 
 export default function App() {
-  useLiveSocket();
+  const page = (el: ReactNode) => <Protected><Suspense fallback={<Loading />}>{el}</Suspense></Protected>;
   return (
-    <>
+    <Suspense fallback={<Loading />}>
       <Routes>
-        {/* Farmer view (default) */}
-        <Route path="/" element={<FarmPage />} />
-        <Route path="/judge" element={<Judge />} />
-        <Route path="/p/:token" element={<PublicPassport />} />
-        {/* Analytics / operator view (reached from Detailed mode) */}
-        <Route path="/ops" element={<ControlRoom />} />
-        <Route path="/ops/batches" element={<Shell><Batches /></Shell>} />
-        <Route path="/ops/twin" element={<Shell><Twin /></Shell>} />
-        <Route path="/ops/decide" element={<Shell><Decide /></Shell>} />
-        <Route path="/ops/markets" element={<Shell><Markets /></Shell>} />
-        <Route path="/ops/transport" element={<Shell><Transport /></Shell>} />
-        <Route path="/ops/passport" element={<Shell><Passport /></Shell>} />
-        <Route path="/ops/impact" element={<Shell><Impact /></Shell>} />
-        <Route path="/ops/settings" element={<Shell><Settings /></Shell>} />
-        <Route path="*" element={<FarmPage />} />
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/m/:token" element={<Mobile />} />
+        <Route path="/app" element={page(<Overview />)} />
+        <Route path="/app/post-harvest" element={page(<PostHarvest />)} />
+        <Route path="/app/traditional" element={page(<Traditional />)} />
+        <Route path="/app/advanced" element={page(<Advanced />)} />
+        <Route path="/app/cold-storage" element={page(<ColdStorage />)} />
+        <Route path="/app/price" element={page(<Price />)} />
+        <Route path="/app/cold-chain" element={page(<ColdChain />)} />
+        <Route path="/app/lab" element={page(<Lab />)} />
+        <Route path="/app/alerts" element={page(<Alerts />)} />
+        <Route path="/app/analytics" element={page(<Analytics />)} />
+        <Route path="/app/settings" element={page(<Settings />)} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <Toasts />
-    </>
+    </Suspense>
   );
 }

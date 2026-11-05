@@ -1,95 +1,133 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink } from "lucide-react";
 import { api, post } from "../lib/api";
-import { PRODUCE_EMOJI, when } from "../lib/format";
-import { useSelection } from "../stores/live";
-import { Badge, Card, cn, ErrorBox, Loading, Note, PageHeader, Segmented, Spinner } from "../components/ui";
+import { enablePush, pushSupported, testPush } from "../lib/push";
+import { when } from "../lib/format";
+import { ErrorBox, Field, Note, PageHead, Panel, Seg, Spinner, cn } from "../components/ui";
+import { useCommodities } from "../components/shared";
+import { useAuth } from "../stores/auth";
 
-const CLASS_TONE: Record<string, string> = { experimental: "green", operating_range: "green", derived: "blue", calibrated: "amber", assumption: "amber", demo: "red" };
-const STATUS_TONE: Record<string, string> = { ok: "green", demo: "blue", preview: "blue", unavailable: "grey" };
-
-function Validation() {
-  const qc = useQueryClient();
-  const { batchId } = useSelection();
-  const { data } = useQuery({ queryKey: ["validation"], queryFn: () => api("/validation") });
-  const [q, setQ] = useState<number | "">("");
-  const [s, setS] = useState<number | "">("");
-  const m = useMutation({ mutationFn: () => post("/validation", { batch_id: batchId, observed_quality: q === "" ? null : q, observed_shelf_life: s === "" ? null : s }), onSuccess: () => qc.invalidateQueries({ queryKey: ["validation"] }) });
+function Integrations() {
+  const { data, isLoading, refetch, isFetching } = useQuery({ queryKey: ["integrations"], queryFn: () => api("/integrations") });
   return (
-    <Card title="Validation records" subtitle="Enter an observed outcome for a batch later; MAE, RMSE and bias are computed only from real records.">
-      {data?.message && <div className="rounded-lg bg-cream-100 px-3 py-4 text-center text-sm font-medium text-charcoal-500">{data.message}</div>}
-      {data?.metrics && Object.keys(data.metrics).length > 0 && (
-        <div className="mb-3 grid gap-2 sm:grid-cols-3">
-          {Object.entries(data.metrics).map(([prod, mm]: any) => Object.entries(mm).map(([k, v]: any) => (
-            <div key={prod + k} className="rounded-lg border border-cream-200 p-2 text-xs"><div className="font-semibold text-forest">{PRODUCE_EMOJI[prod]} {prod} · {k}</div>n={v.n} · MAE {v.mae} · RMSE {v.rmse} · bias {v.bias}</div>
-          )))}
+    <Panel title="Integrations" sub="Checked live from the backend" action={<button className="btn-line" onClick={() => refetch()}>{isFetching ? <Spinner /> : "Re-check"}</button>}>
+      {isLoading ? <Spinner /> : (
+        <table className="w-full text-sm"><tbody className="table-body">
+          {(data?.integrations || []).map((i: any) => (
+            <tr key={i.name}><td className="py-1.5 font-semibold">{i.name}</td><td><span className={cn("chip", ["live", "connected"].includes(i.status) ? "bg-ok text-white" : i.status === "unavailable" ? "bg-critical text-white" : "bg-gold text-ink")}>{i.status}</span></td><td className="text-xs text-ink-400">{i.detail}</td></tr>
+          ))}
+        </tbody></table>
+      )}
+      <Note>Keys (Groq, data.gov.in, VAPID) live only in the backend <code>.env</code>; they are never sent to the browser.</Note>
+    </Panel>
+  );
+}
+
+function Users() {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["users"], queryFn: () => api("/auth/users") });
+  const [f, setF] = useState({ name: "", email: "", password: "", role: "operator" });
+  const m = useMutation({ mutationFn: () => post("/auth/users", f), onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setF({ name: "", email: "", password: "", role: "operator" }); } });
+  return (
+    <Panel title="Users" sub="Role-based access: admin, operator, farmer">
+      <ErrorBox error={q.error} />
+      <div className="mb-3 space-y-1">{(q.data?.users || []).map((u: any) => <div key={u.id} className="flex justify-between border-b border-paper-300 py-1 text-sm"><span>{u.name} <span className="text-ink-400">{u.email}</span></span><span className="chip bg-paper-300">{u.role}</span></div>)}</div>
+      <form className="grid gap-2 md:grid-cols-5" onSubmit={(e) => { e.preventDefault(); m.mutate(); }}>
+        <input className="input" placeholder="Name" required minLength={2} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <input className="input" placeholder="Email" type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+        <input className="input" placeholder="Password (8+)" type="password" required minLength={8} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoComplete="new-password" />
+        <select className="input" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}><option value="operator">Operator</option><option value="farmer">Farmer</option><option value="admin">Admin</option></select>
+        <button className="btn-gold" disabled={m.isPending}>{m.isPending ? <Spinner /> : "Add user"}</button>
+      </form>
+      <ErrorBox error={m.error} />
+    </Panel>
+  );
+}
+
+function QRSessions() {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["qr-sessions"], queryFn: () => api("/qr/sessions") });
+  const revoke = useMutation({ mutationFn: (id: number) => post(`/qr/sessions/${id}/revoke`), onSuccess: () => qc.invalidateQueries({ queryKey: ["qr-sessions"] }) });
+  const list = q.data?.sessions || [];
+  return (
+    <Panel title="Mobile QR sessions" sub="Scoped to one resource, PIN-protected, expiring and revocable">
+      {list.length === 0 ? <div className="text-sm text-ink-400">No QR sessions created.</div> : (
+        <table className="w-full text-xs">
+          <thead><tr className="table-head"><th className="py-1 text-left">#</th><th className="text-left">Resource</th><th className="text-left">Permissions</th><th className="text-left">Expires</th><th className="text-right">Uses</th><th /></tr></thead>
+          <tbody className="table-body">{list.map((s: any) => (
+            <tr key={s.id}><td className="py-1">{s.id}</td><td>{s.resource_type} #{s.resource_id}</td><td>{s.permissions.join(", ")}</td><td>{when(s.expires_at)}</td><td className="text-right">{s.uses}</td>
+              <td className="text-right">{s.revoked ? <span className="chip bg-paper-300">revoked</span> : s.expired ? <span className="chip bg-paper-300">expired</span> : <button className="btn-danger py-0.5 text-[11px]" onClick={() => revoke.mutate(s.id)}>Revoke</button>}</td></tr>
+          ))}</tbody>
+        </table>
+      )}
+    </Panel>
+  );
+}
+
+function Notifications() {
+  const en = useMutation({ mutationFn: () => enablePush(false) });
+  const t = useMutation({ mutationFn: () => testPush(false) });
+  return (
+    <Panel title="Push notifications" sub="Critical alerts are pushed to subscribed devices">
+      {!pushSupported() ? <Note tone="warn">This browser does not support web push.</Note> : (
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-gold" onClick={() => en.mutate()} disabled={en.isPending}>{en.isPending ? <Spinner /> : en.isSuccess ? "Enabled ✓" : "Enable on this device"}</button>
+          <button className="btn-line" onClick={() => t.mutate()} disabled={t.isPending}>Send test</button>
         </div>
       )}
-      {data?.records?.length > 0 && (
-        <table className="mb-3 w-full text-xs"><thead><tr className="[&>th]:label [&>th]:py-1 [&>th]:text-left"><th>Batch</th><th>Pred. Q</th><th>Obs. Q</th><th>Pred. SL</th><th>Obs. SL</th><th>When</th></tr></thead>
-          <tbody>{data.records.map((r: any) => <tr key={r.id} className="border-t border-cream-100 [&>td]:py-1"><td className="font-mono">{r.batch_id}</td><td>{r.predicted_quality ?? "—"}</td><td>{r.observed_quality ?? "—"}</td><td>{r.predicted_shelf_life ?? "—"}</td><td>{r.observed_shelf_life ?? "—"}</td><td>{when(r.observed_at)}</td></tr>)}</tbody></table>
-      )}
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="text-xs text-charcoal-500">For <b className="font-mono">{batchId}</b>:</div>
-        <label className="text-xs">Observed quality<input className="input mt-0.5 w-28 py-1" type="number" value={q} onChange={(e) => setQ(e.target.value === "" ? "" : Number(e.target.value))} /></label>
-        <label className="text-xs">Observed shelf life (d)<input className="input mt-0.5 w-28 py-1" type="number" value={s} onChange={(e) => setS(e.target.value === "" ? "" : Number(e.target.value))} /></label>
-        <button className="btn-secondary text-xs" onClick={() => m.mutate()} disabled={m.isPending}>{m.isPending ? <Spinner className="h-3 w-3" /> : "Record outcome"}</button>
+      <ErrorBox error={en.error || t.error} />
+      {t.data && <div className="mt-2 text-xs">{t.data.results.map((r: any, i: number) => <div key={i}>{r.ok ? "Delivered to push service" : `Failed: ${r.detail}`}</div>)}</div>}
+    </Panel>
+  );
+}
+
+function Catalog() {
+  const comms = useCommodities();
+  const [c, setC] = useState("tomato");
+  const d = useQuery({ queryKey: ["commodity", c], queryFn: () => api(`/commodities/${c}`) });
+  return (
+    <Panel title="Commodity parameters" sub="Every model parameter with its source, classification and limitations">
+      <div className="mb-3"><Seg value={c} onChange={setC} options={(comms.data?.commodities || []).map((x: any) => ({ value: x.id, label: x.name }))} /></div>
+      {d.data && !d.data.prediction_supported && <Note tone="warn">{d.data.prediction_note}</Note>}
+      <div className="max-h-[420px] overflow-y-auto">
+        <table className="w-full text-xs">
+          <thead><tr className="table-head"><th className="py-1 text-left">Parameter</th><th className="text-right">Value</th><th className="text-left pl-2">Class</th><th className="text-left">Source</th></tr></thead>
+          <tbody className="table-body">{(d.data?.parameters || []).map((p: any) => (
+            <tr key={p.key} className="align-top"><td className="py-1"><b>{p.name}</b><div className="font-mono text-ink-400">{p.key}</div></td>
+              <td className="text-right font-mono">{p.value} {p.unit}{p.range && <div className="text-ink-400">[{p.range[0]}, {p.range[1]}]</div>}</td>
+              <td className="pl-2"><span className={cn("chip", p.classification === "sourced" ? "bg-ok text-white" : p.classification === "derived" ? "bg-gold text-ink" : "bg-paper-300")}>{p.classification}</span></td>
+              <td className="max-w-md text-ink-400">{p.source}{p.derivation && <div>Derivation: {p.derivation}</div>}{p.limitations && <div>Limits: {p.limitations}</div>}</td></tr>
+          ))}</tbody>
+        </table>
       </div>
-      <div className="mt-2"><ErrorBox error={m.error} /></div>
-    </Card>
+    </Panel>
+  );
+}
+
+function Audit() {
+  const q = useQuery({ queryKey: ["audit"], queryFn: () => api("/audit") });
+  return (
+    <Panel title="Audit log" sub="Security-relevant actions (last 300)">
+      <ErrorBox error={q.error} />
+      <div className="max-h-[400px] overflow-y-auto">
+        <table className="w-full text-xs"><thead><tr className="table-head"><th className="py-1 text-left">When</th><th className="text-left">Actor</th><th className="text-left">Action</th><th className="text-left">Entity</th><th className="text-left">IP</th></tr></thead>
+          <tbody className="table-body">{(q.data?.entries || []).map((a: any) => <tr key={a.id}><td className="py-1">{when(a.created_at)}</td><td>{a.actor}</td><td className="font-mono">{a.action}</td><td>{a.entity} {a.entity_id ?? ""}</td><td>{a.ip}</td></tr>)}</tbody></table>
+      </div>
+    </Panel>
   );
 }
 
 export default function Settings() {
-  const qc = useQueryClient();
-  const { data: integ } = useQuery({ queryKey: ["integrations"], queryFn: () => api("/integrations") });
-  const { data: reg } = useQuery({ queryKey: ["parameters"], queryFn: () => api("/parameters") });
-  const [prod, setProd] = useState("tomato");
-  const mode = useMutation({ mutationFn: (m: string) => post("/mode", { mode: m }), onSuccess: () => qc.invalidateQueries() });
-  const p = reg?.produce?.find((x: any) => x.produce === prod);
+  const role = useAuth((s) => s.user?.role);
   return (
-    <div className="space-y-6">
-      <PageHeader kicker="Settings" title="Mode, integrations and science" subtitle="DEMO MODE works with no keys and no internet (map tiles excepted). REAL MODE activates whatever is configured and shows what is unavailable." />
-      <Card title="Mode" action={<Segmented value={integ?.mode || "demo"} onChange={(v) => mode.mutate(v)} options={[{ value: "demo", label: "DEMO" }, { value: "real", label: "REAL" }]} />}>
-        {mode.isPending && <div className="mb-2 flex items-center gap-2 text-xs text-charcoal-400"><Spinner className="h-3 w-3" /> checking providers…</div>}
-        {!integ ? <Loading /> : (
-          <div className="grid gap-2 md:grid-cols-2">
-            {integ.integrations.map((i: any) => (
-              <div key={i.name} className="flex items-start justify-between gap-3 rounded-lg border border-cream-200 px-3 py-2">
-                <div><div className="text-sm font-semibold capitalize text-forest">{i.name.replace("_", " ")}</div><div className="text-xs text-charcoal-500">{i.provider} · {i.detail}</div></div>
-                <Badge tone={STATUS_TONE[i.status]}>{i.status}</Badge>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="mt-3"><Note>Keys live only in the backend .env and are never sent to the browser. Needed for REAL MODE: DATA_GOV_API_KEY (Agmarknet), GROQ_API_KEY (agentic workflow), TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (live alerts). Open-Meteo and OSRM need no key.</Note></div>
-      </Card>
-      <Card title="Scientific parameter registry" subtitle={reg?.calibration_note} action={<Segmented value={prod} onChange={setProd} options={["tomato", "mango", "banana"].map((x) => ({ value: x, label: `${PRODUCE_EMOJI[x]} ${x}` }))} />}>
-        {!p ? <Loading /> : (
-          <>
-            <div className="mb-3 text-xs text-charcoal-500">Version {p.version} · reviewed {p.last_reviewed} · mean parameter-quality score {p.parameter_quality} · full audit in <code>docs/parameter_audit.md</code></div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-xs">
-                <thead><tr className="[&>th]:label [&>th]:px-2 [&>th]:py-2 [&>th]:text-left"><th>Parameter</th><th>Value</th><th>Classification</th><th>Conditions</th><th>Derivation / limitations</th><th>Source</th></tr></thead>
-                <tbody>
-                  {p.params.map((x: any) => (
-                    <tr key={x.id} className="border-t border-cream-100 align-top [&>td]:px-2 [&>td]:py-2">
-                      <td className="font-medium text-forest">{x.name}<div className="font-mono text-[10px] text-charcoal-300">{x.id}</div></td>
-                      <td className="num whitespace-nowrap">{x.value} {x.unit}{x.range && <div className="text-[10px] text-charcoal-400">range {x.range[0].toFixed?.(3) ?? x.range[0]}–{x.range[1].toFixed?.(3) ?? x.range[1]}</div>}</td>
-                      <td><Badge tone={CLASS_TONE[x.classification]}>{x.classification_label}</Badge></td>
-                      <td className="max-w-[220px] text-charcoal-500">{x.conditions}</td>
-                      <td className={cn("max-w-[260px] text-charcoal-500")}>{x.derivation && <div className="font-mono text-[10px]">{x.derivation}</div>}{x.limitations}</td>
-                      <td>{x.source?.url ? <a href={x.source.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-leaf-600 hover:underline">{x.source.publisher.split(";")[0]} ({x.source.year}) <ExternalLink className="h-3 w-3" /></a> : <span className="text-charcoal-300">none</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </Card>
-      <Validation />
+    <div className="space-y-4">
+      <PageHead kicker="System" title="Settings" />
+      <Integrations />
+      {role === "admin" && <Users />}
+      <div className="grid gap-4 lg:grid-cols-2"><QRSessions /><Notifications /></div>
+      <Catalog />
+      {role === "admin" && <Audit />}
+      <Field label="Signed in as"><div className="text-sm">{useAuth.getState().user?.email}</div></Field>
     </div>
   );
 }

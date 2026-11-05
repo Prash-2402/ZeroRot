@@ -274,7 +274,8 @@ def explain(body: ExplainIn, request: Request, p: Principal = Depends(current_pr
         ps = db.get(ProfitScenario, body.profit_scenario_id)
         if ps is None:
             err(404, "not_found", "Scenario not found")
-        payload = {"inputs": ps.inputs, "sell_now": ps.results["sell_now"], "best": ps.results["best"], "recommendation": ps.results["recommendation"],
+        bt = db.get(ProduceBatch, ps.batch_id)
+        payload = {"commodity": bt.commodity_id if bt else None, "quantity_kg": bt.quantity_kg if bt else None, "inputs": ps.inputs, "sell_now": ps.results["sell_now"], "best": ps.results["best"], "recommendation": ps.results["recommendation"],
                    "assumptions": ps.results["assumptions"]}
     elif body.task == "price_forecast" and body.commodity and body.market_name:
         f = db.scalars(select(PriceForecast).where(PriceForecast.commodity_id == body.commodity, PriceForecast.market == body.market_name)

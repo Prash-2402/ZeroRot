@@ -2,39 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
-}
-
+:root { color-scheme: light; }
 html, body, #root { height: 100%; }
-body {
-  @apply bg-cream-50 text-charcoal antialiased;
-  font-feature-settings: "tnum" 1, "cv11" 1;
-}
-
-.kn { font-family: "Noto Sans Kannada", "Nirmala UI", sans-serif; }
+body { @apply bg-paper text-ink antialiased font-sans; font-feature-settings: "tnum" 1; }
 
 @layer components {
-  .card { @apply bg-white rounded-xl border border-cream-200 shadow-soft; }
-  .card-dark { @apply bg-night-800/90 backdrop-blur rounded-xl border border-night-600 text-cream-100; }
-  .label { @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-charcoal-400; }
-  .h-display { @apply font-display text-forest tracking-tight; }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-leaf/50; }
-  .btn-primary { @apply btn bg-forest text-cream-50 hover:bg-forest-800; }
-  .btn-secondary { @apply btn bg-white text-forest border border-cream-200 hover:bg-cream-100; }
-  .btn-ghost { @apply btn text-forest hover:bg-forest-50; }
-  .btn-danger { @apply btn bg-rot text-white hover:bg-rot-600; }
-  .input { @apply w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-leaf/40 focus:border-leaf; }
-  .chip { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold; }
-  .num { font-variant-numeric: tabular-nums; }
+  .panel { @apply bg-white border border-paper-300; }
+  .panel-dark { @apply bg-ink-800 border border-ink-600 text-paper; }
+  .label { @apply text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-400; }
+  .label-dark { @apply text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-300; }
+  .h1 { @apply font-display text-[28px] font-semibold tracking-tight text-ink; }
+  .num { @apply font-mono tabular-nums; }
+  .btn { @apply inline-flex items-center justify-center gap-2 px-3.5 py-2 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-gold; border-radius: 4px; }
+  .btn-gold { @apply btn bg-gold text-ink hover:bg-gold-400; }
+  .btn-ink { @apply btn bg-ink text-paper hover:bg-ink-700; }
+  .btn-line { @apply btn border border-paper-300 bg-white text-ink hover:border-ink; }
+  .btn-line-dark { @apply btn border border-ink-500 text-paper hover:border-gold hover:text-gold; }
+  .btn-danger { @apply btn bg-critical text-white hover:brightness-110; }
+  .input { @apply w-full border border-paper-300 bg-white px-3 py-2 text-sm focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink; border-radius: 4px; }
+  .chip { @apply inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider; border-radius: 2px; }
+  .table-head th { @apply label px-3 py-2 text-left font-semibold; }
+  .table-body td { @apply px-3 py-2 border-t border-paper-200 text-sm; }
 }
 
-input[type="range"] { accent-color: #1F4D3A; }
-
-.maplibregl-ctrl-attrib { font-size: 10px !important; opacity: 0.7; }
-
-@keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.8 } 100% { transform: scale(2.2); opacity: 0 } }
-.pulse-ring { animation: pulse-ring 1.6s ease-out infinite; }
-
+input[type="range"] { accent-color: #FFC900; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: #C5D4C4; border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: #B9B4A9; }

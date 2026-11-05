@@ -10,7 +10,7 @@ def sensors(kind: str, s: SimState, r: dict, gps: tuple | None = None) -> list[d
     if kind == "cold_chain":
         n = len(s.zones)
         for i, t in enumerate(r["zone_temperatures_c"]):
-            out.append({"id": f"T{i + 1}", "kind": "temperature", "value": t, "unit": "degC", "position": [round(-2.4 + 4.8 * (i + 0.5) / n, 2), 1.6, 0.0],
+            out.append({"id": f"T{i + 1}", "kind": "temperature", "value": t, "unit": "degC", "position": [round(2.4 - 4.8 * (i + 0.5) / n, 2), 1.6, 0.0],
                         "label": f"Cargo zone {i + 1}" + (" (front, near unit)" if i == 0 else " (rear, door)" if i == n - 1 else "")})
         out += [{"id": "RH1", "kind": "humidity", "value": r["rh_pct"], "unit": "%", "position": [0.0, 2.3, 0.9], "label": "Cargo humidity"},
                 {"id": "O2", "kind": "oxygen", "value": r["o2_pct"], "unit": "%", "position": [0.8, 2.3, -0.9], "label": "Oxygen"},

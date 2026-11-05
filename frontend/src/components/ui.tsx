@@ -1,17 +1,17 @@
 import { clsx } from "clsx";
-import { Loader2, Info } from "lucide-react";
+import { AlertTriangle, Info, Loader2, X } from "lucide-react";
 import type { ReactNode } from "react";
 
-export function cn(...a: any[]) { return clsx(a); }
+export const cn = (...a: any[]) => clsx(a);
 
-export function Card({ className, children, title, action, subtitle }: { className?: string; children: ReactNode; title?: ReactNode; action?: ReactNode; subtitle?: ReactNode }) {
+export function Panel({ title, action, children, className, dark, sub }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; dark?: boolean; sub?: ReactNode }) {
   return (
-    <section className={cn("card p-5", className)}>
+    <section className={cn(dark ? "panel-dark" : "panel", "p-4", className)}>
       {(title || action) && (
-        <header className="mb-4 flex items-start justify-between gap-3">
+        <header className="mb-3 flex items-start justify-between gap-3">
           <div>
-            {title && <h3 className="font-semibold text-forest">{title}</h3>}
-            {subtitle && <p className="mt-0.5 text-xs text-charcoal-400">{subtitle}</p>}
+            {title && <h3 className={cn("text-[13px] font-semibold uppercase tracking-[0.08em]", dark ? "text-paper" : "text-ink")}>{title}</h3>}
+            {sub && <p className={cn("mt-0.5 text-xs", dark ? "text-ink-300" : "text-ink-400")}>{sub}</p>}
           </div>
           {action}
         </header>
@@ -21,13 +21,33 @@ export function Card({ className, children, title, action, subtitle }: { classNa
   );
 }
 
-const TONES: Record<string, string> = {
-  green: "bg-leaf/10 text-leaf-600", amber: "bg-amber-50 text-amber-600", red: "bg-rot-50 text-rot",
-  grey: "bg-cream-200 text-charcoal-500", forest: "bg-forest text-cream-50", blue: "bg-sky-50 text-sky-700",
-  outline: "border border-cream-200 text-charcoal-500 bg-white",
+const ORIGIN: Record<string, [string, string]> = {
+  simulated: ["SIMULATED", "bg-gold text-ink"], live: ["LIVE", "bg-ok text-white"], live_forecast: ["LIVE FORECAST", "bg-ok text-white"],
+  manual: ["MANUAL", "bg-ink text-paper"], unavailable: ["DATA UNAVAILABLE", "bg-critical text-white"], estimate: ["ESTIMATE", "bg-paper-300 text-ink"],
+  model: ["MODEL", "bg-paper-300 text-ink"], scenario: ["SCENARIO", "bg-abnormal text-white"], test: ["TEST DATA", "bg-paper-300 text-ink"],
+  ai: ["AI EXPLANATION", "bg-ink text-gold"], osrm_live: ["ROUTE · LIVE", "bg-ok text-white"],
 };
-export function Badge({ tone = "grey", children, className, title }: { tone?: string; children: ReactNode; className?: string; title?: string }) {
-  return <span title={title} className={cn("chip", TONES[tone] || TONES.grey, className)}>{children}</span>;
+export function Origin({ kind, title }: { kind: string; title?: string }) {
+  const base = kind?.split("+")[0];
+  const [label, cls] = ORIGIN[base] || [kind?.toUpperCase(), "bg-paper-300 text-ink"];
+  return <span title={title} className={cn("chip", cls)}>{label}{kind?.includes("+scenario") ? " + SCENARIO" : ""}</span>;
+}
+
+const SEV: Record<string, string> = { CRITICAL: "bg-critical text-white", WARNING: "bg-gold text-ink", INFO: "bg-coldlight text-ink" };
+export function Severity({ s }: { s: string }) {
+  return <span className={cn("chip", SEV[s] || "bg-paper-300")}>{s}</span>;
+}
+
+export function Metric({ label, value, unit, sub, tone, dark }: { label: string; value: ReactNode; unit?: string; sub?: ReactNode; tone?: string; dark?: boolean }) {
+  return (
+    <div className={cn("p-3", dark ? "border border-ink-600 bg-ink-800" : "border border-paper-300 bg-white")}>
+      <div className={dark ? "label-dark" : "label"}>{label}</div>
+      <div className={cn("num mt-1 text-2xl font-semibold", dark ? "text-paper" : "text-ink")} style={tone ? { color: tone } : undefined}>
+        {value}{unit && <span className={cn("ml-1 text-sm font-medium", dark ? "text-ink-300" : "text-ink-400")}>{unit}</span>}
+      </div>
+      {sub && <div className={cn("mt-0.5 text-[11px]", dark ? "text-ink-300" : "text-ink-400")}>{sub}</div>}
+    </div>
+  );
 }
 
 export function Spinner({ className }: { className?: string }) {
@@ -35,99 +55,84 @@ export function Spinner({ className }: { className?: string }) {
 }
 
 export function Loading({ label = "Loading" }: { label?: string }) {
-  return <div className="flex items-center gap-2 p-6 text-sm text-charcoal-400"><Spinner /> {label}…</div>;
+  return <div className="flex items-center gap-2 p-6 text-sm text-ink-400"><Spinner /> {label}…</div>;
 }
 
 export function ErrorBox({ error }: { error: any }) {
   if (!error) return null;
-  return <div className="rounded-lg border border-rot/30 bg-rot-50 px-3 py-2 text-sm text-rot">{error.message || String(error)}</div>;
-}
-
-export function Stat({ label, value, sub, tone, dark }: { label: string; value: ReactNode; sub?: ReactNode; tone?: string; dark?: boolean }) {
   return (
-    <div>
-      <div className={cn("label", dark && "text-sage-500")}>{label}</div>
-      <div className={cn("num mt-1 text-2xl font-semibold", dark ? "text-cream-50" : "text-forest", tone)}>{value}</div>
-      {sub && <div className={cn("mt-0.5 text-xs", dark ? "text-sage-500" : "text-charcoal-400")}>{sub}</div>}
+    <div className="flex items-start gap-2 border-l-4 border-critical bg-white px-3 py-2 text-sm text-ink">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-critical" />
+      <span>{error.message || String(error)}</span>
     </div>
   );
 }
 
-/** Semi-circular gauge driven by a 0-100 value. */
-export function Gauge({ value, label, display, sub, color = "#1F4D3A", max = 100 }: { value: number; label: string; display: ReactNode; sub?: ReactNode; color?: string; max?: number }) {
-  const v = Math.max(0, Math.min(1, value / max));
-  const r = 52, c = Math.PI * r;
+export function Note({ children, tone = "info" }: { children: ReactNode; tone?: "info" | "warn" }) {
   return (
-    <div className="flex flex-col items-center">
-      <svg viewBox="0 0 128 76" className="w-full max-w-[180px]">
-        <path d="M12 68 A52 52 0 0 1 116 68" fill="none" stroke="#EEE7D4" strokeWidth="11" strokeLinecap="round" />
-        <path d="M12 68 A52 52 0 0 1 116 68" fill="none" stroke={color} strokeWidth="11" strokeLinecap="round"
-          strokeDasharray={`${c * v} ${c}`} style={{ transition: "stroke-dasharray 400ms ease, stroke 400ms" }} />
-      </svg>
-      <div className="-mt-9 text-center">
-        <div className="num text-2xl font-semibold text-forest">{display}</div>
-        <div className="label mt-1">{label}</div>
-        {sub && <div className="mt-0.5 text-xs text-charcoal-400">{sub}</div>}
+    <div className={cn("flex items-start gap-2 border-l-4 px-3 py-2 text-xs leading-relaxed", tone === "warn" ? "border-gold bg-gold-50" : "border-ink-300 bg-paper-50")}>
+      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /><div>{children}</div>
+    </div>
+  );
+}
+
+export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="border border-dashed border-paper-400 bg-paper-50 p-8 text-center">
+      <div className="font-display text-lg font-semibold">{title}</div>
+      {children && <div className="mx-auto mt-1 max-w-lg text-sm text-ink-400">{children}</div>}
+      {action && <div className="mt-4 flex justify-center">{action}</div>}
+    </div>
+  );
+}
+
+export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+  return (
+    <label className="block space-y-1">
+      <span className="label">{label}</span>
+      {children}
+      {hint && <span className="block text-[11px] text-ink-400">{hint}</span>}
+    </label>
+  );
+}
+
+export function PageHead({ kicker, title, sub, actions }: { kicker?: string; title: ReactNode; sub?: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-paper-300 pb-4">
+      <div>
+        {kicker && <div className="label mb-1 text-gold-700">{kicker}</div>}
+        <h1 className="h1">{title}</h1>
+        {sub && <p className="mt-1 max-w-3xl text-sm text-ink-400">{sub}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
+      <div className={cn("max-h-[90vh] w-full overflow-y-auto bg-paper", wide ? "max-w-4xl" : "max-w-lg")} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between bg-ink px-4 py-3 text-paper">
+          <div className="text-sm font-semibold uppercase tracking-[0.1em]">{title}</div>
+          <button onClick={onClose} aria-label="Close" className="text-ink-300 hover:text-gold"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="p-4">{children}</div>
       </div>
     </div>
   );
 }
 
-export function OriginTag({ origin, when }: { origin?: string | null; when?: string | null }) {
-  if (!origin) return null;
-  const map: Record<string, [string, string]> = {
-    simulated: ["SIMULATED", "amber"], cached: ["CACHED", "blue"], external_api: ["LIVE API", "green"], manual: ["MANUAL", "forest"],
-    model_prediction: ["MODEL", "grey"], image_derived: ["IMAGE ESTIMATE", "grey"], osrm_cached: ["OSRM · CACHED", "blue"],
-    straight_line_estimate: ["APPROX. PATH", "grey"], osrm_live: ["OSRM · LIVE", "green"], scenario: ["DEMO SCENARIO", "amber"],
-    cached_weather: ["WEATHER · CACHED", "blue"], sensor: ["SENSOR", "green"],
-  };
-  const [text, tone] = map[origin] || [origin.toUpperCase(), "grey"];
-  return <Badge tone={tone} title={`Data origin: ${origin}${when ? ` · ${when}` : ""}`}>{text}</Badge>;
-}
-
-export function ConfidenceBadge({ c, full }: { c: any; full?: boolean }) {
-  if (!c) return null;
-  const tone = { HIGH: "green", MEDIUM: "amber", LOW: "red", INSUFFICIENT: "red" }[c.category as string] || "grey";
+export function Seg<T extends string>({ value, options, onChange, dark }: { value: T; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; dark?: boolean }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Badge tone={tone} title={c.label}>{c.category} · {Math.round(c.score)}</Badge>
-      {full && c.reasons?.length > 0 && <span className="text-xs text-charcoal-500">{c.reasons.join("; ")}</span>}
-    </div>
-  );
-}
-
-export function Segmented<T extends string>({ value, options, onChange, dark }: { value: T; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; dark?: boolean }) {
-  return (
-    <div className={cn("inline-flex rounded-lg p-0.5", dark ? "bg-night-700" : "bg-cream-200/70")}>
+    <div className={cn("inline-flex border", dark ? "border-ink-500" : "border-paper-300 bg-white")}>
       {options.map((o) => (
         <button key={o.value} onClick={() => onChange(o.value)}
-          className={cn("rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-            value === o.value ? (dark ? "bg-night-500 text-cream-50" : "bg-white text-forest shadow-sm") : (dark ? "text-sage-500 hover:text-cream-100" : "text-charcoal-500 hover:text-forest"))}>
+          className={cn("px-3 py-1.5 text-xs font-semibold", value === o.value ? "bg-gold text-ink" : dark ? "text-ink-300 hover:text-paper" : "text-ink-400 hover:text-ink")}>
           {o.label}
         </button>
       ))}
-    </div>
-  );
-}
-
-export function Note({ children, tone = "grey" }: { children: ReactNode; tone?: "grey" | "amber" | "red" | "green" }) {
-  const t = { grey: "bg-cream-100 text-charcoal-500 border-cream-200", amber: "bg-amber-50 text-amber-600 border-amber/30", red: "bg-rot-50 text-rot border-rot/30", green: "bg-leaf/10 text-leaf-600 border-leaf/30" }[tone];
-  return <div className={cn("flex items-start gap-2 rounded-lg border px-3 py-2 text-xs leading-relaxed", t)}><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /><div>{children}</div></div>;
-}
-
-export function Empty({ title, children }: { title: string; children?: ReactNode }) {
-  return <div className="rounded-xl border border-dashed border-cream-200 p-8 text-center"><div className="font-medium text-forest">{title}</div>{children && <div className="mt-1 text-sm text-charcoal-400">{children}</div>}</div>;
-}
-
-export function PageHeader({ title, subtitle, actions, kicker }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; kicker?: string }) {
-  return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        {kicker && <div className="label mb-1 text-leaf">{kicker}</div>}
-        <h1 className="h-display text-3xl">{title}</h1>
-        {subtitle && <p className="mt-1 max-w-2xl text-sm text-charcoal-500">{subtitle}</p>}
-      </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

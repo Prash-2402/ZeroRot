@@ -94,6 +94,7 @@ def unverified_numbers(text: str, payload: dict) -> list[str]:
         except ValueError:
             pass
     bad = []
+    text = re.sub(r"(?<=\d),(?=\d\d)", "", text)   # drop thousands separators: 1,23,456 / 49,640
     for m in _NUM.findall(text):
         try:
             v = float(m.replace(",", ""))
