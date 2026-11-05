@@ -46,6 +46,8 @@ def card(db: Session, b: Batch) -> dict:
     dec = domain.decision_for(db, b, tw)
     rec = dec.get("recommended") or {}
     traj = tw["trajectory"]
+    sell = next((a for a in dec.get("alternatives", []) if a["key"] == "SELL_NOW"), None)
+    gain = round((rec["net"] / sell["net"] - 1) * 100) if (sell and rec.get("net") and sell["net"] > 0 and rec.get("key") != "SELL_NOW") else None
     return {
         "id": b.id, "produce": b.produce, "produce_name": p.display_name, "produce_kn": p.kannada, "variety": b.variety,
         "quantity_kg": b.quantity_kg, "status": b.status, "place": place_of(b),
@@ -60,7 +62,8 @@ def card(db: Session, b: Batch) -> dict:
                    "market_name": rec.get("market_name"), "net": rec.get("net"), "quality_at_sale": rec.get("quality_at_sale"),
                    "sale_day": rec.get("sale_day"), "storage_name": (rec.get("meta") or {}).get("storage_name"),
                    "store_days": (rec.get("meta") or {}).get("days"), "urgent": dec.get("urgent", False),
-                   "explanation": dec.get("explanation") or dec.get("message"), "depends_on_market": dec.get("depends_on_market", False)},
+                   "explanation": dec.get("explanation") or dec.get("message"), "depends_on_market": dec.get("depends_on_market", False),
+                   "gain_pct": gain, "local_market_id": (dec.get("local_mandi") or {}).get("id"), "local_market_name": (dec.get("local_mandi") or {}).get("name")},
         "origin": b.origin,
     }
 

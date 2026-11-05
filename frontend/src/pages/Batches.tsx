@@ -133,7 +133,7 @@ export default function Batches() {
       setPrefill({ produce: "tomato", quantity_kg: 500, district: "kolar", storage_type: "open_shed", maturity: "mature_green", initial_quality: 95, variety: "Local hybrid", farmer_name: "Demo farmer" });
     }
   }, [sp]);
-  const open = (id: string) => { setBatch(id); nav("/twin"); };
+  const open = (id: string) => { setBatch(id); nav("/ops/twin"); };
   return (
     <div>
       <PageHeader kicker="Predict" title="Batches" subtitle="One batch, one digital twin. Every batch carries its origin: SIMULATED demo batches or ones you registered."

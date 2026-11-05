@@ -175,7 +175,7 @@ export default function ControlRoom() {
     <div className="flex h-screen flex-col bg-night text-cream-100">
       <header className="z-20 flex flex-wrap items-center justify-between gap-3 border-b border-night-600 bg-night-800/95 px-4 py-2.5">
         <div className="flex items-center gap-5">
-          <Logo dark />
+          <a href="/" title="Farmer view"><Logo dark /></a>
           <nav className="hidden items-center gap-1 xl:flex">
             {NAV.slice(1).map((n) => (
               <Link key={n.to} to={n.to} className="rounded-md px-2.5 py-1.5 text-xs font-medium text-sage-500 hover:bg-night-700 hover:text-cream-100">{n.label}</Link>
@@ -186,7 +186,7 @@ export default function ControlRoom() {
       </header>
       <div className="relative flex-1">
         <LiveMap dark trips={data?.trips || []} facilities={data?.facilities || []} stored={data?.stored_batches || []} focusTrip={activeTrip}
-          onPick={(id) => { setBatch(id); nav("/twin"); }} />
+          onPick={(id) => { setBatch(id); nav("/ops/twin"); }} />
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3 md:flex-row">
           <div className="pointer-events-auto flex max-h-full flex-col gap-3 overflow-y-auto pb-10 [scrollbar-width:thin]">
             <StatsPanel stats={liveStats || data?.stats} />

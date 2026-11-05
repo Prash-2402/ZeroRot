@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import { Layout, Toasts } from "./components/Layout";
 import { useLiveSocket } from "./lib/ws";
+import FarmPage from "./farm/FarmPage";
 import ControlRoom from "./pages/ControlRoom";
 import Batches from "./pages/Batches";
 import Twin from "./pages/Twin";
@@ -21,18 +22,21 @@ export default function App() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<ControlRoom />} />
+        {/* Farmer view (default) */}
+        <Route path="/" element={<FarmPage />} />
         <Route path="/judge" element={<Judge />} />
         <Route path="/p/:token" element={<PublicPassport />} />
-        <Route path="/batches" element={<Shell><Batches /></Shell>} />
-        <Route path="/twin" element={<Shell><Twin /></Shell>} />
-        <Route path="/decide" element={<Shell><Decide /></Shell>} />
-        <Route path="/markets" element={<Shell><Markets /></Shell>} />
-        <Route path="/transport" element={<Shell><Transport /></Shell>} />
-        <Route path="/passport" element={<Shell><Passport /></Shell>} />
-        <Route path="/impact" element={<Shell><Impact /></Shell>} />
-        <Route path="/settings" element={<Shell><Settings /></Shell>} />
-        <Route path="*" element={<Shell><div className="p-10 text-center text-charcoal-400">Page not found.</div></Shell>} />
+        {/* Analytics / operator view (reached from Detailed mode) */}
+        <Route path="/ops" element={<ControlRoom />} />
+        <Route path="/ops/batches" element={<Shell><Batches /></Shell>} />
+        <Route path="/ops/twin" element={<Shell><Twin /></Shell>} />
+        <Route path="/ops/decide" element={<Shell><Decide /></Shell>} />
+        <Route path="/ops/markets" element={<Shell><Markets /></Shell>} />
+        <Route path="/ops/transport" element={<Shell><Transport /></Shell>} />
+        <Route path="/ops/passport" element={<Shell><Passport /></Shell>} />
+        <Route path="/ops/impact" element={<Shell><Impact /></Shell>} />
+        <Route path="/ops/settings" element={<Shell><Settings /></Shell>} />
+        <Route path="*" element={<FarmPage />} />
       </Routes>
       <Toasts />
     </>

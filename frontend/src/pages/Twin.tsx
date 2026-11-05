@@ -83,7 +83,7 @@ export default function Twin() {
         actions={<>
           <OriginTag origin={b.origin} /><Badge tone={data.price?.observed?.origin === "simulated" ? "amber" : "blue"}>prices {data.price?.observed?.origin}</Badge>
           <span className={cn("chip", RISK_STYLE[sl.risk])}>{sl.risk}</span>
-          <Link to="/decide" className="btn-primary">Decide: sell / store / ship</Link>
+          <Link to="/ops/decide" className="btn-primary">Decide: sell / store / ship</Link>
         </>} />
 
       {data.conditions.banner && (

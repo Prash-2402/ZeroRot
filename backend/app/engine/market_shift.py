@@ -7,7 +7,7 @@ from datetime import datetime
 from .conditions import Segment, WeatherStore
 from .decay import State
 from .geo import travel
-from .plans import COSTS, Plan, evaluate_plans, strip_internal, transport_cost
+from .plans import COSTS, Plan, auction_wait_hours, evaluate_plans, strip_internal, transport_cost
 from .registry import get_produce
 from .value import MARKET_CONDITIONS, price_scenarios
 
@@ -25,8 +25,10 @@ def plan_market_shift(*, produce: str, maturity: str | None, mass_kg: float, sta
     hl = max(1, round(leg["hours"]))
     plans = []
     for d in PERIODS:
-        segs = list(storage_segments(d * 24, cond["rh_shift"])) + [Segment("weather", hl, point=origin_weather_point, bias_rh=cond["rh_shift"])]
-        plans.append(Plan(f"DAY_{d}", "PERIOD", "Today" if d == 0 else f"Day {d}", segs, d * 24 + hl, market["id"], market["name"],
+        wait = auction_wait_hours(start, d * 24 + hl)  # same morning-auction rule as Sell / Ship
+        segs = list(storage_segments(d * 24, cond["rh_shift"])) + [Segment("weather", hl, point=origin_weather_point, bias_rh=cond["rh_shift"]),
+                                                                  Segment("weather", wait, point=market["id"], bias_rh=cond["rh_shift"])]
+        plans.append(Plan(f"DAY_{d}", "PERIOD", "Today" if d == 0 else f"Day {d}", segs, d * 24 + hl + wait, market["id"], market["name"],
                           transport_cost(leg["km"], mass_kg), rent=rent_per_kg_day * mass_kg * d,
                           handling=COSTS["handling_per_kg"] * mass_kg, meta={"day": d}))
     res = evaluate_plans(p, maturity, state, mass_kg, start, plans, weather, {market["id"]: scen})

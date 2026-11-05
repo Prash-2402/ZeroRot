@@ -36,7 +36,7 @@ export function useLiveSocket() {
           case "alert.new":
             S().set({ alerts: [d, ...S().alerts].slice(0, 60) });
             if (d.severity === "critical" || d.severity === "warning" || d.severity === "success")
-              S().toast({ title: d.title, body: d.body, severity: d.severity });
+              S().toast({ title: d.title, body: d.body, kn: d.body_kn, severity: d.severity });
             qc.invalidateQueries({ queryKey: ["notifications"] });
             break;
           case "workflow.start":

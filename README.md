@@ -84,17 +84,33 @@ npx cloudflared tunnel --url http://localhost:8000
 
 ---
 
+## Farmer view (default screen)
+
+Opening the app shows **one Kolar farmer's farm in 3D** (Three.js via React Three Fiber). There are three places, each with one batch:
+
+| Place | Batch | Story |
+|---|---|---|
+| Farm shed | ZR-TOM-001 · 500 kg tomatoes (open shed, weather-estimated) | Scenario 1: prediction and decision |
+| Cold storage container (Malur) | ZR-MAN-001 · 1.8 t mangoes | Scenario 3: when to sell (market shift) |
+| Mandi company's reefer truck | ZR-BAN-001 · 6 t bananas, waiting at the loading bay | Scenario 2: handover, breakdown and rescue |
+
+* Tap a place and the camera flies in. The batch card shows the **three answers** (quality now, days left with range, worth today) with a real photo for the freshness stage and **one recommended action**.
+* **See the future**: dragging the slider spoils the crate photo and counts the rupee value down. Every number comes from the same decay engine.
+* **What if I…** buttons (keep it cool, sell in 2 days, send to Bengaluru) re-run the engine and show before/after values.
+* **See all choices** opens Sell now / Store / Send to another mandi, plus *When should I sell?* (Today, Day 2, Day 4, Day 7) under Normal, Price crash, Festival and Heavy rain conditions.
+* **Mandi truck**: *Hand over to mandi truck* plays the crate-loading animation and the truck drives off. *Simulate cooling breakdown* (or **F**) makes it smoke and flash red. Rescue checks then run, the new route waits for **your approval**, and the result reads "You protected ₹X" with a faded ghost truck showing what would have happened.
+* **ಕನ್ನಡ / English** switch at the top. Alerts also show their Kannada text.
+* **Detailed mode** adds charts, confidence reasons, rejected options, demo scenario shortcuts and an **Analytics** link to the operator screens (`/ops`: control-room map, transport, markets, impact, settings).
+
+Produce photos are from Wikimedia Commons (CC BY-SA / public domain). Credits are in `frontend/public/produce/credits.json`. They illustrate the freshness stage, not the actual batch.
+
 ## Demo script (deterministic, all in DEMO MODE)
 
-Each scenario resets to a known start state in under 2 seconds (Control Room → Demo admin → Scenario 1/2/3). All calculations stay live and accept any valid input.
+**Reset demo** (top right) restores the start state in under 2 seconds. With Detailed mode on, the *Demo scenario* menu jumps straight to each story.
 
-**Scenario 1 · Prediction and decision.** Register 500 kg tomatoes, Kolar, open shed (the form is prefilled). The twin shows quality, shelf life with P10–P90, value, a confidence reason and the amber "estimated from regional weather" banner. Move the time slider, set temperature to 17.3 °C, change humidity, then open **Decide** for Sell / Store / Ship with alternatives, rejected options and a one-sentence explanation. Adding a measured reading raises confidence.
-
-**Scenario 2 · Reefer failure and rescue.** A 6 t tomato reefer truck runs Kolar → Hubballi APMC. Press **F** (or *Fail*). The cargo temperature climbs, quality is recalculated every tick, and the workflow timeline runs Detect → Assess → Plan → Check capacity → Notify. A reroute is proposed: divert to a nearby cold store to re-cool and repair, then continue. Nothing moves until you tap **Approve reroute** (or the Telegram button). Then the truck changes route, a grey ghost truck keeps the original plan, and **value protected = net(reroute) − net(ghost)** is computed from the identical failure state. The Kannada alert preview appears on Transport.
-
-**Scenario 3 · Market shift.** A price crash at Kolar APMC. The Market Shift Planner for ZR-TOM-101 recommends *Today*. Select another period to see "₹X less than recommended, your call" (the choice is recorded). Switch to *Festival demand* and the recommendation flips.
-
----
+1. **Shed (tomatoes):** tap the shed, read the three answers, drag *See the future*, tap *Keep it cool*, then *See all choices*.
+2. **Mandi truck (bananas):** tap the truck, *Hand over to mandi truck* (watch the crates load), *Simulate cooling breakdown*, then *Approve new route*, and see "You protected ₹X".
+3. **Cold storage (mangoes):** tap the container, *See all choices*, switch *When should I sell?* between Price crash (Today) and Festival demand (Day 4), and pick a non-recommended day to see "₹X less than recommended. Your choice."
 
 ## REAL MODE and API keys
 

@@ -14,7 +14,7 @@ export type Alert = {
   body_kn: string | null; channel: string; delivered: boolean; actions: { label: string; action: string }[]; origin: string;
 };
 export type WorkflowStep = { run_id: number; trip_id: string; idx: number; stage: string; tool: string; summary: string; kind: string };
-export type Toast = { id: number; title: string; body?: string; severity: string };
+export type Toast = { id: number; title: string; body?: string; kn?: string | null; severity: string };
 
 type LiveState = {
   connected: boolean;

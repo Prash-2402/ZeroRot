@@ -6,18 +6,19 @@ import { Bell, Boxes, Gauge, LayoutDashboard, LineChart, Menu, Radar, RotateCcw,
 import { api, post } from "../lib/api";
 import { clock, PRODUCE_EMOJI } from "../lib/format";
 import { useLive, useSelection } from "../stores/live";
+import { useLang } from "../lib/i18n";
 import { cn, Spinner } from "./ui";
 
 export const NAV = [
-  { to: "/", label: "Control Room", icon: Radar },
-  { to: "/batches", label: "Batches", icon: Boxes },
-  { to: "/twin", label: "Digital Twin", icon: Sprout },
-  { to: "/decide", label: "Decide", icon: Gauge },
-  { to: "/markets", label: "Markets", icon: Store },
-  { to: "/transport", label: "Transport", icon: Truck },
-  { to: "/passport", label: "Passport", icon: QrCode },
-  { to: "/impact", label: "Impact", icon: LineChart },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/ops", label: "Control Room", icon: Radar },
+  { to: "/ops/batches", label: "Batches", icon: Boxes },
+  { to: "/ops/twin", label: "Digital Twin", icon: Sprout },
+  { to: "/ops/decide", label: "Decide", icon: Gauge },
+  { to: "/ops/markets", label: "Markets", icon: Store },
+  { to: "/ops/transport", label: "Transport", icon: Truck },
+  { to: "/ops/passport", label: "Passport", icon: QrCode },
+  { to: "/ops/impact", label: "Impact", icon: LineChart },
+  { to: "/ops/settings", label: "Settings", icon: Settings },
 ];
 
 function Logo({ dark }: { dark?: boolean }) {
@@ -71,7 +72,7 @@ function BatchSelector({ dark }: { dark?: boolean }) {
     if (batches.length && (!batchId || !batches.find((b: any) => b.id === batchId))) setBatch(batches[0].id);
   }, [batches, batchId, setBatch]);
   return (
-    <select value={batchId || ""} onChange={(e) => { setBatch(e.target.value); if (loc.pathname === "/") nav("/twin"); }}
+    <select value={batchId || ""} onChange={(e) => { setBatch(e.target.value); if (loc.pathname === "/ops") nav("/ops/twin"); }}
       className={cn("max-w-[220px] rounded-lg border px-2 py-1.5 text-sm", dark ? "border-night-600 bg-night-800 text-cream-100" : "border-cream-200 bg-white")}>
       {batches.map((b: any) => (
         <option key={b.id} value={b.id}>{PRODUCE_EMOJI[b.produce]} {b.id} · {b.quantity_kg >= 1000 ? `${(b.quantity_kg / 1000).toFixed(1)} t` : `${b.quantity_kg} kg`}{b.origin === "manual" ? " · yours" : ""}</option>
@@ -133,8 +134,10 @@ function ResetButton({ dark }: { dark?: boolean }) {
 
 export function Toasts() {
   const { toasts, dismiss } = useLive();
+  const lang = useLang((s) => s.lang);
+  const farm = useLocation().pathname === "/";
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-[360px] max-w-[92vw] flex-col gap-2">
+    <div className={cn("pointer-events-none fixed z-[100] flex w-[360px] max-w-[92vw] flex-col gap-2", farm ? "left-3 top-24" : "bottom-4 right-4")}>
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div key={t.id} initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, x: 40 }}
@@ -144,7 +147,7 @@ export function Toasts() {
               <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", { critical: "bg-rot", warning: "bg-amber", success: "bg-leaf" }[t.severity] || "bg-sky-500")} />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-forest">{t.title}</div>
-                {t.body && <div className="mt-0.5 text-xs text-charcoal-500">{t.body}</div>}
+                {lang === "kn" && t.kn ? <div className="kn mt-0.5 text-xs text-charcoal-500">{t.kn}</div> : t.body && <div className="mt-0.5 text-xs text-charcoal-500">{t.body}</div>}
               </div>
               <button onClick={() => dismiss(t.id)} className="text-charcoal-300 hover:text-charcoal"><X className="h-4 w-4" /></button>
             </div>
@@ -178,7 +181,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const nav = (
     <nav className="flex flex-col gap-0.5">
       {NAV.map((n) => (
-        <NavLink key={n.to} to={n.to} end={n.to === "/"}
+        <NavLink key={n.to} to={n.to} end={n.to === "/ops"}
           className={({ isActive }) => cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
             isActive ? "bg-forest text-cream-50" : "text-forest/80 hover:bg-forest-50 hover:text-forest")}>
           <n.icon className="h-4 w-4" /> {n.label}
@@ -190,7 +193,8 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="flex min-h-full">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-cream-200 bg-cream-100/60 p-4 lg:flex">
         <Logo />
-        <div className="mt-8">{nav}</div>
+        <a href="/" className="mt-6 flex items-center justify-center gap-2 rounded-lg bg-forest px-3 py-2 text-sm font-semibold text-cream-50 hover:bg-forest-800">← Farmer view</a>
+        <div className="mt-6">{nav}</div>
         <div className="mt-auto rounded-xl border border-cream-200 bg-white p-3 text-[11px] leading-relaxed text-charcoal-500">
           <div className="mb-1 flex items-center gap-1.5 font-semibold text-forest"><ShieldCheck className="h-3.5 w-3.5" /> Honest by design</div>
           Decay Engine + Rule-Based Decision Engine. Simulated feeds are labelled SIMULATED. Reroutes need human approval.
@@ -202,7 +206,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <button onClick={() => setOpen(true)} className="rounded-lg p-1.5 text-forest hover:bg-forest-50" aria-label="Menu"><Menu className="h-5 w-5" /></button>
             <Logo />
           </div>
-          <div className="hidden text-sm text-charcoal-400 2xl:block">{NAV.find((n) => (n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to)))?.label}</div>
+          <div className="hidden text-sm text-charcoal-400 2xl:block">{NAV.find((n) => (n.to === "/ops" ? loc.pathname === "/ops" : loc.pathname.startsWith(n.to)))?.label}</div>
           <Header />
         </header>
         <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 md:px-6">{children}</main>
