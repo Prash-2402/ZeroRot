@@ -29,8 +29,9 @@ VERSION = "opencv-defect-v1"
 
 def model_status() -> dict:
     p = pathlib.Path(settings.cv_model_path)
-    if p.exists() and p.with_suffix(".labels.txt").exists():
-        return {"available": True, "method": "onnx_model", "path": str(p)}
+    if p.exists():
+        return {"available": False, "method": METHOD, "path": str(p),
+                "message": "A model file is present, but ONNX inference is not implemented in this build; classical OpenCV defect analysis is used."}
     return {"available": False, "method": METHOD,
             "message": "No trained model weights installed; using classical OpenCV defect analysis."}
 

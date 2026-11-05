@@ -1,0 +1,11 @@
+.git
+.env
+**/.env
+**/node_modules
+frontend/dist
+**/__pycache__
+**/*.db
+**/*.db-*
+backend/.vapid.json
+backend/.dev_admin
+.claude

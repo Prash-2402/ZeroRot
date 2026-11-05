@@ -1,0 +1,36 @@
+# Local / single-server deployment: PostgreSQL + ZERO ROT app.
+# Usage: cp .env.example .env  (set JWT_SECRET, POSTGRES_PASSWORD, optional API keys)  then: docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: zerorot
+      POSTGRES_USER: zerorot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zerorot -d zerorot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://zerorot:${POSTGRES_PASSWORD}@db:5432/zerorot
+      VAPID_KEY_FILE: /app/backend/vapid/keys.json
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - vapid:/app/backend/vapid   # persists auto-generated VAPID keys if VAPID_* are not set
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  vapid:

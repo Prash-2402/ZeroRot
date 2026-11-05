@@ -1,210 +1,111 @@
 # ZERO ROT
 
-**AI-Powered Post-Harvest Quality, Shelf-Life and Market Value Prediction Platform**
-*Predict. Preserve. Prevent.* · Problem statement DL-SJBIT-HK26-AGR007 (LAKSHYA 2026)
+**AI-powered post-harvest loss prevention and intelligent cold-chain digital twin platform**
+Problem statement DL-SJBIT-HK26-AGR007 · *Intelligent Agriculture. Reduced Losses. Better Profits.*
 
-> India loses ₹1.53 lakh crore of produce after harvest every year (NABCONS 2022). Our goal is zero.
+ZERO ROT follows a batch of harvested produce from the farm through storage, inspection and transport to sale.
+Physics-based digital twins (traditional storage room, refrigerated cold room, refrigerated truck) are driven by live
+weather and real road routes. They predict quality and shelf life, raise alerts with corrective actions, and feed a
+market-aware sell-now vs store-and-sell decision.
 
-For every batch, ZERO ROT answers three questions, turns the answers into one decision the farmer controls, and protects the produce live when something goes wrong:
-
-1. **How will its quality change?** Decay Engine, a quality trajectory with a P10–P90 band
-2. **How much shelf life is left?** Days to the minimum sellable score, with an uncertainty interval
-3. **What will it be worth?** Saleable mass × scenario price × grade factor, with low, base and high price paths
-
-ONE BATCH → ONE DIGITAL TWIN → THREE PREDICTIONS → ONE CLEAR DECISION → FARMER ACTS.
-
-| Layer | What is built |
-|---|---|
-| PREDICT | Batch registration, versioned parameter registry with sources, decay engine (Q, W, R tracked separately), Monte Carlo uncertainty, confidence index, digital twin with time slider, live what-if |
-| DECIDE | Rule-Based Sell / Store / Ship engine with rejected options and reasons, Market Shift Planner (Today / Day 2 / Day 4 / Day 7), price-crash warnings, group shipping |
-| PROTECT | Control Room map (MapLibre + deck.gl), 15 trucks on real OSRM road geometry, SIMULATED cold-chain feed, reefer failure injection, rescue workflow (Groq tool calling or rule-based), human-approved reroute, ghost comparison, in-app, Telegram and WhatsApp-preview alerts in Kannada |
-| PROVE | Harvest passport (QR), impact dashboard from backend records, district exposure map, validation records (MAE / RMSE / bias) |
+**Data policy:** every value is labelled SIMULATED, LIVE, MANUAL or DATA UNAVAILABLE. Nothing is pre-filled or invented.
+If a source is down, the UI says so instead of making up a number. Groq AI only *explains* numbers computed by the models.
 
 ---
 
-## Quick start (DEMO MODE: no keys needed)
+## Modules
 
-Requirements: Python 3.11+ (tested on 3.12), Node 18+ (tested on 24).
+| Module | What it does | Data sources |
+|---|---|---|
+| Post-harvest | Farmers, batches (commodity, maturity, quantity, harvest quality, location), status workflow, mobile QR per batch | User input |
+| Traditional storage | Brick / mud / tin room twin: envelope heat transfer, ventilation, psychrometrics, respiration heat, Dalton partial pressures, O₂/CO₂ balance, quality decay | Open-Meteo forecast (LIVE) or manual |
+| Advanced storage | Photo inspection (OpenCV) → good / damaged / rejected / uncertain per item, sample vs batch estimate, animated sorting-line replay of the real result, capacity- and compatibility-aware cold-zone allocation | Uploaded photos |
+| Cold storage | Facilities and zones with real capacity, load and cost; cold-room twin with refrigeration controller, door, coil condensation, humidifier, automatic corrective control | Open-Meteo, user zone specs |
+| Price intelligence | Agmarknet prices via data.gov.in, gradient-boosted forecast backtested against a naive baseline with an empirical P10–P90 band, GDELT news context, profit engine | data.gov.in (key), GDELT |
+| Cold chain | Reefer truck on an OSRM road route, weather sampled along the route, 6-zone cargo heat model (front unit → rear door), exterior and cutaway heatmap views, virtual sensors, GPS, ETA and delay, 7 scenarios | OSRM, Open-Meteo |
+| Alerts | Rule-based events with timestamp, reading, expected range, risk and recommendation; acknowledge; corrective actions (manual or automatic, all logged); WebSocket toasts and web push | Simulation state |
+| Analytics | Same-engine counterfactual comparison (traditional vs cold storage, fault vs normal cold chain) with CSV and PDF export | Simulation engine |
+| Mobile | QR link + 6-digit PIN → scoped, expiring, revocable session for one batch / simulation / zone / truck; PWA with push | — |
+
+Cold-chain scenarios: 1 normal · 2 high external temperature · 3 refrigeration failure · 4 door open · 5 cooling degradation · 6 humidity deviation · 7 extended delay.
+
+Supported commodities: tomato, mango, banana, potato (prediction), onion (catalogue only: dormancy and sprouting are not modelled, so prediction is refused with a reason).
+Every parameter carries its source, classification (sourced / derived / assumption) and limitations; see Settings → Commodity parameters and `docs/parameter_audit.md`.
+
+---
+
+## Quick start (local, SQLite)
+
+Requirements: Python 3.11+ (tested 3.12), Node 18+ (tested 24).
 
 ```bash
 pip install -r backend/requirements.txt
+cp .env.example .env          # optional keys: GROQ_API_KEY, DATA_GOV_API_KEY; set JWT_SECRET
+cd frontend && npm ci --legacy-peer-deps && npm run build && cd ..
+python -m uvicorn app.main:app --app-dir backend --port 8000
 ```
 
+Open http://localhost:8000. The first account you create becomes the administrator. Migrations run automatically at startup (Alembic).
+
+For frontend development with hot reload, run `npm run dev` in `frontend/` (http://localhost:5173, proxies `/api` and `/ws` to port 8000).
+
+### Docker (PostgreSQL)
+
 ```bash
-npm --prefix frontend install
+cp .env.example .env    # set JWT_SECRET and POSTGRES_PASSWORD
+docker compose up --build
 ```
 
-Seed the database (deterministic demo start state, about 0.5 s; the backend also seeds on first start):
+See `docs/DEPLOYMENT.md` for production notes (HTTPS, PUBLIC_BASE_URL for QR links, push).
 
-```bash
-cd backend && python -m app.db.seed
+---
+
+## Try it in five minutes
+
+1. **Post-Harvest** → add a batch (e.g. tomato, 500 kg, location search "Kolar").
+2. **Traditional Storage** → New simulation → the backend fetches the live forecast and starts the room twin. Change speed, open the door, close the vents, inject *heat wave*, watch temperature, RH, O₂/CO₂, quality and the alerts.
+3. **Cold Storage** → add a facility and a zone (temperature range, capacity, kW, UA). **Advanced Storage** → upload produce photos, then *Recommend zone* → *Allocate*. Back in Cold Storage → *Cold-room simulation*.
+4. **Cold Chain** → add a truck and a route (two place searches; OSRM returns the road) → *Trip simulation*. Switch Exterior / Cutaway, inject *refrigeration failure*, watch the rear zones warm first.
+5. **Analytics** → compare traditional vs cold storage or a fault vs normal trip → export CSV or PDF.
+6. Any **QR** button → scan with a phone on the same network (set PUBLIC_BASE_URL to your LAN address), enter the PIN.
+
+---
+
+## Architecture
+
+```
+React 19 + Vite + Tailwind + TanStack Query + React Three Fiber
+        │  REST /api/v1/*      WebSocket /ws/simulations/{id}, /ws/alerts   (JWT or scoped QR token)
+FastAPI ─┬─ simulation manager (asyncio loop, authoritative state, snapshots, readings, predictions, alerts)
+         ├─ physics: environment · thermal · humidity · gas · deterioration · cold_storage · truck_model · event_manager
+         ├─ services: allocation · profit · analytics · reports (CSV/PDF) · QR sessions · sim config
+         ├─ ml: price forecasting (scikit-learn) · vision (OpenCV classical)
+         ├─ integrations: Open-Meteo · OSRM · data.gov.in Agmarknet · GDELT · Groq · Web Push (VAPID)
+         └─ SQLAlchemy 2 + Alembic → SQLite (dev) / PostgreSQL (prod), 25 tables
 ```
 
-Run the backend (API docs at http://localhost:8000/docs):
+API groups (`/api/v1`): auth, commodities, farmers, batches, weather, storage, inspections, trucks, routes, simulations,
+alerts, corrective-actions, market, profit, ai, analytics, qr, mobile, notifications, integrations, audit.
+Interactive docs: http://localhost:8000/docs.
+
+Security: bcrypt passwords, HS256 JWT with expiry, roles (admin / operator / farmer), restricted CORS, per-IP rate
+limiting (stricter for login, QR PIN and AI), WebSocket token auth, audit log, QR tokens stored as SHA-256 hashes with
+PIN lockout after 5 failures, no secrets in the frontend.
+
+---
+
+## Tests
 
 ```bash
-python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000
-```
-
-Run the frontend (http://localhost:5173):
-
-```bash
-npm --prefix frontend run dev
-```
-
-Run the tests:
-
-```bash
-cd backend && python -m pytest -q
-```
-
-Reset the demo (also a button in the header and the Control Room admin panel):
-
-```bash
-curl -X POST http://localhost:8000/api/v1/demo/reset
-```
-
-### Single port + judge mode on a phone (LAN or hotspot)
-
-Build the frontend once. The backend then serves the whole app on port 8000:
-
-```bash
-npm --prefix frontend run build
-```
-
-```bash
-python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000
-```
-
-Put the laptop and the phones on the same Wi-Fi or hotspot, open `http://<laptop-LAN-IP>:8000/`, and the QR code on the Control Room opens `/judge` on any phone. It reads the laptop's LAN address from `/api/v1/network`. On Windows, allow Python through the firewall for private networks. If the network blocks device-to-device traffic, use a tunnel instead:
-
-```bash
-npx cloudflared tunnel --url http://localhost:8000
+cd backend && python -m pytest -q        # 49 tests: physics, engine, API incl. outages and access control
+cd frontend && npm test                  # 10 tests: formatting, API error handling, data-origin labels
 ```
 
 ---
 
-## Farmer view (default screen)
+## Documentation
 
-Opening the app shows **one Kolar farmer's farm in 3D** (Three.js via React Three Fiber). There are three places, each with one batch:
-
-| Place | Batch | Story |
-|---|---|---|
-| Farm shed | ZR-TOM-001 · 500 kg tomatoes (open shed, weather-estimated) | Scenario 1: prediction and decision |
-| Cold storage container (Malur) | ZR-MAN-001 · 1.8 t mangoes | Scenario 3: when to sell (market shift) |
-| Mandi company's reefer truck | ZR-BAN-001 · 6 t bananas, waiting at the loading bay | Scenario 2: handover, breakdown and rescue |
-
-* Tap a place and the camera flies in. The batch card shows the **three answers** (quality now, days left with range, worth today) with a real photo for the freshness stage and **one recommended action**.
-* **See the future**: dragging the slider spoils the crate photo and counts the rupee value down. Every number comes from the same decay engine.
-* **What if I…** buttons (keep it cool, sell in 2 days, send to Bengaluru) re-run the engine and show before/after values.
-* **See all choices** opens Sell now / Store / Send to another mandi, plus *When should I sell?* (Today, Day 2, Day 4, Day 7) under Normal, Price crash, Festival and Heavy rain conditions.
-* **Mandi truck**: *Hand over to mandi truck* plays the crate-loading animation and the truck drives off. *Simulate cooling breakdown* (or **F**) makes it smoke and flash red. Rescue checks then run, the new route waits for **your approval**, and the result reads "You protected ₹X" with a faded ghost truck showing what would have happened.
-* **ಕನ್ನಡ / English** switch at the top. Alerts also show their Kannada text.
-* **Detailed mode** adds charts, confidence reasons, rejected options, demo scenario shortcuts and an **Analytics** link to the operator screens (`/ops`: control-room map, transport, markets, impact, settings).
-
-Produce photos are from Wikimedia Commons (CC BY-SA / public domain). Credits are in `frontend/public/produce/credits.json`. They illustrate the freshness stage, not the actual batch.
-
-## Mitra (ಮಿತ್ರ) — Kannada voice assistant
-
-The **ಮಿತ್ರ / Mitra** button (bottom left of the farm screen) opens a 3D face built in code. You can speak or type in **Kannada or English**. Mitra answers in the same language and **moves the app to the right place**: it flies to the shed, opens the choices sheet, or sets the future slider.
-
-* **Numbers come only from the engine.** Mitra calls the same tools as the app (batch status, future, what-if, choices, when-to-sell, truck), so it never makes up a quality, a number of days or a rupee figure.
-* **Actions need your tap.** Handover and route approval come back as a confirm button. Mitra never acts on its own.
-* **Knowledge answers are cited (RAG).** General questions ("why do bananas get damaged in cold?") are answered from `data/knowledge/` (UC Davis fact sheets and app docs, written in English and Kannada) and list their sources. Retrieval uses character n-gram TF-IDF, which handles Kannada script without downloading a model.
-
-| Capability | Without keys (works now) | With keys |
-|---|---|---|
-| Thinking | Rule-based Kannada/English intents, labelled "Rule-based" | `GROQ_API_KEY` (model `openai/gpt-oss-120b` by default): the Groq model chooses the tools itself (agentic), labelled "AI · Groq". Retries once on rate limits, then falls back automatically |
-| Voice in | Browser speech recognition (Chrome/Edge, `kn-IN`) | `GROQ_API_KEY`: Groq Whisper `whisper-large-v3` on the server |
-| Voice out | Browser voice if the device has one (most Windows PCs have **no Kannada voice**, so the reply is shown as text) | `GROQ_API_KEY` is not used for voice; set `GOOGLE_TTS_API_KEY` for Google Cloud `kn-IN` voice. The mouth then follows the real audio |
-
-Microphones only work on `localhost` or HTTPS. For phones, use the HTTPS tunnel command above.
-
-## Demo script (deterministic, all in DEMO MODE)
-
-**Reset demo** (top right) restores the start state in under 2 seconds. With Detailed mode on, the *Demo scenario* menu jumps straight to each story.
-
-1. **Shed (tomatoes):** tap the shed, read the three answers, drag *See the future*, tap *Keep it cool*, then *See all choices*.
-2. **Mandi truck (bananas):** tap the truck, *Hand over to mandi truck* (watch the crates load), *Simulate cooling breakdown*, then *Approve new route*, and see "You protected ₹X".
-3. **Cold storage (mangoes):** tap the container, *See all choices*, switch *When should I sell?* between Price crash (Today) and Festival demand (Day 4), and pick a non-recommended day to see "₹X less than recommended. Your choice."
-
-## REAL MODE and API keys
-
-Toggle **DEMO / REAL** in the header (or `POST /api/v1/mode`). REAL MODE checks every provider, uses whatever works, and shows status dots plus a reason for anything unavailable. It never silently falls back while showing REAL; fallbacks are labelled.
-
-Copy `.env.example` to `.env` (repo root) and fill in:
-
-| Key | Used for | Where to get it |
-|---|---|---|
-| `DATA_GOV_API_KEY` | Live Agmarknet mandi prices | Register at https://data.gov.in, then "My Account → API key" (free) |
-| `GROQ_API_KEY`, `GROQ_MODEL` | Agentic rescue workflow (tool calling) | https://console.groq.com/keys (free tier) |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Real farmer alerts with Approve / Store / Sell buttons | Create a bot with @BotFather; send it a message, then read `chat.id` from `https://api.telegram.org/bot<TOKEN>/getUpdates` |
-| `WHATSAPP_*` | Not used yet (adapter + preview only) | Meta WhatsApp Cloud API (future) |
-
-Open-Meteo (weather), OSRM (roads) and Carto (map tiles) need no key. Telegram button replies work through long polling, so no public webhook is needed. `POST /api/v1/telegram/webhook` also exists. Keys stay in the backend and are never sent to the browser or logged.
-
----
-
-## Data origins and honesty
-
-Every reading and record carries its origin (`manual`, `simulated`, `external_api`, `cached`, `image_derived`, `model_prediction`), and the UI shows it.
-
-| Data | Status in this build |
-|---|---|
-| Weather | **Real** Open-Meteo hourly forecast for 15 districts and 10 mandis, cached on 2026-11-05 (`data/seed/weather_cache.json`). REAL MODE refreshes it live. |
-| Road routes | **Real** OSRM road geometry and distance/time table, cached (`routes_cache.json`, `distance_table.json`, `reroutes_cache.json`). |
-| Karnataka outline | OpenStreetMap via Nominatim (ODbL), used by the offline map. |
-| Mandi prices | **SIMULATED** 60-day series, labelled everywhere. No data.gov.in key was available at build time; set `DATA_GOV_API_KEY` for live prices. |
-| Cold-chain feed, trucks, other farmers | **SIMULATED** (setpoint + noise + injected faults) on real roads. |
-
-Naming follows the brief: *Decay Engine*, *Prediction Engine*, *Rule-Based Decision Engine*, *Agentic Rescue Workflow* (only when Groq actually runs it), *Rule-Based Workflow* otherwise. No trained-ML claims, no invented accuracy, and no autonomous control: reroutes need human approval. WhatsApp messages are previews and are never claimed as sent.
-
-## The science (summary; full detail in `docs/parameter_audit.md`)
-
-```
-k(T, RH) = k_ref · m(maturity) · Q10^((T − T_ref)/10) · h(RH) · c(E)
-Q(t+Δt)  = Q(t) · exp(−k·Δt)                 (hourly steps over the actual history)
-W: dW/dt = kw · VPD(T,RH) · (1 − W)          weight loss → mass only
-R: rot below Q_rot, high RH, heat, chilling  rejected units → removed from sale only
-Value    = M·(1−W)·(1−R) · price(t) · grade(Q)
-```
-
-* **k_ref** is calibrated from published storage life L, using `k_ref = ln(100/40)/L`. This guarantees Q reaches 40 at day L by construction; it does **not** validate the curve shape.
-* **Q10** is derived from UC Davis respiration tables, using the pair that covers ambient shed temperatures.
-* **Chilling** thresholds and doses come from UC Davis (tomato 10 °C, 5 °C for 6–8 days; banana 13 °C, with dose points). Penalty shapes, W and R are labelled engineering assumptions.
-* **Uncertainty**: 200 Monte Carlo draws over the registry ranges give the P10–P90 bands.
-* **Confidence** is a data-quality index (0–100), **not a calibrated probability**: `100 × (0.20C + 0.10D + 0.10F + 0.15S + 0.15B + 0.20P + 0.10A)`. An all-simulated feed is capped at MEDIUM (74). The two weakest factors are shown as the reason.
-* **Price scenarios** come from the 10th–90th percentile of comparable day-over-day changes (same commodity, mandi and unit; gaps over 7 days and outliers beyond 5σ dropped). With fewer than 14 points, a labelled ±15% assumed band is used instead.
-* **Morning auctions (demo assumption):** loads arriving outside 04:00–10:00 wait for the next 06:00 auction. This is applied the same way to Sell, Ship and rescue options.
-
-## Test results
-
-`python -m pytest -q` gives **37 passed** (30 engine/system + 7 Mitra). These cover brief tests 1–15 and 12a–12g: monotonic decay, temperature, chilling, humidity, spikes, invalid inputs, missing data lowers confidence, coverage vs burst, reading de-duplication, infeasible SHIP, insufficient data, Market Shift choice, the confidence reference value, value protected = difference (never positive when worse), the ±15% short-history band, k_ref reproducing storage life within 1%, confidence edge cases, an exact value-loss breakdown, comparable price series, Scenarios 1–3 offline with no keys, Reset Demo restoring the exact state in under 2 s, and what-if latest-request handling.
-
-## Repository
-
-```
-backend/app/engine/      decay, confidence, value, decision, plans, market_shift, ghost, conditions, registry
-backend/app/simulation/  tick loop, transport geometry
-backend/app/workflows/   rescue workflow (Groq tool calling + rule-based fallback)
-backend/app/providers/   cached / live providers, Telegram, WhatsApp preview, FutureIoTProvider interface
-backend/app/api/v1/      core (predict/decide), ops (protect/demo), prove
-backend/scripts/         fetch_seed.py (refresh real cached data), build_registry.py (registry + audit)
-data/parameters/         versioned parameter registry JSON with sources
-data/seed/               cached real weather, routes, outline, locations
-docs/                    parameter_audit.md, architecture.md
-frontend/src/            React + TypeScript + Tailwind + TanStack Query + Zustand + Recharts + deck.gl
-```
-
-## Known limitations
-
-* Mandi prices are simulated until a data.gov.in key is configured. The live adapter maps Agmarknet market names into the same schema.
-* k_ref calibration fixes the end point, not the curve shape. No experimental quality-over-time data has been fitted yet, and the Validation page stays empty until real outcomes are recorded.
-* The open-shed climate is regional weather, not a shed measurement (the app says so and accepts a manual reading).
-* Basemap tiles need internet. When they fail, the map switches automatically to an offline Karnataka outline with the same trucks, routes and facilities.
-* The district view uses district centroids; district boundary polygons are not bundled.
-* Single demo login and no role-based access, by design for the hackathon. SQLite is used; the models are Postgres-compatible via `DATABASE_URL`.
-
-## Future IoT integration
-
-`FutureIoTProvider` documents the contract. A device (ESP32, LoRa, reefer telematics) posts `{"ts", "temperature", "humidity", "origin": "sensor"}` to `POST /api/v1/batches/{id}/readings`. The engine already consumes readings by origin, and confidence treats `sensor` as a measured source, so no engine change is needed.
+- `docs/IMPLEMENTATION_REPORT.md`: what is complete, tested, connected, what needs credentials, what is incomplete
+- `docs/DEPLOYMENT.md`: deployment guide
+- `docs/IMPLEMENTATION_PLAN.md`, `docs/architecture.md`, `docs/parameter_audit.md`
+- Produce photo credits: `frontend/public/produce/credits.json`

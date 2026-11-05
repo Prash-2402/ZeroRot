@@ -1,11 +1,27 @@
+# Web / API
 fastapi==0.115.5
 uvicorn[standard]==0.32.1
 pydantic==2.10.3
-sqlalchemy==2.0.36
+email-validator>=2.2
+python-multipart>=0.0.12
 httpx==0.28.1
+# Database
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary>=2.9.10        # PostgreSQL driver (DATABASE_URL=postgresql+psycopg2://...)
+# Security
+PyJWT==2.9.0
+bcrypt>=4.2
+# Numerics / ML / vision
 numpy>=1.26
 scipy>=1.11
 pandas>=2.1
-python-multipart>=0.0.9
+scikit-learn>=1.5
 opencv-python-headless>=4.8
+# Reports, QR, push
+reportlab>=4.2
+qrcode>=8.0
+pywebpush>=2.0.1
+py-vapid>=1.9
+# Tests
 pytest>=8.0

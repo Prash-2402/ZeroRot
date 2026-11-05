@@ -4,11 +4,13 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import os
+import pathlib
 
 from app.core.config import BACKEND, settings
 
 log = logging.getLogger("zerorot.push")
-KEY_FILE = BACKEND / ".vapid.json"
+KEY_FILE = pathlib.Path(os.environ.get("VAPID_KEY_FILE") or (BACKEND / ".vapid.json"))
 _keys: dict | None = None
 
 
