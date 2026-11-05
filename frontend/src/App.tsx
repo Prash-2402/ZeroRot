@@ -18,11 +18,19 @@ const Alerts = lazy(() => import("./pages/Alerts"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Mobile = lazy(() => import("./pages/Mobile"));
+const World = lazy(() => import("./world/WorldPage"));
+const Phone = lazy(() => import("./phone/PhoneApp"));
+const Docs = lazy(() => import("./pages/Docs"));
 
 function Protected({ children }: { children: ReactNode }) {
   const token = useAuth((s) => s.token);
   if (!token) return <Navigate to="/login" replace />;
   return <AppLayout>{children}</AppLayout>;
+}
+
+function RequireAuth({ children }: { children: ReactNode }) {
+  const token = useAuth((s) => s.token);
+  return token ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 export default function App() {
@@ -33,6 +41,9 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/m/:token" element={<Mobile />} />
+        <Route path="/p/:token" element={<Phone />} />
+        <Route path="/world" element={<RequireAuth><World /></RequireAuth>} />
+        <Route path="/docs" element={<Docs />} />
         <Route path="/app" element={page(<Overview />)} />
         <Route path="/app/post-harvest" element={page(<PostHarvest />)} />
         <Route path="/app/traditional" element={page(<Traditional />)} />

@@ -135,7 +135,8 @@ class Runtime:
         if self.kind == "cold_chain":
             remaining_m = self.cfg["route_distance_m"] - self.s.route_progress_m
             return max(0.0, remaining_m / max(1.0, self.s.speed_kmh / 3.6) / 3600.0 + self.s.delay_remaining_s / 3600.0)
-        return max(0.0, (self.end_seconds() - self.s.t_seconds) / 3600.0)
+        end = float(self.cfg["plan_days"]) * 86400.0 if self.cfg.get("plan_days") else self.end_seconds()
+        return max(0.0, (end - self.s.t_seconds) / 3600.0)
 
     def delay_s(self) -> float:
         if self.kind != "cold_chain":

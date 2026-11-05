@@ -30,7 +30,7 @@ export default function Landing() {
         <nav className="flex items-center gap-3 text-sm">
           <a href="#modules" className="hidden text-ink-300 hover:text-gold sm:inline">Modules</a>
           <a href="#honesty" className="hidden text-ink-300 hover:text-gold sm:inline">Data policy</a>
-          <Link to={token ? "/app" : "/login"} className="btn-gold">{token ? "Open dashboard" : "Sign in"}</Link>
+          <Link to={token ? "/world" : "/login"} className="btn-gold">{token ? "Open simulation" : "Sign in"}</Link>
         </nav>
       </header>
 
@@ -44,8 +44,8 @@ export default function Landing() {
             produce inspection and market-aware selling advice for farmers in Karnataka.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to={token ? "/app" : "/login"} className="btn-gold px-6 py-3 text-sm">Launch Dashboard <ArrowRight className="h-4 w-4" /></Link>
-            <Link to={token ? "/app/lab" : "/login"} className="btn-line-dark px-6 py-3 text-sm">Explore Simulations</Link>
+            <Link to={token ? "/world" : "/login"} className="btn-gold px-6 py-3 text-sm">Launch Simulation <ArrowRight className="h-4 w-4" /></Link>
+            <Link to="/docs" className="btn-line-dark px-6 py-3 text-sm">How it works</Link>
           </div>
         </div>
         <div className="relative border border-ink-600">

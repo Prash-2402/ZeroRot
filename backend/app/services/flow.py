@@ -155,7 +155,7 @@ def _truck(db: Session, refrigerated: bool) -> Truck:
 # ---------------- lots ----------------
 def create_lot(db: Session, *, commodity: str, quantity_kg: float, quality: float, maturity: str | None, mode: str,
                lat: float, lng: float, location_name: str, station_id: int | None, user_id: int | None, speed: float = 60.0,
-               manual_ambient: dict | None = None) -> Lot:
+               manual_ambient: dict | None = None, plan_days: float = 5.0) -> Lot:
     try:
         p = get_produce(commodity)
     except ValueError as e:
@@ -188,6 +188,7 @@ def create_lot(db: Session, *, commodity: str, quantity_kg: float, quality: floa
         db.rollback()
         raise FlowError(503 if "unavailable" in e.lower() else 422, "simulation_input_unavailable", e)
     cfg["loading_s"] = loading_s
+    cfg["plan_days"] = float(plan_days)
     cfg["loading_rate_kg_h"] = LOADING_KG_PER_H
     if mode == "advanced":
         # crates enter at outside temperature; the chamber starts at its setpoint
@@ -283,7 +284,7 @@ def market_towns(lat: float, lng: float) -> list[dict]:
         if g:
             out.append({"name": f"{g['name']} APMC", "town": g["name"], "lat": g["lat"], "lng": g["lng"],
                         "distance_km": round(rg.haversine_m(lat, lng, g["lat"], g["lng"]) / 1000, 1)})
-    return sorted(out, key=lambda x: x["distance_km"])
+    return sorted([t for t in out if t["distance_km"] >= 3.0], key=lambda x: x["distance_km"])   # skip the town you are already in
 
 
 def mandi_rates(db: Session, commodity: str, lat: float, lng: float) -> dict:
@@ -442,6 +443,9 @@ def dispatch(db: Session, lot: Lot, *, grade: str, dest_name: str, dest_lat: flo
         raise FlowError(503, "simulation_input_unavailable", e)
     if not refrigerated:
         cfg.update(refrigerated=False, setpoint=None, cooling_kw=0.0, ach=6.0)
+    from datetime import timedelta
+    leave = datetime.fromisoformat(srt.cfg["start_time"]) + timedelta(seconds=srt.s.t_seconds + float((lot.grading or {}).get("elapsed_s", 0.0)))
+    cfg["start_time"] = leave.replace(second=0, microsecond=0).isoformat()   # continuous simulated clock: godown -> bagging -> road
     sim = Simulation(kind="cold_chain", name=f"{'Reefer' if refrigerated else 'Open truck'} · {b.code} {grade} → {dest_name}", batch_id=b.id,
                      truck_id=truck.id, route_id=route.id, config=cfg, speed=lot.speed, status="running", created_by=user_id)
     db.add(sim)
@@ -460,7 +464,7 @@ def dispatch(db: Session, lot: Lot, *, grade: str, dest_name: str, dest_lat: flo
             ssim.config = {**ssim.config, "summary": srt.summary()}
     b.status = "in_transit"
     add_event(db, lot, "dispatched", "Dispatched",
-              f"{qty:.0f} kg ({'all produce' if grade == 'ALL' else grade + ' bags'}) left for {dest_name} by {truck.name.lower()}: "
+              f"{qty:.0f} kg ({'all produce' if grade == 'ALL' else grade + ' bags'}) left for {dest_name} by {truck.name[0].lower() + truck.name[1:]}: "
               f"{r0['distance_m'] / 1000:.1f} km, about {r0['duration_s'] / 3600:.1f} h by road.", sim_id=sim.id)
     db.commit()
     _name_checkpoints_async(sh.id)
@@ -566,6 +570,7 @@ def _tick_lot(db: Session, lot: Lot, dt_real: float):
     elif lot.stage == "grading":
         g = dict(lot.grading)
         g["processed_kg"] = min(g["total_kg"], g["processed_kg"] + GRADING_KG_PER_H * dt / 3600.0)
+        g["elapsed_s"] = g.get("elapsed_s", 0.0) + dt
         frac = g["processed_kg"] / max(1.0, g["total_kg"])
         g["bags_filled"] = {k: min(g["bags"][k], int(g["bags"][k] * frac)) for k in GRADES}
         lot.grading = g

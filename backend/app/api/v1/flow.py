@@ -109,6 +109,7 @@ class LotIn(BaseModel):
     location_name: str = Field(..., min_length=2, max_length=160)
     station_id: int | None = None
     speed: float = Field(60, ge=1, le=7200)
+    plan_days: float = Field(5, ge=0.5, le=14)   # farmer's intended holding time; spoilage risk is judged against it
     manual_ambient: dict | None = None    # {"t": degC, "rh": %} only when live weather is unavailable (labelled MANUAL)
 
 
@@ -117,7 +118,7 @@ def create_lot(body: LotIn, request: Request, p: Principal = Depends(current_pri
     sid = station_id_of(p) if p.kind == "qr" else body.station_id
     lot = _flow_call(flow.create_lot, db, commodity=body.commodity, quantity_kg=body.quantity_kg, quality=body.quality, maturity=body.maturity,
                      mode=body.mode, lat=body.lat, lng=body.lng, location_name=body.location_name, station_id=sid,
-                     user_id=p.user.id if p.user else None, speed=body.speed, manual_ambient=body.manual_ambient)
+                     user_id=p.user.id if p.user else None, speed=body.speed, manual_ambient=body.manual_ambient, plan_days=body.plan_days)
     audit(db, p, "create_lot", "lot", lot.id, {"commodity": body.commodity, "kg": body.quantity_kg, "mode": body.mode}, request)
     db.commit()
     return flow.lot_payload(db, lot, full=True)

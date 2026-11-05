@@ -14,7 +14,7 @@ export default function Login() {
   const needsAdmin = setup.data?.needs_admin;
   const m = useMutation({
     mutationFn: () => post(needsAdmin ? "/auth/register" : "/auth/login", needsAdmin ? f : { email: f.email, password: f.password }),
-    onSuccess: (d) => { setAuth(d.access_token, d.user); nav("/app"); },
+    onSuccess: (d) => { setAuth(d.access_token, d.user); nav("/world"); },
   });
   return (
     <div className="grid min-h-screen lg:grid-cols-2">

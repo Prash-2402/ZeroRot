@@ -28,3 +28,14 @@ body { @apply bg-paper text-ink antialiased font-sans; font-feature-settings: "t
 input[type="range"] { accent-color: #FFC900; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #B9B4A9; }
+
+/* ---------- phone app ---------- */
+@layer components {
+  .ph-label { @apply mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-300; }
+  .ph-input { @apply border-2 border-ink-600 bg-ink-800 px-3 py-3 text-paper outline-none placeholder:text-ink-400 focus:border-gold; }
+  .ph-chip { @apply border-2 border-ink-600 py-2.5 text-sm font-semibold text-paper; }
+  .ph-chip-on { @apply border-gold bg-gold text-ink; }
+  .ph-btn-line { @apply inline-flex items-center justify-center gap-2 border-2 border-ink-500 px-3 py-3 text-sm font-semibold text-paper disabled:opacity-40; }
+  .hud { @apply border border-white/10 bg-ink/75 text-paper shadow-2xl backdrop-blur-md; }
+  .hud-label { @apply text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-300; }
+}

@@ -165,7 +165,8 @@ CHAT_SYSTEM = ("You are 'ZERO ROT Sahayaka', a helpful post-harvest assistant fo
                "You are given CONTEXT as JSON from the platform's models and live sources (godown sensors are SIMULATED virtual sensors; "
                "prices are verified mandi data only when present). Answer the user's question briefly and practically. "
                "Use only numbers that appear in CONTEXT; if something is not in CONTEXT, say you do not have that data. "
-               "Never invent prices, temperatures, dates or forecasts. Reply in {lang}. Plain text, at most 6 short sentences or bullet points.")
+               "Never invent prices, temperatures, dates or forecasts. Do not mention internal field names, IDs or timestamps. "
+               "Reply in {lang}. Plain text only (no markdown, no asterisks), at most 6 short sentences.")
 
 
 def chat(question: str, context: dict, history: list[dict], language: str = "en") -> dict:
@@ -176,6 +177,6 @@ def chat(question: str, context: dict, history: list[dict], language: str = "en"
         if h.get("role") in ("user", "assistant") and isinstance(h.get("content"), str):
             msgs.append({"role": h["role"], "content": h["content"][:2000]})
     msgs.append({"role": "user", "content": question[:2000]})
-    text = _chat(msgs, json_mode=False, temperature=0.3).strip()
+    text = _chat(msgs, json_mode=False, temperature=0.3).strip().replace("**", "").replace("__", "")
     bad = unverified_numbers(text, context)
     return {"answer": text, "model": settings.groq_model, "unverified_numbers": bad, "verified": not bad}
