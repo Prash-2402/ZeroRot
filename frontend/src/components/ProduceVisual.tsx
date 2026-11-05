@@ -34,8 +34,7 @@ export function ProduceVisual({ produce, quality, size = 160 }: { produce: strin
         </g>
       ) : (
         <g>
-          <motion.ellipse cx="50" cy="56" rx={produce === "mango" ? 30 : 34} ry={produce === "mango" ? 36 : 31 - wrinkle * 2} fill={`url(#g-${produce})`}
-            animate={{ rx: produce === "mango" ? 30 - wrinkle * 2 : 34 - wrinkle * 2 }} transition={{ duration: 0.4 }} />
+          <ellipse cx="50" cy="56" rx={(produce === "mango" ? 30 : 34) - wrinkle * 2} ry={produce === "mango" ? 36 : 31 - wrinkle * 2} fill={`url(#g-${produce})`} />
           <path d="M50 26 C44 18 36 20 34 22 C40 24 44 28 50 30 Z" fill={p.leaf} opacity={1 - decay * 0.5} />
           <path d="M50 26 C56 18 64 20 66 22 C60 24 56 28 50 30 Z" fill={p.leaf} opacity={1 - decay * 0.5} />
           <rect x="48.5" y="20" width="3" height="9" rx="1.5" fill="#4A6A3A" />
