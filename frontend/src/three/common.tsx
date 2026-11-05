@@ -9,7 +9,7 @@ export function Scene({ children, camera = [9, 6, 10], target = [0, 1, 0], heigh
   return (
     <div style={{ height }} className={dark ? "bg-ink" : "bg-paper-200"}>
       <Canvas shadows dpr={[1, 2]} camera={{ position: camera, fov: 42 }}>
-        <color attach="background" args={[dark ? "#0B0C0F" : "#E9E6DF"]} />
+        <color attach="background" args={[dark ? "#0A2624" : "#E9E6DF"]} />
         <hemisphereLight args={["#ffffff", "#30343b", 0.7]} />
         <directionalLight position={[8, 14, 6]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
         <Suspense fallback={null}>{children}</Suspense>
@@ -20,7 +20,7 @@ export function Scene({ children, camera = [9, 6, 10], target = [0, 1, 0], heigh
   );
 }
 
-export function SensorTag({ position, label, value, unit, color = "#FFC900" }: { position: [number, number, number]; label: string; value: string | number; unit?: string; color?: string }) {
+export function SensorTag({ position, label, value, unit, color = "#FF684A" }: { position: [number, number, number]; label: string; value: string | number; unit?: string; color?: string }) {
   return (
     <group position={position}>
       <mesh><sphereGeometry args={[0.09, 16, 16]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.8} /></mesh>

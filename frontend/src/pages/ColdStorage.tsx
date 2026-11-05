@@ -105,7 +105,7 @@ export default function ColdStorage() {
                     return (
                       <div key={z.id} className="border border-paper-300 bg-white p-2 text-xs">
                         <div className="flex items-center justify-between"><b className="text-sm">{z.name}</b><div className="flex items-center gap-2"><span>{z.temp_min}–{z.temp_max} °C · set {z.setpoint} °C · {z.cooling_capacity_kw} kW</span><QRShare resourceType="zone" resourceId={z.id} label="QR" /></div></div>
-                        <div className="mt-1.5 h-2 bg-paper-300"><div className="h-2" style={{ width: `${pct}%`, background: pct > 90 ? "#EB4D3D" : "#FFC900" }} /></div>
+                        <div className="mt-1.5 h-2 bg-paper-300"><div className="h-2" style={{ width: `${pct}%`, background: pct > 90 ? "#EB4D3D" : "#FF684A" }} /></div>
                         <div className="mt-1 text-ink-400">{kg(z.used_kg)} used of {kg(z.capacity_kg)} · {kg(z.free_kg)} free · {inr(z.cost_per_kg_day * 100)}/100 kg/day</div>
                       </div>
                     );

@@ -29,7 +29,7 @@ function ImageResult({ file, img }: { file?: File; img: any }) {
           {img.objects.map((o: any, i: number) => (
             <g key={i}>
               <rect x={o.bbox[0]} y={o.bbox[1]} width={o.bbox[2]} height={o.bbox[3]} fill="none" stroke={CAT[o.category][1]} strokeWidth={Math.max(2, img.width / 200)} />
-              <text x={o.bbox[0] + 4} y={o.bbox[1] + Math.max(14, img.width / 40)} fill={CAT[o.category][1]} fontSize={Math.max(12, img.width / 40)} fontWeight="bold" stroke="#08090B" strokeWidth={0.6}>{o.category} {Math.round(o.confidence * 100)}%</text>
+              <text x={o.bbox[0] + 4} y={o.bbox[1] + Math.max(14, img.width / 40)} fill={CAT[o.category][1]} fontSize={Math.max(12, img.width / 40)} fontWeight="bold" stroke="#0A2624" strokeWidth={0.6}>{o.category} {Math.round(o.confidence * 100)}%</text>
             </g>
           ))}
         </svg>

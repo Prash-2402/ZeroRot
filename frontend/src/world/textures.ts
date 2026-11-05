@@ -84,7 +84,7 @@ export const asphaltTex = () => make("asphalt", 128, 512, (g, w, h) => {
   g.fillStyle = "#2f3134"; g.fillRect(0, 0, w, h);
   noise(g, w, h, ["#26282b", "#3a3c40", "#44464a"], 2500, [1, 2], 17);
   g.fillStyle = "#e8e2d0"; g.fillRect(4, 0, 3, h); g.fillRect(w - 7, 0, 3, h);
-  g.fillStyle = "#FFC900"; for (let y = 0; y < h; y += 64) g.fillRect(w / 2 - 2, y, 4, 34);
+  g.fillStyle = "#F2C230"; for (let y = 0; y < h; y += 64) g.fillRect(w / 2 - 2, y, 4, 34);
 }, [1, 1]);
 
 export const crateTex = () => make("crate", 128, 128, (g, w, h) => {

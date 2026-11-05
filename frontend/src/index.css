@@ -25,7 +25,7 @@ body { @apply bg-paper text-ink antialiased font-sans; font-feature-settings: "t
   .table-body td { @apply px-3 py-2 border-t border-paper-200 text-sm; }
 }
 
-input[type="range"] { accent-color: #FFC900; }
+input[type="range"] { accent-color: #FF684A; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #B9B4A9; }
 

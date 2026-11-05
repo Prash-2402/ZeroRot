@@ -180,13 +180,13 @@ function ControlsPanel({ sim, live, kind, onControl, onScenario, pending, mobile
         {kind !== "traditional_storage" && sp !== null && (
           <div>
             <div className="label">Setpoint · {num(sp)} °C</div>
-            <input type="range" min={-1} max={20} step={0.5} value={sp} onChange={(e) => setSp(Number(e.target.value))} onMouseUp={() => onControl("setpoint", sp)} onTouchEnd={() => onControl("setpoint", sp)} className="w-full accent-[#FFC900]" aria-label="Setpoint" />
+            <input type="range" min={-1} max={20} step={0.5} value={sp} onChange={(e) => setSp(Number(e.target.value))} onMouseUp={() => onControl("setpoint", sp)} onTouchEnd={() => onControl("setpoint", sp)} className="w-full accent-[#FF684A]" aria-label="Setpoint" />
           </div>
         )}
         {kind === "cold_chain" && (
           <div>
             <div className="label">Truck speed · {num(live?.route?.speed_kmh, 0)} km/h</div>
-            <input type="range" min={0} max={90} step={5} defaultValue={live?.route?.speed_kmh ?? 45} onMouseUp={(e) => onControl("speed_kmh", Number((e.target as HTMLInputElement).value))} className="w-full accent-[#FFC900]" aria-label="Truck speed" />
+            <input type="range" min={0} max={90} step={5} defaultValue={live?.route?.speed_kmh ?? 45} onMouseUp={(e) => onControl("speed_kmh", Number((e.target as HTMLInputElement).value))} className="w-full accent-[#FF684A]" aria-label="Truck speed" />
           </div>
         )}
         {!mobile && (
@@ -265,10 +265,10 @@ function RoutePanel({ sim, live }: { sim: any; live: any }) {
       <div className="grid gap-4 md:grid-cols-[1fr_240px]">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full bg-ink">
           <path d={path} fill="none" stroke="#3A3F47" strokeWidth={5} />
-          <path d={path} fill="none" stroke="#FFC900" strokeWidth={2} strokeDasharray="1000" />
-          <circle cx={sx(g[0][1])} cy={sy(g[0][0])} r={6} fill="#F5F3EF" />
+          <path d={path} fill="none" stroke="#FF684A" strokeWidth={2} strokeDasharray="1000" />
+          <circle cx={sx(g[0][1])} cy={sy(g[0][0])} r={6} fill="#F3EEE8" />
           <circle cx={sx(g[g.length - 1][1])} cy={sy(g[g.length - 1][0])} r={6} fill="#5FB37C" />
-          {gps && <circle cx={sx(gps[1])} cy={sy(gps[0])} r={8} fill="#FFC900" stroke="#08090B" strokeWidth={2} />}
+          {gps && <circle cx={sx(gps[1])} cy={sy(gps[0])} r={8} fill="#FF684A" stroke="#0A2624" strokeWidth={2} />}
         </svg>
         <div className="space-y-2 text-sm">
           <div><div className="label">Progress</div><div className="mt-1 h-2 bg-paper-300"><div className="h-2 bg-gold" style={{ width: `${Math.min(100, prog)}%` }} /></div><div className="mt-1 font-mono text-xs">{num((live?.route?.progress_m || 0) / 1000)} / {num((live?.route?.distance_m || 0) / 1000)} km</div></div>
@@ -297,7 +297,7 @@ function HistoryPanel({ id, mobile, kind, setpoint, tick }: { id: number; mobile
                 <YAxis tick={{ fontSize: 10 }} unit="°" />
                 <Tooltip formatter={(v: any) => num(v)} labelFormatter={(l) => `${l} h`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line dataKey="temp" name="Inside °C" stroke="#08090B" dot={false} strokeWidth={2} isAnimationActive={false} />
+                <Line dataKey="temp" name="Inside °C" stroke="#0A2624" dot={false} strokeWidth={2} isAnimationActive={false} />
                 {kind === "cold_chain" && <Line dataKey="max_zone" name="Warmest zone °C" stroke="#EB4D3D" dot={false} isAnimationActive={false} />}
                 <Line dataKey="amb_t" name="Outside °C" stroke="#F2994A" dot={false} strokeDasharray="4 3" isAnimationActive={false} />
                 {kind !== "traditional_storage" && <Line dataKey={() => setpoint} name="Setpoint" stroke="#2F80ED" dot={false} strokeDasharray="2 4" isAnimationActive={false} />}
@@ -312,7 +312,7 @@ function HistoryPanel({ id, mobile, kind, setpoint, tick }: { id: number; mobile
                 <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
                 <Tooltip formatter={(v: any) => num(v)} labelFormatter={(l) => `${l} h`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line dataKey="q" name="Quality index" stroke="#FFC900" dot={false} strokeWidth={2} isAnimationActive={false} />
+                <Line dataKey="q" name="Quality index" stroke="#FF684A" dot={false} strokeWidth={2} isAnimationActive={false} />
                 <Line dataKey="rh" name="RH %" stroke="#7FC4FF" dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>

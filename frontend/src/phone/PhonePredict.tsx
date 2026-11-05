@@ -62,7 +62,7 @@ function Spoilage({ lot }: { lot: any }) {
         <div className="text-xs uppercase tracking-wider text-ink-300">At current conditions ({num(d.conditions.temperature_c)} °C, {num(d.conditions.rh_pct, 0)}%)</div>
         <div className="mt-1 font-mono text-5xl font-bold text-gold">{days(d.current.shelf_life_days)}</div>
         <div className="text-xs text-ink-300">{t("days left")} · likely range {days(d.current.shelf_life_p10)} – {days(d.current.shelf_life_p90)}</div>
-        <div className="mt-3">{bar(d.current.shelf_life_days, max, "#FFC900")}</div>
+        <div className="mt-3">{bar(d.current.shelf_life_days, max, "#FF684A")}</div>
       </div>
       <div className="border border-ink-600 p-4">
         <div className="text-xs uppercase tracking-wider text-ink-300">If kept at the recommended {num(d.at_recommended.temperature_c)} °C / {num(d.at_recommended.rh_pct, 0)}%</div>

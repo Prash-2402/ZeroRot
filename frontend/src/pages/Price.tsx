@@ -57,7 +57,7 @@ function Profit({ markets }: { markets: string[] }) {
                 <YAxis yAxisId="q" orientation="right" tick={{ fontSize: 10 }} domain={[0, 100]} />
                 <Tooltip formatter={(v: any, n: any) => (n === "Quality" ? num(v) : inr(v))} labelFormatter={(l) => `Day ${l}`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area yAxisId="m" dataKey="net_profit" name="Net profit" fill="#FFC90055" stroke="#08090B" isAnimationActive={false} />
+                <Area yAxisId="m" dataKey="net_profit" name="Net profit" fill="#FF684A55" stroke="#0A2624" isAnimationActive={false} />
                 <Line yAxisId="m" dataKey="revenue" name="Revenue" stroke="#5FB37C" dot={false} isAnimationActive={false} />
                 <Line yAxisId="q" dataKey="quality" name="Quality" stroke="#EB4D3D" dot={false} strokeDasharray="4 3" isAnimationActive={false} />
               </ComposedChart>
@@ -120,7 +120,7 @@ export default function Price() {
               <ResponsiveContainer>
                 <LineChart data={hist} margin={{ left: -10, right: 8 }}>
                   <CartesianGrid stroke="#E2DFD8" vertical={false} /><XAxis dataKey="date" tick={{ fontSize: 10 }} minTickGap={30} /><YAxis tick={{ fontSize: 10 }} unit="₹" />
-                  <Tooltip /><Line dataKey="modal_per_kg" name={market || "All markets"} stroke="#08090B" dot={false} isAnimationActive={false} />
+                  <Tooltip /><Line dataKey="modal_per_kg" name={market || "All markets"} stroke="#0A2624" dot={false} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -140,8 +140,8 @@ export default function Price() {
                   <ComposedChart data={fcRows} margin={{ left: -10, right: 8 }}>
                     <CartesianGrid stroke="#E2DFD8" vertical={false} /><XAxis dataKey="date" tick={{ fontSize: 10 }} minTickGap={30} /><YAxis tick={{ fontSize: 10 }} unit="₹" />
                     <Tooltip /><Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Area dataKey="band" name="P10–P90 band" fill="#FFC90055" stroke="none" isAnimationActive={false} />
-                    <Line dataKey="actual" name="Observed" stroke="#08090B" dot={false} isAnimationActive={false} />
+                    <Area dataKey="band" name="P10–P90 band" fill="#FF684A55" stroke="none" isAnimationActive={false} />
+                    <Line dataKey="actual" name="Observed" stroke="#0A2624" dot={false} isAnimationActive={false} />
                     <Line dataKey="forecast" name="Forecast" stroke="#B88A00" strokeDasharray="4 3" dot={false} isAnimationActive={false} />
                   </ComposedChart>
                 </ResponsiveContainer>

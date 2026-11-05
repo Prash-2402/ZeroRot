@@ -197,7 +197,7 @@ function AdvancedGodown({ lot, cutaway, labels, night }: { lot: any; cutaway: bo
       {wall([W / 2 - 2.2, H, 0.4], [W / 4 + 1.1, H / 2, D / 2], true)}
       {wall([4.4, H - 4.2, 0.4], [0, H - (H - 4.2) / 2, D / 2], true)}
       <mesh position={[0, H + 0.1, 0]} castShadow={!cutaway}><boxGeometry args={[W + 0.6, 0.3, D + 0.6]} /><meshStandardMaterial map={metalRoofTex()} transparent={cutaway} opacity={cutaway ? 0.06 : 1} depthWrite={!cutaway} /></mesh>
-      <mesh position={[0, H - 0.6, D / 2 + 0.22]}><boxGeometry args={[W, 0.35, 0.05]} /><meshStandardMaterial color="#FFC900" emissive="#FFC900" emissiveIntensity={0.2} /></mesh>
+      <mesh position={[0, H - 0.6, D / 2 + 0.22]}><boxGeometry args={[W, 0.35, 0.05]} /><meshStandardMaterial color="#FF684A" emissive="#FF684A" emissiveIntensity={0.2} /></mesh>
       {/* roll-up door */}
       <group ref={door} position={[0, 0, D / 2 + 0.25]}>
         {Array.from({ length: 8 }, (_, i) => <mesh key={i} position={[0, 0.25 + i * 0.5, 0]}><boxGeometry args={[4.3, 0.46, 0.1]} /><meshStandardMaterial color="#cfd5da" metalness={0.5} roughness={0.4} /></mesh>)}
@@ -226,7 +226,7 @@ function AdvancedGodown({ lot, cutaway, labels, night }: { lot: any; cutaway: bo
       {/* virtual sensor nodes */}
       {cutaway && lot && st && [[-7, 2.4, -4, `T ${t?.toFixed(1)}°C`], [7, 2.4, -4, `RH ${st.readings.rh_pct.toFixed(0)}%`], [-7, 1.2, 3, `O₂ ${st.readings.o2_pct.toFixed(2)}%`], [7, 1.2, 3, `CO₂ ${st.readings.co2_pct.toFixed(3)}%`]].map(([x, y, z, txt]) => (
         <group key={txt as string} position={[x as number, y as number, z as number]}>
-          <mesh><sphereGeometry args={[0.18, 12, 12]} /><meshStandardMaterial color="#FFC900" emissive="#FFC900" emissiveIntensity={3} /></mesh>
+          <mesh><sphereGeometry args={[0.18, 12, 12]} /><meshStandardMaterial color="#FF684A" emissive="#FF684A" emissiveIntensity={3} /></mesh>
           <Label position={[0, 0.7, 0]}>{txt as string}</Label>
         </group>
       ))}
@@ -295,10 +295,10 @@ function GradingHall({ lot, labels, night }: { lot: any; labels: boolean; night:
         <mesh position={[0, 1.0, 0]} castShadow><boxGeometry args={[15, 0.18, 1.3]} /><meshStandardMaterial map={belt} /></mesh>
         {Array.from({ length: 8 }, (_, i) => <mesh key={i} position={[-7 + i * 2, 0.5, 0]}><boxGeometry args={[0.15, 1, 1.4]} /><meshStandardMaterial color="#5b616b" /></mesh>)}
         <group position={[-1, 0, 0]}>
-          {[-0.95, 0.95].map((z) => <mesh key={z} position={[0, 1.7, z]}><boxGeometry args={[0.15, 3.4, 0.15]} /><meshStandardMaterial color="#08090B" /></mesh>)}
-          <mesh position={[0, 3.35, 0]}><boxGeometry args={[0.6, 0.4, 2.1]} /><meshStandardMaterial color="#08090B" /></mesh>
-          <mesh position={[0, 3.05, 0]}><boxGeometry args={[0.4, 0.3, 0.4]} /><meshStandardMaterial color="#FFC900" emissive="#FFC900" emissiveIntensity={running ? 2 : 0.3} /></mesh>
-          <mesh ref={scan} position={[0, 2.05, 0]}><coneGeometry args={[0.8, 1.9, 4, 1, true]} /><meshBasicMaterial color="#FFC900" transparent opacity={running ? 0.35 : 0} side={THREE.DoubleSide} depthWrite={false} /></mesh>
+          {[-0.95, 0.95].map((z) => <mesh key={z} position={[0, 1.7, z]}><boxGeometry args={[0.15, 3.4, 0.15]} /><meshStandardMaterial color="#0A2624" /></mesh>)}
+          <mesh position={[0, 3.35, 0]}><boxGeometry args={[0.6, 0.4, 2.1]} /><meshStandardMaterial color="#0A2624" /></mesh>
+          <mesh position={[0, 3.05, 0]}><boxGeometry args={[0.4, 0.3, 0.4]} /><meshStandardMaterial color="#FF684A" emissive="#FF684A" emissiveIntensity={running ? 2 : 0.3} /></mesh>
+          <mesh ref={scan} position={[0, 2.05, 0]}><coneGeometry args={[0.8, 1.9, 4, 1, true]} /><meshBasicMaterial color="#FF684A" transparent opacity={running ? 0.35 : 0} side={THREE.DoubleSide} depthWrite={false} /></mesh>
         </group>
         <group ref={items}>{Array.from({ length: 10 }, (_, i) => <mesh key={i} position={[-20, 1.25, 0]} castShadow><sphereGeometry args={[0.22, 14, 12]} /><meshStandardMaterial color={color} roughness={0.45} visible={running} /></mesh>)}</group>
       </group>
@@ -396,7 +396,7 @@ export function Hub({ lots, activeId, cutaway, labels, night }: { lots: any[]; a
       <mesh position={[0, 0.02, 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><planeGeometry args={[100, 40]} /><meshStandardMaterial map={concreteTex()} /></mesh>
       <mesh position={[0, 0.03, 46]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><planeGeometry args={[8, 52]} /><meshStandardMaterial map={asphalt} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]} receiveShadow><ringGeometry args={[HUB_RADIUS - 4, HUB_RADIUS + 4, 128]} /><meshStandardMaterial color="#2f3134" roughness={0.95} /></mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}><ringGeometry args={[HUB_RADIUS - 0.15, HUB_RADIUS + 0.15, 128]} /><meshStandardMaterial color="#FFC900" /></mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}><ringGeometry args={[HUB_RADIUS - 0.15, HUB_RADIUS + 0.15, 128]} /><meshStandardMaterial color="#F2C230" /></mesh>
       <Farm />
       <TraditionalGodown lot={trad} cutaway={cutaway === "trad"} labels={labels} night={night} />
       <AdvancedGodown lot={adv} cutaway={cutaway === "adv"} labels={labels} night={night} />

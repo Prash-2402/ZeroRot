@@ -72,7 +72,7 @@ function Barricade({ position, heading }: { position: [number, number, number]; 
 function Mandi({ position, name, labels, night, people = 26 }: { position: [number, number, number]; name: string; labels: boolean; night: boolean; people?: number }) {
   const crowd = useRef<THREE.Group>(null);
   const r = useMemo(() => seeded(name.length * 13), [name]);
-  const folk = useMemo(() => Array.from({ length: people }, () => ({ x: (r() - 0.5) * 26, z: (r() - 0.5) * 18, c: ["#c0392b", "#2e86de", "#f5f3ef", "#e1b12c", "#6c5ce7", "#0a3d62"][Math.floor(r() * 6)], p: r() * 6 })), [people, r]);
+  const folk = useMemo(() => Array.from({ length: people }, () => ({ x: (r() - 0.5) * 26, z: (r() - 0.5) * 18, c: ["#c0392b", "#2e86de", "#F3EEE8", "#e1b12c", "#6c5ce7", "#0a3d62"][Math.floor(r() * 6)], p: r() * 6 })), [people, r]);
   useFrame((st) => {
     crowd.current?.children.forEach((c, i) => { c.position.y = 0.9 + Math.abs(Math.sin(st.clock.elapsedTime * 2 + folk[i].p)) * 0.08; c.position.x = folk[i].x + Math.sin(st.clock.elapsedTime * 0.3 + folk[i].p) * 1.5; });
   });
@@ -87,7 +87,7 @@ function Mandi({ position, name, labels, night, people = 26 }: { position: [numb
         </group>
       ))}
       <group ref={crowd}>{folk.map((f, i) => <mesh key={i} position={[f.x, 0.9, f.z]} castShadow><capsuleGeometry args={[0.28, 1.0, 4, 8]} /><meshStandardMaterial color={f.c} /></mesh>)}</group>
-      <mesh position={[0, 7.5, 6]}><boxGeometry args={[16, 2, 0.3]} /><meshStandardMaterial color="#08090B" emissive="#FFC900" emissiveIntensity={night ? 0.6 : 0.05} /></mesh>
+      <mesh position={[0, 7.5, 6]}><boxGeometry args={[16, 2, 0.3]} /><meshStandardMaterial color="#0A2624" emissive="#FF684A" emissiveIntensity={night ? 0.6 : 0.05} /></mesh>
       <Label position={[0, 11, 6]} show={labels}><span className="text-gold">{name}</span></Label>
     </group>
   );

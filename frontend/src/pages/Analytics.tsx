@@ -68,7 +68,7 @@ export default function Analytics() {
                 <BarChart data={chart} margin={{ left: 0, right: 8 }}>
                   <CartesianGrid stroke="#E2DFD8" vertical={false} /><XAxis dataKey="metric" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 10 }} />
                   <Tooltip /><Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey={r.baseline.label} fill="#08090B" isAnimationActive={false} /><Bar dataKey={r.improved.label} fill="#FFC900" isAnimationActive={false} />
+                  <Bar dataKey={r.baseline.label} fill="#0A2624" isAnimationActive={false} /><Bar dataKey={r.improved.label} fill="#FF684A" isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

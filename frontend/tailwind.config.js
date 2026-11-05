@@ -4,9 +4,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: { DEFAULT: "#08090B", 900: "#08090B", 800: "#111317", 700: "#1A1D22", 600: "#262A31", 500: "#3A3F47", 400: "#5B616B", 300: "#8A9099" },
-        paper: { DEFAULT: "#F5F3EF", 50: "#FBFAF8", 100: "#F5F3EF", 200: "#E9E6DF", 300: "#D6D2C9", 400: "#B9B4A9" },
-        gold: { DEFAULT: "#FFC900", 50: "#FFF7D6", 100: "#FFEDA3", 400: "#FFD43B", 500: "#FFC900", 600: "#E0B000", 700: "#A88400" },
+        teal: "#17645F", coral: "#FF684A", ivory: "#F3EEE8",
+        ink: { DEFAULT: "#0A2624", 900: "#0A2624", 800: "#0F3533", 700: "#134541", 600: "#17645F", 500: "#2C7A74", 400: "#6A9893", 300: "#A9C6C1" },
+        paper: { DEFAULT: "#F3EEE8", 50: "#FAF7F3", 100: "#F3EEE8", 200: "#E8E1D8", 300: "#D9D0C4", 400: "#BDB2A4" },
+        gold: { DEFAULT: "#FF684A", 50: "#FFF0EB", 100: "#FFD9CF", 400: "#FF8467", 500: "#FF684A", 600: "#E5533A", 700: "#B83F2A" },
         cold: "#2F80ED", coldlight: "#7FC4FF", warn: "#FFC900", abnormal: "#F2994A", critical: "#EB4D3D", ok: "#5FB37C",
       },
       fontFamily: {

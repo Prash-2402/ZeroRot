@@ -36,9 +36,9 @@ export function TruckModel({ refrigerated, zones, setpoint, coolingOn, doorOpen,
       <mesh position={[0, 0.75, 0.3]} castShadow><boxGeometry args={[2.0, 0.35, 8.4]} /><meshStandardMaterial color="#1b1d21" /></mesh>
       {/* cab */}
       <group position={[0, 0, 3.4]}>
-        <mesh position={[0, 1.9, 0.2]} castShadow><boxGeometry args={[2.3, 2.1, 1.9]} /><meshStandardMaterial color="#08090B" metalness={0.5} roughness={0.35} /></mesh>
+        <mesh position={[0, 1.9, 0.2]} castShadow><boxGeometry args={[2.3, 2.1, 1.9]} /><meshStandardMaterial color="#0A2624" metalness={0.5} roughness={0.35} /></mesh>
         <mesh position={[0, 2.35, 1.16]}><boxGeometry args={[2.1, 0.9, 0.04]} /><meshStandardMaterial color="#9fc6e8" metalness={0.9} roughness={0.05} /></mesh>
-        <mesh position={[0, 1.05, 1.18]}><boxGeometry args={[2.3, 0.35, 0.1]} /><meshStandardMaterial color="#FFC900" /></mesh>
+        <mesh position={[0, 1.05, 1.18]}><boxGeometry args={[2.3, 0.35, 0.1]} /><meshStandardMaterial color="#FF684A" /></mesh>
         {[-0.85, 0.85].map((x) => (
           <mesh key={x} position={[x, 1.25, 1.2]}><boxGeometry args={[0.35, 0.2, 0.05]} /><meshStandardMaterial color="#fff6d8" emissive="#fff2c4" emissiveIntensity={night ? 6 : 0.4} /></mesh>
         ))}
@@ -46,8 +46,8 @@ export function TruckModel({ refrigerated, zones, setpoint, coolingOn, doorOpen,
       {/* body */}
       {refrigerated ? (
         <group position={[0, 2.25, -0.9]}>
-          <mesh castShadow><boxGeometry args={[2.45, 2.6, 6.2]} /><meshStandardMaterial color="#F5F3EF" roughness={0.6} /></mesh>
-          <mesh position={[0, 0.85, 0]}><boxGeometry args={[2.47, 0.18, 6.22]} /><meshStandardMaterial color="#FFC900" /></mesh>
+          <mesh castShadow><boxGeometry args={[2.45, 2.6, 6.2]} /><meshStandardMaterial color="#F3EEE8" roughness={0.6} /></mesh>
+          <mesh position={[0, 0.85, 0]}><boxGeometry args={[2.47, 0.18, 6.22]} /><meshStandardMaterial color="#FF684A" /></mesh>
           {/* zone heat strip, front (unit, +z) -> rear */}
           {(zones?.length ? zones : Array(6).fill(sp)).map((z, i, a) => {
             const zz = 3.1 - (i + 0.5) * (6.2 / a.length);

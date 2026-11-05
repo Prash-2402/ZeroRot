@@ -57,14 +57,14 @@ function ConveyorLineInner({ objects, commodity, running }: { objects: { categor
       </group>
       {/* camera gantry + scan plane */}
       <group position={[SCAN_X, 0, 0]}>
-        {[-0.8, 0.8].map((z) => <mesh key={z} position={[0, 1.6, z]}><boxGeometry args={[0.1, 3.2, 0.1]} /><meshStandardMaterial color="#08090B" /></mesh>)}
-        <mesh position={[0, 3.2, 0]}><boxGeometry args={[0.2, 0.12, 1.8]} /><meshStandardMaterial color="#08090B" /></mesh>
-        <mesh position={[0, 2.95, 0]}><boxGeometry args={[0.35, 0.3, 0.35]} /><meshStandardMaterial color="#FFC900" /></mesh>
-        <mesh ref={scan} position={[0, 2.05, 0]}><coneGeometry args={[0.7, 1.7, 4, 1, true]} /><meshBasicMaterial color="#FFC900" transparent opacity={0.3} side={THREE.DoubleSide} depthWrite={false} /></mesh>
+        {[-0.8, 0.8].map((z) => <mesh key={z} position={[0, 1.6, z]}><boxGeometry args={[0.1, 3.2, 0.1]} /><meshStandardMaterial color="#0A2624" /></mesh>)}
+        <mesh position={[0, 3.2, 0]}><boxGeometry args={[0.2, 0.12, 1.8]} /><meshStandardMaterial color="#0A2624" /></mesh>
+        <mesh position={[0, 2.95, 0]}><boxGeometry args={[0.35, 0.3, 0.35]} /><meshStandardMaterial color="#FF684A" /></mesh>
+        <mesh ref={scan} position={[0, 2.05, 0]}><coneGeometry args={[0.7, 1.7, 4, 1, true]} /><meshBasicMaterial color="#FF684A" transparent opacity={0.3} side={THREE.DoubleSide} depthWrite={false} /></mesh>
         <Html position={[0, 3.5, 0]} center><div className="whitespace-nowrap bg-gold px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink">CAMERA · OpenCV</div></Html>
       </group>
       {/* gate + bins */}
-      <mesh position={[GATE_X, 1.25, 0]} rotation={[0, running ? 0.4 : 0, 0]}><boxGeometry args={[0.05, 0.35, 1.0]} /><meshStandardMaterial color="#FFC900" /></mesh>
+      <mesh position={[GATE_X, 1.25, 0]} rotation={[0, running ? 0.4 : 0, 0]}><boxGeometry args={[0.05, 0.35, 1.0]} /><meshStandardMaterial color="#FF684A" /></mesh>
       {[["good", "Good"], ["damaged", "Moderately damaged"], ["rejected", "Spoiled / rejected"]].map(([k, l]) => (
         <group key={k} position={[GATE_X + 1.8, 0, BIN_Z[k]]}>
           <mesh position={[0, 0.25, 0]}><boxGeometry args={[1.2, 0.5, 1.2]} /><meshStandardMaterial color={CAT_COLOR[k]} transparent opacity={0.85} /></mesh>

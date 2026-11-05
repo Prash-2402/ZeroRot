@@ -26,7 +26,7 @@ function Road({ speed }: { speed: number }) {
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.0, 0]}><planeGeometry args={[60, 7]} /><meshStandardMaterial color="#26292E" /></mesh>
-      <group ref={ref}>{Array.from({ length: 16 }, (_, i) => <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[-30 + i * 4, 0.01, 0]}><planeGeometry args={[2, 0.15]} /><meshBasicMaterial color="#FFC900" /></mesh>)}</group>
+      <group ref={ref}>{Array.from({ length: 16 }, (_, i) => <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[-30 + i * 4, 0.01, 0]}><planeGeometry args={[2, 0.15]} /><meshBasicMaterial color="#FF684A" /></mesh>)}</group>
     </group>
   );
 }
@@ -58,9 +58,9 @@ function ReeferTruckInner({ live, setpoint, cutaway, commodity }: { live: any; s
       <group position={[0, 0, 0]}>
         {/* cargo box (x: +front .. -rear) */}
         <group position={[0, 0.4 + BOX_H / 2, 0]}>
-          <mesh><boxGeometry args={[BOX_L, BOX_H, BOX_W]} /><meshStandardMaterial color="#F5F3EF" transparent opacity={wallOpacity} depthWrite={!cutaway} side={THREE.DoubleSide} /></mesh>
-          {!cutaway && <mesh position={[0, 0.5, BOX_W / 2 + 0.01]}><planeGeometry args={[BOX_L * 0.9, 0.4]} /><meshBasicMaterial color="#08090B" /></mesh>}
-          {!cutaway && <mesh position={[0, 0.5, BOX_W / 2 + 0.012]}><planeGeometry args={[1.8, 0.1]} /><meshBasicMaterial color="#FFC900" /></mesh>}
+          <mesh><boxGeometry args={[BOX_L, BOX_H, BOX_W]} /><meshStandardMaterial color="#F3EEE8" transparent opacity={wallOpacity} depthWrite={!cutaway} side={THREE.DoubleSide} /></mesh>
+          {!cutaway && <mesh position={[0, 0.5, BOX_W / 2 + 0.01]}><planeGeometry args={[BOX_L * 0.9, 0.4]} /><meshBasicMaterial color="#0A2624" /></mesh>}
+          {!cutaway && <mesh position={[0, 0.5, BOX_W / 2 + 0.012]}><planeGeometry args={[1.8, 0.1]} /><meshBasicMaterial color="#FF684A" /></mesh>}
         </group>
         {/* heatmap volumes per zone (cutaway) */}
         {cutaway && zones.map((z, i) => {
@@ -79,9 +79,9 @@ function ReeferTruckInner({ live, setpoint, cutaway, commodity }: { live: any; s
         <group ref={door} position={[-BOX_L / 2, 0.4, BOX_W / 2]}><mesh position={[0, BOX_H / 2, -BOX_W / 4]}><boxGeometry args={[0.05, BOX_H, BOX_W / 2]} /><meshStandardMaterial color="#E1DED7" /></mesh></group>
         {/* cab */}
         <group position={[BOX_L / 2 + 1.45, 0, 0]}>
-          <mesh position={[0, 1.35, 0]}><boxGeometry args={[2.0, 2.0, 2.3]} /><meshStandardMaterial color="#08090B" metalness={0.4} roughness={0.4} /></mesh>
+          <mesh position={[0, 1.35, 0]}><boxGeometry args={[2.0, 2.0, 2.3]} /><meshStandardMaterial color="#0A2624" metalness={0.4} roughness={0.4} /></mesh>
           <mesh position={[1.01, 1.7, 0]}><boxGeometry args={[0.02, 0.8, 2.0]} /><meshStandardMaterial color="#2F80ED" metalness={0.8} roughness={0.1} transparent opacity={0.7} /></mesh>
-          <mesh position={[0, 0.4, 0]}><boxGeometry args={[2.0, 0.3, 2.3]} /><meshStandardMaterial color="#FFC900" /></mesh>
+          <mesh position={[0, 0.4, 0]}><boxGeometry args={[2.0, 0.3, 2.3]} /><meshStandardMaterial color="#FF684A" /></mesh>
         </group>
         <mesh position={[0.6, 0.35, 0]}><boxGeometry args={[BOX_L + 2.8, 0.15, 1.8]} /><meshStandardMaterial color="#1A1D22" /></mesh>
         <group ref={wheels}>
@@ -92,7 +92,7 @@ function ReeferTruckInner({ live, setpoint, cutaway, commodity }: { live: any; s
         {/* sensor markers at their modelled positions */}
         {cutaway && sensors.map((s: any) => (
           <SensorTag key={s.id} position={[s.position[0], 0.4 + Math.min(BOX_H - 0.1, s.position[1]), s.position[2]]} label={s.id}
-            unit={s.unit === "degC" ? "°C" : ["door", "cooling_status", "gps"].includes(s.kind) ? "" : s.unit} color={s.kind === "temperature" ? tempColor(s.value, setpoint) : "#FFC900"}
+            unit={s.unit === "degC" ? "°C" : ["door", "cooling_status", "gps"].includes(s.kind) ? "" : s.unit} color={s.kind === "temperature" ? tempColor(s.value, setpoint) : "#FF684A"}
             value={s.kind === "door" ? (s.value ? "open" : "closed") : s.kind === "cooling_status" ? (s.value ? "on" : "off") : s.kind === "gps" ? "fix" : Number(s.value).toFixed(s.kind === "co2" ? 3 : 1)} />
         ))}
       </group>

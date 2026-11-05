@@ -25,7 +25,7 @@ export const NAV = [
 export function Logo({ light = true }: { light?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <svg viewBox="0 0 64 64" className="h-8 w-8"><rect width="64" height="64" rx="6" fill={light ? "#FFC900" : "#08090B"} /><path d="M14 18h36L22 46h28" fill="none" stroke={light ? "#08090B" : "#FFC900"} strokeWidth="7" strokeLinecap="square" /></svg>
+      <svg viewBox="0 0 64 64" className="h-8 w-8"><rect width="64" height="64" rx="6" fill={light ? "#FF684A" : "#0A2624"} /><path d="M14 18h36L22 46h28" fill="none" stroke={light ? "#0A2624" : "#FF684A"} strokeWidth="7" strokeLinecap="square" /></svg>
       <div className="leading-none">
         <div className={cn("font-display text-[17px] font-bold tracking-[0.12em]", light ? "text-paper" : "text-ink")}>ZERO ROT</div>
         <div className={cn("mt-1 text-[9px] uppercase tracking-[0.22em]", light ? "text-ink-300" : "text-ink-400")}>Post-harvest digital twin</div>

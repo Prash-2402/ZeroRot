@@ -18,7 +18,7 @@ function sensorColor(kind: string, v: number, ref: number) {
   if (kind === "temperature") return tempColor(v, ref);
   if (kind === "oxygen") return v < 3 ? "#EB4D3D" : "#7FC4FF";
   if (kind === "co2") return v > 3 ? "#F2994A" : "#7FC4FF";
-  return "#FFC900";
+  return "#FF684A";
 }
 
 /** Traditional storage room: masonry walls (front cut away), door, vents, produce crates and virtual sensors. */
@@ -43,7 +43,7 @@ function TraditionalRoomInner({ live, cfg, refTemp }: { live: any; cfg: any; ref
       <mesh position={[0, h + 0.05, 0]}><boxGeometry args={[l + 0.3, 0.1, w + 0.3]} /><meshStandardMaterial color="#5A5048" transparent opacity={0.25} /></mesh>
       {/* vents (open: gold louvers) */}
       {[-l * 0.25, l * 0.25].map((x) => (
-        <mesh key={x} position={[x, h * 0.8, -w / 2 + 0.11]}><boxGeometry args={[0.8, 0.35, 0.04]} /><meshStandardMaterial color={eq.vents_open ? "#FFC900" : "#3A3F47"} /></mesh>
+        <mesh key={x} position={[x, h * 0.8, -w / 2 + 0.11]}><boxGeometry args={[0.8, 0.35, 0.04]} /><meshStandardMaterial color={eq.vents_open ? "#FF684A" : "#3A3F47"} /></mesh>
       ))}
       <group ref={door} position={[l / 2, 0, w * 0.15]}>
         <mesh position={[0, h * 0.4, -0.6]}><boxGeometry args={[0.08, h * 0.8, 1.2]} /><meshStandardMaterial color="#4A3A2A" /></mesh>

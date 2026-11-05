@@ -164,6 +164,11 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
         </div>
       </section>
       {error && <ErrorBox error={error} />}
+      {(!loc || kgVal < 50 || kgVal > 50000) && (
+        <div className="text-center text-xs text-gold">
+          {!loc ? "Choose a location (step 4) to continue." : `Quantity reads ${kg(kgVal)} — it must be between 50 kg and 50 t (check the tonne / kg toggle).`}
+        </div>
+      )}
       <button className="w-full bg-gold py-4 text-lg font-bold text-ink disabled:opacity-40" disabled={!loc || kgVal < 50 || kgVal > 50000 || busy === "submit"} onClick={submit}>
         {busy === "submit" ? <Spinner /> : t("Send to godown")}
       </button>
@@ -176,7 +181,7 @@ function Big({ icon: Icon, label, value, unit, color, sub }: any) {
   return (
     <div className="border border-ink-600 bg-ink-800 p-3">
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-ink-300"><Icon className="h-3.5 w-3.5" />{label}</div>
-      <div className="mt-1 font-mono text-3xl font-bold" style={{ color: color || "#F5F3EF" }}>{value}<span className="ml-1 text-sm text-ink-300">{unit}</span></div>
+      <div className="mt-1 font-mono text-3xl font-bold" style={{ color: color || "#F3EEE8" }}>{value}<span className="ml-1 text-sm text-ink-300">{unit}</span></div>
       {sub && <div className="text-[11px] text-ink-300">{sub}</div>}
     </div>
   );
