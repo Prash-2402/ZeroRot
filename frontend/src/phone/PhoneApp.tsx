@@ -11,7 +11,9 @@ import { ErrorBox, Spinner, cn } from "../components/ui";
 import { useLang, useT } from "./i18n";
 import { useStationLive } from "./usePhone";
 import { PredictTab } from "./PhonePredict";
-import { HelpTab, TrackTab } from "./PhoneTrack";
+import { TrackTab } from "./PhoneTrack";
+import { AssistantTab, HistoryTab, LogList, LossBars, QualityTrend, VoiceEntry } from "./PhoneExtras";
+import { History } from "lucide-react";
 import { post as postFix } from "../lib/api";
 
 export const CROPS = [
@@ -61,6 +63,9 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
   const [unit, setUnit] = useState<"t" | "kg">("t");
   const [cond, setCond] = useState(85);
   const [plan, setPlan] = useState(5);
+  const [aged, setAged] = useState(0);
+  const [kept, setKept] = useState<"open" | "shade" | "cold">("shade");
+  const [heardNote, setHeardNote] = useState<string | null>(null);
   const [maturity, setMaturity] = useState("turning");
   const [mode, setMode] = useState<"traditional" | "advanced">("advanced");
   const [loc, setLoc] = useState<{ name: string; lat: number; lng: number } | null>(null);
@@ -88,13 +93,20 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
   const submit = async () => {
     setBusy("submit"); setError(null);
     try {
-      const lot = await post("/flow/lots", { commodity: crop, quantity_kg: kgVal, quality: cond, maturity: ["tomato", "mango", "banana"].includes(crop) ? maturity : null,
-        mode, lat: loc!.lat, lng: loc!.lng, location_name: loc!.name, speed: 60, plan_days: plan }, true);
+      const lot = await api("/flow/lots", { method: "POST", mobile: true, timeoutMs: 60000, json: { commodity: crop, quantity_kg: kgVal, quality: cond, maturity: ["tomato", "mango", "banana"].includes(crop) ? maturity : null,
+        mode, lat: loc!.lat, lng: loc!.lng, location_name: loc!.name, speed: 60, plan_days: plan, days_since_harvest: aged, kept_as: kept } });
       onCreated(lot.id);
     } catch (e) { setError(e); } finally { setBusy(null); }
   };
   return (
     <div className="space-y-6 p-4 pb-28">
+      <VoiceEntry onParsed={(d) => {
+        if (d.commodity) setCrop(d.commodity);
+        if (d.quantity_kg) { if (d.quantity_kg >= 1000 && d.quantity_kg % 100 === 0) { setUnit("t"); setQty(String(d.quantity_kg / 1000)); } else { setUnit("kg"); setQty(String(d.quantity_kg)); } }
+        if (d.days_since_harvest) setAged(d.days_since_harvest);
+        setHeardNote(d.commodity || d.quantity_kg ? `Filled from voice: ${d.commodity ?? "crop ?"} · ${d.quantity_kg ? kg(d.quantity_kg) : "quantity ?"}. Check and continue.` : "Could not find a crop and quantity. Try e.g. “tomato 500 kilo”.");
+      }} />
+      {heardNote && <div className="-mt-3 rounded-xl bg-coral/10 p-2 text-xs text-[#b8401f]">{heardNote}</div>}
       <section>
         <div className="ph-label">1 · {t("Crop")}</div>
         <div className="grid grid-cols-4 gap-2">
@@ -125,6 +137,17 @@ function Entry({ onCreated }: { onCreated: (id: number) => void }) {
             {[["mature_green", "Mature green"], ["turning", "Turning"], ["ripe", "Ripe"]].map(([v, l]) => <button key={v} onClick={() => setMaturity(v)} className={cn("ph-chip text-xs", maturity === v && "ph-chip-on")}>{t(l)}</button>)}
           </div>
         )}
+      </section>
+      <section>
+        <div className="ph-label">{lang === "kn" ? "ಕೊಯ್ಲಿನಿಂದ ಎಷ್ಟು ದಿನ ಆಯಿತು?" : "Days since harvest"}</div>
+        <div className="grid grid-cols-5 gap-2">{[0, 2, 7, 30, 90].map((d) => <button key={d} onClick={() => setAged(d)} className={cn("ph-chip text-xs", aged === d && "ph-chip-on")}>{d === 0 ? "Today" : d < 30 ? `${d} d` : `${d / 30} mo`}</button>)}</div>
+        <div className="mt-2 flex items-center gap-2"><input className="ph-input w-24 py-2 text-sm" inputMode="numeric" value={aged} onChange={(e) => setAged(Math.min(365, Number(e.target.value.replace(/\D/g, "")) || 0))} aria-label="Days since harvest" /><span className="text-xs text-ink-400">days (0–365)</span></div>
+        {aged > 0 && (
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {([["open", "In the open"], ["shade", "Shed / shade"], ["cold", "Cold store"]] as const).map(([v, l]) => <button key={v} onClick={() => setKept(v)} className={cn("ph-chip text-xs", kept === v && "ph-chip-on")}>{l}</button>)}
+          </div>
+        )}
+        {aged > 0 && <div className="mt-1 text-[11px] text-ink-400">Not fresh: the past {aged} days are replayed through the decay model with this place's recorded weather{kept === "cold" ? " (cold store: recommended conditions)" : ""}, so the lot starts at its present quality.</div>}
       </section>
       <section>
         <div className="ph-label">{t("Plan to sell within")}</div>
@@ -209,7 +232,7 @@ function GodownTab({ lot, refresh }: { lot: any; refresh: () => void }) {
   const active = ["intake", "storage"].includes(lot.stage);
   const activeCodes = new Set(Object.keys(st.active_alerts || {}).map((c) => c.toLowerCase()));
   const latest = new Map<string, any>();
-  for (const e of lot.events || []) if (e.severity !== "INFO" && activeCodes.has(e.kind)) latest.set(e.kind, e);   // newest per alert type
+  for (const e of lot.events || []) if (!e.log && e.severity !== "INFO" && activeCodes.has(e.kind)) latest.set(e.kind, e);   // newest per alert type
   const alerts = active ? [...latest.values()].reverse() : [];
   return (
     <div className="space-y-4 p-4 pb-28">
@@ -226,6 +249,13 @@ function GodownTab({ lot, refresh }: { lot: any; refresh: () => void }) {
         <Big icon={PackageCheck} label={t("Quality")} value={num(st.produce.quality, 0)} unit="/100" color={qualityColor(st.produce.quality)} sub={`weight loss ${num(st.produce.weight_loss_pct, 2)}%`} />
         <Big icon={LineChart} label={t("Shelf life")} value={pred ? days(pred.shelf_life_days) : "—"} sub={pred ? `range ${days(pred.shelf_life_p10)} – ${days(pred.shelf_life_p90)}` : "calculating…"} />
       </div>
+      {st.preaged && (
+        <div className="rounded-2xl border border-coral/40 bg-coral/5 p-3 text-xs">
+          <b className="text-[#b8401f]">Already {num(st.preaged.days, 0)} days since harvest</b> · kept {st.preaged.kept_label}<div className="text-ink-400">Quality at harvest {num(st.preaged.quality_at_harvest, 0)} → on entry {num(st.preaged.quality_now, 0)}</div>
+        </div>
+      )}
+      <QualityTrend history={st.history} />
+      <LossBars loss={st.loss} />
       <div className="grid grid-cols-3 gap-2 text-center text-xs">
         <div className={cn("border p-2", eq.door_open ? "border-abnormal text-abnormal" : "border-paper-300 text-ink")}><DoorOpen className="mx-auto h-5 w-5" />{t("Door")}: {eq.door_open ? t("Open") : t("Closed")}</div>
         {lot.mode === "traditional"
@@ -248,7 +278,7 @@ function GodownTab({ lot, refresh }: { lot: any; refresh: () => void }) {
       )}
       <div>
         <div className="ph-label">{t("Alerts")} & {t("Suggestions")}</div>
-        {alerts.length === 0 && <div className="border border-paper-300 p-3 text-sm text-ink-400">No alerts. Conditions are within the recommended range.</div>}
+        {alerts.length === 0 && <div className="border border-paper-300 p-3 text-sm text-ink-400">{lot.mode === "advanced" ? "No emergencies. Small issues are fixed automatically and listed in the log below." : "No alerts. Conditions are within the recommended range."}</div>}
         <div className="space-y-2">
           {alerts.map((a: any, i: number) => (
             <div key={i} className={cn("border-l-4 bg-white p-3", a.severity === "CRITICAL" ? "border-critical" : "border-gold")}>
@@ -259,6 +289,7 @@ function GodownTab({ lot, refresh }: { lot: any; refresh: () => void }) {
           ))}
         </div>
       </div>
+      <LogList events={lot.events || []} />
       <div className="text-center text-[10px] uppercase tracking-wider text-ink-400">Godown readings are simulated virtual sensors · outside weather: {st.ambient.source?.replace("_", " ")}</div>
     </div>
   );
@@ -270,6 +301,7 @@ const TABS = [
   { id: "godown", label: "Godown", icon: Warehouse },
   { id: "predict", label: "Predict", icon: LineChart },
   { id: "track", label: "Track", icon: Truck },
+  { id: "history", label: "History", icon: History },
   { id: "help", label: "Help", icon: Bot },
 ] as const;
 
@@ -286,16 +318,16 @@ function App({ stationId }: { stationId: number }) {
   useEffect(() => { if (!lotId && lots[0]) { setLotId(lots[0].id); setTab((x) => (x === "entry" ? "godown" : x)); } }, [lots, lotId]);
   useEffect(() => {
     const e = events[events.length - 1];
-    if (!e) return;
+    if (!e || e.log) return;
     setToasts([e]);
     setTimeout(() => setToasts((x) => x.filter((y) => y.key !== e.key)), 6000);
-    if (["delivered", "completed"].includes(e.kind)) setTab("track");
+    if (e.kind === "delivered") setTab("history");
   }, [events]);
   const refresh = () => undefined;   // WebSocket pushes the new state within a second
   const visible = TABS;
   return (
     <div className="phone-ui mx-auto flex min-h-screen max-w-md flex-col bg-paper text-ink shadow-[0_0_60px_rgba(10,38,36,0.12)]">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-paper-300 bg-paper/95 px-3 py-2 backdrop-blur">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b-2 border-coral/60 bg-paper/90 px-3 py-2 shadow-[0_4px_20px_rgba(255,104,74,0.12)] backdrop-blur">
         <div className="flex items-center gap-2"><img src="/logo.png" alt="ZERO ROT" className="h-8 w-auto" />
           <div className="leading-tight"><div className="flex items-center gap-1 text-[10px] text-ink-400"><span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-ok" : "bg-critical")} />{t("Live on laptop")}</div></div></div>
         <div className="flex items-center gap-2">
@@ -326,11 +358,13 @@ function App({ stationId }: { stationId: number }) {
           </div>
         )}
         {!state ? <div className="p-8 text-center"><Spinner /></div>
+          : tab === "history" ? <HistoryTab history={state.history || []} />
+          : tab === "help" ? <AssistantTab lot={lot} />
           : tab === "entry" || !lot ? <Entry onCreated={(id) => { setLotId(id); setTab("godown"); }} />
           : tab === "godown" ? <GodownTab lot={lot} refresh={refresh} />
           : tab === "predict" ? <PredictTab lot={lot} onDispatched={() => setTab("track")} />
           : tab === "track" ? <TrackTab lot={lot} onHelp={() => setTab("help")} />
-          : <HelpTab lot={lot} />}
+          : null}
       </main>
       <div className="pointer-events-none fixed inset-x-3 bottom-20 z-40 mx-auto max-w-[420px] space-y-2">
         <AnimatePresence>
@@ -342,10 +376,10 @@ function App({ stationId }: { stationId: number }) {
           ))}
         </AnimatePresence>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-md border-t border-paper-300 bg-paper/95 backdrop-blur" style={{ gridTemplateColumns: `repeat(${visible.length}, 1fr)` }}>
+      <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-md border-t border-paper-300 bg-white/95 shadow-[0_-6px_24px_rgba(10,38,36,0.08)] backdrop-blur" style={{ gridTemplateColumns: `repeat(${visible.length}, 1fr)` }}>
         {visible.map((x) => (
-          <button key={x.id} onClick={() => setTab(x.id)} disabled={x.id !== "entry" && !lot} className={cn("flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold disabled:opacity-30", tab === x.id ? "text-teal" : "text-ink-400")}>
-            <x.icon className="h-5 w-5" />{t(x.label)}
+          <button key={x.id} onClick={() => setTab(x.id)} disabled={!["entry", "history", "help"].includes(x.id) && !lot} className={cn("flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold disabled:opacity-30", tab === x.id ? "text-coral" : "text-ink-400")}>
+            <span className={cn("rounded-full px-3 py-1", tab === x.id && "bg-coral/15")}><x.icon className="h-5 w-5" /></span>{t(x.label)}
           </button>
         ))}
       </nav>
@@ -361,7 +395,14 @@ export default function PhoneApp() {
   const [err, setErr] = useState<any>(null);
   useEffect(() => {
     if (!valid) return;
-    api("/flow/me", { mobile: true }).then((d) => setSid(d.station_id)).catch((e) => { setErr(e); useAuth.getState().setMobile("", null); });
+    let stop = false, timer: number | undefined;
+    const check = () => api("/flow/me", { mobile: true }).then((d) => { if (!stop) { setErr(null); setSid(d.station_id); } }).catch((e) => {
+      if (stop) return;
+      if (e.status === 401 || e.status === 403) { setErr(e); useAuth.getState().setMobile("", null); }
+      else timer = window.setTimeout(check, 2000);   // backend restarting or network blip: keep the pairing and retry
+    });
+    check();
+    return () => { stop = true; clearTimeout(timer); };
   }, [valid]);
   return (
     <div className="min-h-screen bg-paper-200">

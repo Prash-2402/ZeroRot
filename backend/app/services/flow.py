@@ -78,9 +78,12 @@ def saleable_kg(rt) -> float:
 EMERGENCY_CODES = {"COOLING_FAILURE", "DOOR_OPEN", "ROUTE_DELAY"}
 
 
-def is_emergency(code: str, severity: str) -> bool:
-    """Only emergencies interrupt the farmer (pop-up + approval). Everything else goes to the log."""
+def is_emergency(code: str, severity: str, traditional_godown: bool = False) -> bool:
+    """Only emergencies interrupt the farmer (pop-up + approval). Everything else goes to the log.
+    A traditional godown has no automatic control, so its warnings stay visible to the farmer."""
     code = code.upper()
+    if traditional_godown and severity != "INFO":
+        return True
     return code in EMERGENCY_CODES or (severity == "CRITICAL" and code in ("TEMP_EXCURSION", "GAS_ABNORMAL"))
 
 
@@ -191,7 +194,7 @@ def pending_fixes(db: Session, lot: Lot) -> list[dict]:
                             .where(CorrectiveAction.simulation_id == sid, CorrectiveAction.applied == False, CorrectiveAction.automatic == False,  # noqa: E712
                                    Alert.status == "open").order_by(CorrectiveAction.id.desc())).all() if sid else []:
             ca, al = c
-            if ca.action in seen or ca.action not in FIX_LABEL or al.id in handled or not is_emergency(al.code, al.severity):
+            if ca.action in seen or ca.action not in FIX_LABEL or al.id in handled or not is_emergency(al.code, al.severity, lot.mode == "traditional" and where == "godown"):
                 continue
             seen.add(ca.action)
             out.append({"id": ca.id, "action": ca.action, "label": FIX_LABEL[ca.action], "where": where, "alert": al.title, "severity": al.severity,
@@ -270,7 +273,7 @@ def on_sim_alerts(db: Session, sim: Simulation, alerts: list):
     if lot is None or not lot.station_id:
         return
     for a in alerts:
-        emergency = is_emergency(a.code, a.severity)
+        emergency = is_emergency(a.code, a.severity, lot.mode == "traditional" and sim.id == lot.storage_sim_id)
         fixes = _ensure_fixes(db, sim, a) if emergency else []
         ev = {"at": datetime.utcnow().isoformat(timespec="seconds"), "sim_time": None, "kind": a.code.lower(), "title": a.title,
               "message": a.message, "severity": a.severity if emergency else "INFO", "recommendation": a.recommendation, "fixes": fixes,
@@ -686,7 +689,12 @@ def decision(db: Session, lot: Lot, price_per_kg: float | None, market: str | No
     if lot.grading and chosen:
         price_for = {"A1": chosen["max_per_kg"], "A2": chosen["modal_per_kg"], "A3": chosen["min_per_kg"]}
         per_grade = {g: {"kg": lot.grading["kg"][g], "price_per_kg": price_for[g], "value": round(lot.grading["kg"][g] * price_for[g], 0)} for g in GRADES}
-    out = {"recommendation": res["recommendation"], "best_day": res["best_day"], "sell_now": res["sell_now"], "best": res["best"],
+    rec, why = res["recommendation"], None
+    if rt.s.produce.q < get_produce(b.commodity_id).v("q_min"):
+        rec, why = "discard", "Quality is below the minimum sellable level, so a mandi sale is not realistic."
+    elif res["best"]["net_profit"] <= 0:
+        rec, why = "discard", "Every selling day loses money after transport and commission; selling costs more than it earns."
+    out = {"recommendation": rec, "why": why, "salvage": SALVAGE if rec == "discard" else None, "best_day": res["best_day"], "sell_now": res["sell_now"], "best": res["best"],
            "gain_vs_now": res["gain_vs_now"], "shelf_life_days": res["shelf_life_days"], "shelf_life_p10_days": res["shelf_life_p10_days"],
            "rows": res["rows"], "assumptions": res["assumptions"] + [f"Transport {TRANSPORT_RS_PER_KM:.0f} Rs/km for {dist_km:.0f} km (assumption).",
                                                                      "Commission 6% (typical APMC; assumption)."],

@@ -64,6 +64,7 @@ export function BagTab({ lot }: { lot: any }) {
 
 export function TrackTab({ lot, onHelp }: { lot: any; onHelp: () => void }) {
   const t = useT();
+  const lang = useLang((s) => s.lang);
   if (!lot.shipments?.length) return <div className="p-6 text-ink-400">Nothing dispatched yet. Choose where to sell in Predict → Decision.</div>;
   return (
     <div className="space-y-4 p-4 pb-28">
@@ -90,7 +91,7 @@ export function TrackTab({ lot, onHelp }: { lot: any; onHelp: () => void }) {
               {!lv.refrigerated && <div className="rounded-xl bg-paper-200 px-3 py-2 text-xs text-ink-400">Open truck from traditional storage: tracked by location and checkpoints.</div>}
               {lv.refrigerated && lv.produce && (
                 <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                  <div className="rounded-xl border border-paper-300 p-2"><div className="font-mono text-lg font-bold">{num(lv.flows?.decay_rate_per_day, 2)}</div>spoilage rate (quality/day)</div>
+                  <div className="rounded-xl border border-paper-300 p-2"><div className="font-mono text-lg font-bold">{num((lv.flows?.decay_rate_per_day ?? 0) * (lv.produce?.quality ?? 0), 1)}</div>quality points lost / day</div>
                   <div className="rounded-xl border border-paper-300 p-2"><div className="font-mono text-lg font-bold">{lv.prediction ? `${num(lv.prediction.shelf_life_days, 1)} d` : "—"}</div>shelf life left{lv.prediction ? ` · risk ${num(lv.prediction.spoilage_probability * 100, 0)}%` : ""}</div>
                 </div>
               )}
@@ -107,7 +108,7 @@ export function TrackTab({ lot, onHelp }: { lot: any; onHelp: () => void }) {
                   {s.checkpoints.map((c: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-sm">
                       {c.passed ? <CheckCircle2 className="h-4 w-4 text-ok" /> : <Circle className="h-4 w-4 text-ink-400" />}
-                      <span className={c.passed ? "text-ink" : "text-ink-400"}>{c.name || "…"}</span><span className="ml-auto font-mono text-[11px] text-ink-400">km {num(c.km, 0)}{c.passed_sim_time ? ` · ${new Date(c.passed_sim_time + "Z").toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
+                      <span className={c.passed ? "text-ink" : "text-ink-400"}>{(lang === "kn" && c.name_kn) || c.name || "…"}</span><span className="ml-auto font-mono text-[11px] text-ink-400">km {num(c.km, 0)}{c.passed_sim_time ? ` · ${new Date(c.passed_sim_time + "Z").toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
                     </div>
                   ))}
                   <div className="flex items-center gap-2 text-sm"><MapPin className={cn("h-4 w-4", s.status !== "in_transit" ? "text-ok" : "text-ink-400")} /><span>{s.destination.name}</span></div>

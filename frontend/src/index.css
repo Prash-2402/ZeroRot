@@ -53,3 +53,12 @@ input[type="range"] { accent-color: #FF684A; }
 .phone-ui div[class*="bg-white"] { box-shadow: 0 1px 2px rgba(10,38,36,.06), 0 6px 18px rgba(10,38,36,.06); }
 .phone-ui [class*="h-2 "] { border-radius: 9999px; }
 .phone-ui nav, .phone-ui header { border-radius: 0; }
+
+/* brighter phone accents */
+.phone-ui { background: radial-gradient(1200px 400px at 50% -120px, #ffe1d6 0%, transparent 70%), #F3EEE8; }
+.phone-ui .ph-chip-on { background: linear-gradient(135deg, #17645F, #1f8a82); box-shadow: 0 6px 16px rgba(23,100,95,.28); }
+.phone-ui .bg-gold { background: linear-gradient(135deg, #FF684A, #ff8f5c); color: #fff; box-shadow: 0 8px 22px rgba(255,104,74,.35); }
+.phone-ui .ph-label { color: #e8542f; }
+.phone-ui .ph-btn-line:active, .phone-ui .ph-chip:active { transform: scale(.97); }
+.phone-ui button { transition: transform .12s ease, box-shadow .2s ease, background .2s ease; }
+.phone-ui .rounded-full { border-radius: 9999px !important; }

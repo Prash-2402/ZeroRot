@@ -458,10 +458,17 @@ def kn_number(text: str) -> float | None:
     return total + cur if seen else None
 
 
+KN_ALIASES = {"tomato": ["ಟೊಮೆಟೊ", "ಟೊಮ್ಯಾಟೊ", "ಟೊಮೇಟೊ", "ಟಮೋಟ", "tamata", "tamatar"], "potato": ["ಆಲೂಗಡ್ಡೆ", "ಆಲೂ", "aloo"],
+              "banana": ["ಬಾಳೆ", "ಬಾಳೆಹಣ್ಣು"], "mango": ["ಮಾವು", "ಮಾವಿನ"], "rice": ["ಭತ್ತ", "ಅಕ್ಕಿ", "paddy"], "maize": ["ಮೆಕ್ಕೆಜೋಳ", "ಜೋಳ"],
+              "cabbage": ["ಎಲೆಕೋಸು"], "carrot": ["ಕ್ಯಾರೆಟ್", "ಗಜ್ಜರಿ"], "brinjal": ["ಬದನೆ", "ಬದನೇಕಾಯಿ"], "okra": ["ಬೆಂಡೆ", "ಬೆಂಡೆಕಾಯಿ", "bhindi"],
+              "green_chilli": ["ಮೆಣಸಿನಕಾಯಿ", "ಹಸಿಮೆಣಸು"], "grapes": ["ದ್ರಾಕ್ಷಿ"], "papaya": ["ಪಪ್ಪಾಯಿ", "ಪರಂಗಿ"], "orange": ["ಕಿತ್ತಳೆ"],
+              "pomegranate": ["ದಾಳಿಂಬೆ"], "wheat": ["ಗೋಧಿ"], "cauliflower": ["ಹೂಕೋಸು"]}
+
+
 def _local_parse(text: str, crops: dict) -> dict:
     import re
     t = text.lower()
-    com = next((cid for cid, names in crops.items() if any(n.lower() in t for n in names if n)), None)
+    com = next((cid for cid, names in crops.items() if any(n.lower() in t for n in list(names) + KN_ALIASES.get(cid, []) if n)), None)
     m = re.search(r"(\d+(?:\.\d+)?)\s*(t|ton|tonne|tonnes|quintal|quintals|kg|kgs|kilo|kilos|ಕೆಜಿ|ಟನ್|ಕ್ವಿಂಟಾಲ್)?", t)
     qty = None
     knv = None if m else kn_number(text)
@@ -487,7 +494,8 @@ def parse_entry(body: ParseIn, request: Request, p: Principal = Depends(current_
         if local["commodity"] or local["quantity_kg"]:
             return {**local, "parser": "rules"}
         err(503, "ai_unavailable", f"Could not understand the entry: {e}")
-    return {**d, "commodity": d["commodity"] or local["commodity"], "quantity_kg": d["quantity_kg"] or local["quantity_kg"], "parser": "groq"}
+    # the deterministic rules win where they found something; the AI only fills the gaps
+    return {**d, "commodity": local["commodity"] or d["commodity"], "quantity_kg": local["quantity_kg"] or d["quantity_kg"], "parser": "rules+groq"}
 
 
 # ---------------- assistant ----------------

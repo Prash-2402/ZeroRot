@@ -42,20 +42,30 @@ function CrateStack({ count, max, w, d, quality, commodity, rack = false }: { co
   }, [w, d, max, rack]);
   const tex = crateTex();
   const crateGeo = useMemo(() => new RoundedBoxGeometry(1.2, 0.8, 0.85, 3, 0.07), []);
-  const topColor = useMemo(() => new THREE.Color(PRODUCE[commodity] || "#c0503a").lerp(new THREE.Color("#4a3a22"), Math.max(0, (85 - quality) / 60)), [commodity, quality]);
+  // decay shows per crate: the share of crates going bad grows as quality falls; bad crates turn brown-black
+  const order = useMemo(() => slots.map((_, i) => ((i * 2654435761) % 1000) / 1000), [slots]);
+  const rotShare = Math.min(1, Math.max(0, (88 - quality) / 45));
   useEffect(() => {
     const m = new THREE.Matrix4();
+    const fresh = new THREE.Color(PRODUCE[commodity] || "#c0503a"), brown = new THREE.Color("#5a4126"), black = new THREE.Color("#22190f"), c = new THREE.Color();
     for (let i = 0; i < slots.length; i++) {
       const [x, y, z] = slots[i];
       m.makeTranslation(x, i < count ? y : -50, z); ref.current!.setMatrixAt(i, m);
       m.makeTranslation(x, i < count ? y + 0.36 : -50, z); tops.current!.setMatrixAt(i, m);
+      const bad = order[i] < rotShare;
+      const k = bad ? Math.min(1, (rotShare - order[i]) * 3) : Math.max(0, (85 - quality) / 120);
+      c.copy(fresh).lerp(brown, bad ? 0.55 + 0.45 * k : k);
+      if (bad && k > 0.6) c.lerp(black, (k - 0.6) * 1.5);
+      tops.current!.setColorAt(i, c);
     }
     ref.current!.instanceMatrix.needsUpdate = true; tops.current!.instanceMatrix.needsUpdate = true;
-  }, [count, slots]);
+    if (tops.current!.instanceColor) tops.current!.instanceColor.needsUpdate = true;
+  }, [count, slots, quality, commodity, order, rotShare]);
   return (
     <>
       <instancedMesh ref={ref} args={[crateGeo, undefined, slots.length]} castShadow receiveShadow><meshStandardMaterial map={tex} /></instancedMesh>
-      <instancedMesh ref={tops} args={[undefined, undefined, slots.length]}><boxGeometry args={[1.05, 0.12, 0.7]} /><meshStandardMaterial color={topColor} roughness={0.5} /></instancedMesh>
+      <instancedMesh ref={tops} args={[undefined, undefined, slots.length]}><boxGeometry args={[1.05, 0.12, 0.7]} /><meshStandardMaterial roughness={0.6} /></instancedMesh>
+      {quality < 70 && count > 0 && <group position={[0, 1.3, 0]}><Particles count={Math.round(20 + (70 - quality) * 2.5)} box={[w, 1.2, d]} color="#1d1a14" rise={0.05} opacity={0.75} size={0.08} /></group>}
     </>
   );
 }
@@ -165,7 +175,8 @@ function TraditionalGodown({ lot, cutaway, labels, night }: { lot: any; cutaway:
       )}
       <Label position={[0, H + 4.2, 0]} show={labels} dim={!lot}>
         <div className="font-sans text-[10px] uppercase tracking-widest text-gold">Traditional godown</div>
-        {lot && st ? <>{t?.toFixed(1)} °C · {st.readings.rh_pct.toFixed(0)}% RH · Q {st.produce.quality.toFixed(0)}<br />door {eq.door_open ? "OPEN" : "closed"} · vents {eq.vents_open ? "open" : "closed"}</> : "idle"}
+        {lot && st ? <>{t?.toFixed(1)} °C · {st.readings.rh_pct.toFixed(0)}% RH · Q {st.produce.quality.toFixed(0)}<br />door {eq.door_open ? "OPEN" : "closed"} · vents {eq.vents_open ? "open" : "closed"}
+          {st.produce.quality < 88 && <><br /><span style={{ color: qualityColor(st.produce.quality) }}>≈{Math.round(Math.min(1, Math.max(0, (88 - st.produce.quality) / 45)) * 100)}% of crates going bad · losing {((st.flows?.decay_rate_per_day ?? 0) * st.produce.quality).toFixed(1)} pts/day</span></>}</> : "idle"}
       </Label>
     </group>
   );

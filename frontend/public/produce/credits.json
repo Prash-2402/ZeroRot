@@ -1,12 +1,72 @@
 {
   "_note": "Photos from Wikimedia Commons, cropped to 640x480. Each stage photo is chosen by the predicted quality (fresh >= 75, aging 55-75, spoiling < 55). Photos illustrate the stage; they are not pictures of the actual batch.",
-  "tomato_fresh": {"title": "Red tomatoes. img 05.jpg", "artist": "Dmitry Makeev", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0", "page": "https://commons.wikimedia.org/wiki/File:Red_tomatoes._img_05.jpg"},
-  "tomato_aging": {"title": "Tomato Mold 1 2021-05-06.jpeg", "artist": "FASTILY", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0", "page": "https://commons.wikimedia.org/wiki/File:Tomato_Mold_1_2021-05-06.jpeg"},
-  "tomato_spoiling": {"title": "Mold on tomatoes (proxy).jpg", "artist": "Calimo", "license": "CC BY-SA 3.0", "license_url": "https://creativecommons.org/licenses/by-sa/3.0", "page": "https://commons.wikimedia.org/wiki/File:Mold_on_tomatoes_(proxy).jpg"},
-  "mango_fresh": {"title": "Near ripe mangoes.jpg", "artist": "ChimaBee", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0", "page": "https://commons.wikimedia.org/wiki/File:Near_ripe_mangoes.jpg"},
-  "mango_aging": {"title": "Mango fruit Nam Dok Mai.jpg", "artist": "Ivar Leidus", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0", "page": "https://commons.wikimedia.org/wiki/File:Mango_fruit_Nam_Dok_Mai.jpg"},
-  "mango_spoiling": {"title": "Rotten mango.jpg", "artist": "Jessephu", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0", "page": "https://commons.wikimedia.org/wiki/File:Rotten_mango.jpg"},
-  "banana_fresh": {"title": "Green raw bananas.jpg", "artist": "Vitaium", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0", "page": "https://commons.wikimedia.org/wiki/File:Green_raw_bananas.jpg"},
-  "banana_aging": {"title": "Ripe bananas in West Bengal, India.jpg", "artist": "Billjones94", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0", "page": "https://commons.wikimedia.org/wiki/File:Ripe_bananas_in_West_Bengal,_India.jpg"},
-  "banana_spoiling": {"title": "Overripe lacatan bananas.jpg", "artist": "Obsidi♠nSoul", "license": "Public domain", "license_url": null, "page": "https://commons.wikimedia.org/wiki/File:Overripe_lacatan_bananas.jpg"}
+  "tomato_fresh": {
+    "title": "Red tomatoes. img 05.jpg",
+    "artist": "Dmitry Makeev",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "page": "https://commons.wikimedia.org/wiki/File:Red_tomatoes._img_05.jpg"
+  },
+  "tomato_aging": {
+    "title": "Tomato Mold 1 2021-05-06.jpeg",
+    "artist": "FASTILY",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "page": "https://commons.wikimedia.org/wiki/File:Tomato_Mold_1_2021-05-06.jpeg"
+  },
+  "tomato_spoiling": {
+    "title": "Mold on tomatoes (proxy).jpg",
+    "artist": "Calimo",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "page": "https://commons.wikimedia.org/wiki/File:Mold_on_tomatoes_(proxy).jpg"
+  },
+  "mango_fresh": {
+    "title": "Near ripe mangoes.jpg",
+    "artist": "ChimaBee",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "page": "https://commons.wikimedia.org/wiki/File:Near_ripe_mangoes.jpg"
+  },
+  "mango_aging": {
+    "title": "Mango fruit Nam Dok Mai.jpg",
+    "artist": "Ivar Leidus",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "page": "https://commons.wikimedia.org/wiki/File:Mango_fruit_Nam_Dok_Mai.jpg"
+  },
+  "mango_spoiling": {
+    "title": "Rotten mango.jpg",
+    "artist": "Jessephu",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "page": "https://commons.wikimedia.org/wiki/File:Rotten_mango.jpg"
+  },
+  "banana_fresh": {
+    "title": "Green raw bananas.jpg",
+    "artist": "Vitaium",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "page": "https://commons.wikimedia.org/wiki/File:Green_raw_bananas.jpg"
+  },
+  "banana_aging": {
+    "title": "Ripe bananas in West Bengal, India.jpg",
+    "artist": "Billjones94",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "page": "https://commons.wikimedia.org/wiki/File:Ripe_bananas_in_West_Bengal,_India.jpg"
+  },
+  "banana_spoiling": {
+    "title": "Overripe lacatan bananas.jpg",
+    "artist": "Obsidi♠nSoul",
+    "license": "Public domain",
+    "license_url": null,
+    "page": "https://commons.wikimedia.org/wiki/File:Overripe_lacatan_bananas.jpg"
+  },
+  "assistant_face": {
+    "file": "/assistant/face.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Woman_1.jpg",
+    "license": "Public domain (AI-generated image of a person who does not exist)",
+    "note": "Used as the voice assistant's face"
+  }
 }

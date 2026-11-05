@@ -1,3 +1,4 @@
+import { ChoiceBar } from "./PhoneExtras";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, post } from "../lib/api";
@@ -129,10 +130,12 @@ function Decide({ lot, onDispatched }: { lot: any; onDispatched: () => void }) {
       {busy === "decide" && !d && <Spinner />}
       {d && (
         <>
-          <div className={cn("p-4", d.recommendation === "sell_now" ? "bg-gold text-ink" : "bg-coldlight text-ink")}>
-            <div className="text-[11px] font-bold uppercase tracking-wider opacity-70">Recommendation</div>
-            <div className="font-display text-3xl font-black">{d.recommendation === "sell_now" ? t("Sell now") : `${t("Store and sell later")} · day ${d.best_day}`}</div>
-            <div className="mt-1 text-sm">Net today {inr(d.sell_now.net_profit)}{d.recommendation !== "sell_now" ? ` · on day ${d.best_day} ${inr(d.best.net_profit)} (+${inr(d.gain_vs_now)})` : ""}</div>
+          <div className={cn("p-4", d.recommendation === "sell_now" ? "bg-gold text-ink" : d.recommendation === "discard" ? "bg-ink text-white" : "bg-coldlight text-ink")}>
+            <div className="text-[11px] font-bold uppercase tracking-wider opacity-70">Advice · you decide below</div>
+            <div className="font-display text-3xl font-black">{d.recommendation === "sell_now" ? t("Sell now") : d.recommendation === "discard" ? "Discard or process" : `${t("Store and sell later")} · day ${d.best_day}`}</div>
+            {d.why && <div className="mt-1 text-sm font-semibold">{d.why}</div>}
+            {d.salvage && <ul className="mt-1 list-disc pl-4 text-xs opacity-90">{d.salvage.map((x: string) => <li key={x}>{x}</li>)}</ul>}
+            <div className="mt-1 text-sm">Net today {inr(d.sell_now.net_profit)}{d.recommendation === "store_and_sell_later" ? ` · on day ${d.best_day} ${inr(d.best.net_profit)} (+${inr(d.gain_vs_now)})` : ""}</div>
             <div className="mt-1 text-[11px] opacity-70">Price {inr(d.price_per_kg)}/kg · {d.price_origin}</div>
           </div>
           {d.per_grade && (
@@ -146,7 +149,8 @@ function Decide({ lot, onDispatched }: { lot: any; onDispatched: () => void }) {
           {explain?.error && <ErrorBox error={explain.error} />}
         </>
       )}
-      <div className="border-t border-paper-300 pt-4">
+      <ChoiceBar lot={lot} recommendation={d?.recommendation} onSell={() => document.getElementById("ph-sell")?.scrollIntoView({ behavior: "smooth" })} />
+      <div id="ph-sell" className="border-t border-paper-300 pt-4">
         <div className="ph-label">{t("Sell")} → {t("Destination")}</div>
         {!canSell ? <div className="text-sm text-ink-400">{lot.stage === "grading" ? "Sorting in progress; trucks leave when it finishes." : lot.stage === "intake" ? "Wait until loading finishes." : "Already dispatched."}</div> : (
           <div className="space-y-2">

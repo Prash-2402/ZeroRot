@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { Bug, Camera, ChevronRight, Eye, EyeOff, LogOut, Pause, Play, QrCode, SkipForward, Smartphone, X } from "lucide-react";
+import { Bug, Camera, ChevronRight, Eye, EyeOff, History, LogOut, Pause, Play, QrCode, RotateCcw, ScrollText, SkipForward, Smartphone, X } from "lucide-react";
 import { api, post } from "../lib/api";
 import { days, kg, num, qualityColor, tempColor } from "../lib/format";
 import { useAuth } from "../stores/auth";
@@ -68,7 +68,7 @@ function LaptopEntry({ stationId, onDone }: { stationId: number; onDone: () => v
   const [err, setErr] = useState<any>(null);
   const go = async () => {
     setBusy(true); setErr(null);
-    try { await post("/flow/lots", { commodity: f.commodity, quantity_kg: Number(f.qty), quality: 92, maturity: "turning", mode: f.mode, lat: loc!.lat, lng: loc!.lng, location_name: loc!.name, station_id: stationId, speed: 60 }); onDone(); }
+    try { await api("/flow/lots", { method: "POST", timeoutMs: 60000, json: { commodity: f.commodity, quantity_kg: Number(f.qty), quality: 92, maturity: "turning", mode: f.mode, lat: loc!.lat, lng: loc!.lng, location_name: loc!.name, station_id: stationId, speed: 60 } }); onDone(); }
     catch (e) { setErr(e); } finally { setBusy(false); }
   };
   return (
@@ -118,7 +118,7 @@ function ContextPanel({ lot }: { lot: any }) {
                 <div className="grid grid-cols-2 gap-1.5">
                   <Stat label="Warmest cargo" value={num(lv.readings?.max_zone_c)} unit="°C" color={lv.readings ? tempColor(lv.readings.max_zone_c, sp) : undefined} sub={`set ${num(sp)} °C · ${num(lv.readings?.rh_pct, 0)}% RH`} />
                   <Stat label="Quality" value={num(lv.produce?.quality, 1)} color={lv.produce ? qualityColor(lv.produce.quality) : undefined} sub={`loss ${num(lv.produce?.weight_loss_pct, 2)}%`} />
-                  <Stat label="Spoilage rate" value={num(lv.flows?.decay_rate_per_day, 2)} unit="Q/day" sub="quality points lost per day now" />
+                  <Stat label="Spoilage rate" value={num((lv.flows?.decay_rate_per_day ?? 0) * (lv.produce?.quality ?? 0), 1)} unit="pts/day" sub="quality points lost per day now" />
                   <Stat label="Shelf life left" value={lv.prediction ? days(lv.prediction.shelf_life_days) : "—"} sub={lv.prediction ? `risk ${num(lv.prediction.spoilage_probability * 100, 0)}%` : undefined} />
                 </div>
               )}
@@ -169,6 +169,38 @@ function ContextPanel({ lot }: { lot: any }) {
         {st.faults?.map((f: string) => <span key={f} className="bg-critical px-1.5 py-0.5">{f.replace(/_/g, " ")}</span>)}
         {st.loading && !st.loading.done && <span className="bg-gold px-1.5 py-0.5 text-ink">LOADING {Math.round(st.loading.progress * 100)}%</span>}
       </div>
+      {st.preaged && <div className="rounded-lg bg-gold/10 px-2.5 py-1.5 text-[11px]"><b>Entered {num(st.preaged.days, 0)} days after harvest</b> (kept {st.preaged.kept_label}): Q {num(st.preaged.quality_at_harvest, 0)} → {num(st.preaged.quality_now, 0)}</div>}
+      <LossMini loss={st.loss} />
+    </div>
+  );
+}
+
+const CAUSE_COLOR: Record<string, string> = { ageing: "#9DBFBA", temperature: "#FF684A", humidity: "#7FC4FF", chilling: "#2F80ED", ripeness: "#e0a92e", gas: "#8a5cf6" };
+function LossMini({ loss }: { loss?: Record<string, number> }) {
+  const items = Object.entries(loss || {}).filter(([, v]) => v > 0.05).sort((a, b) => b[1] - a[1]);
+  if (!items.length) return null;
+  const total = items.reduce((a, [, v]) => a + v, 0);
+  return (
+    <div>
+      <div className="hud-label mb-1">Why quality dropped · −{num(total, 1)} pts</div>
+      <div className="flex h-2.5 overflow-hidden rounded-full">{items.map(([k, v]) => <div key={k} style={{ width: `${(v / total) * 100}%`, background: CAUSE_COLOR[k] || "#999" }} title={`${k} −${v.toFixed(1)}`} />)}</div>
+      <div className="mt-1 flex flex-wrap gap-x-2 text-[10px] text-ink-500">{items.map(([k, v]) => <span key={k}><span className="mr-0.5 inline-block h-2 w-2 rounded-full" style={{ background: CAUSE_COLOR[k] }} />{k} −{num(v, 1)}</span>)}</div>
+    </div>
+  );
+}
+
+function HistoryPanel({ history, onClose }: { history: any[]; onClose: () => void }) {
+  return (
+    <div className="hud pointer-events-auto absolute right-3 top-28 z-40 max-h-[60vh] w-[380px] overflow-auto p-3">
+      <div className="mb-2 flex items-center justify-between"><div className="hud-label">History · delivered & discarded</div><button onClick={onClose} aria-label="Close"><X className="h-4 w-4" /></button></div>
+      {!history.length && <div className="text-xs text-ink-500">Nothing finished yet. Delivered lots leave the world and appear here.</div>}
+      {history.map((h) => (
+        <div key={h.id} className="border-b border-ink/10 py-2 text-[11px] last:border-0">
+          <div className="flex justify-between"><b className="capitalize">{h.commodity.replace("_", " ")} · {kg(h.quantity_kg)}</b><span className={h.stage === "delivered" ? "text-ok" : "text-ink-500"}>{h.stage}</span></div>
+          <div className="text-ink-500">{h.code} · {h.mode} · {h.location}</div>
+          {h.shipments.map((s: any, i: number) => <div key={i}>✓ {s.grade === "ALL" ? "All" : s.grade} {kg(s.kg)} → {s.to}{s.final_quality != null ? ` · Q ${num(s.final_quality, 0)}` : ""}{s.reroutes ? ` · rerouted ${s.reroutes}×` : ""}</div>)}
+        </div>
+      ))}
     </div>
   );
 }
@@ -190,8 +222,11 @@ export default function WorldPage() {
   const [ready, setReady] = useState(false);
   const [daylight, setDaylight] = useState<Daylight>("auto");
   const [scripts, setScripts] = useState<any[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const resetDemo = () => { if (station && window.confirm("Remove every lot of this station and start the demo again?")) act("reset", () => post(`/flow/stations/${station.id}/reset`, {})); };
   useEffect(() => { api("/flow/scripts").then((d) => setScripts(d.scripts)).catch(() => undefined); }, []);
-  const startScript = (name: string) => act(`script-${name}`, () => post(`/flow/scripts/${name}`, { station_id: station?.id }));
+  const startScript = (name: string) => act(`script-${name}`, () => api(`/flow/scripts/${name}`, { method: "POST", timeoutMs: 60000, json: { station_id: station?.id } }));
   const lots = state?.lots || [];
   const lot = useMemo(() => lots.find((l: any) => l.id === activeId) || lots[0] || null, [lots, activeId]);
   useEffect(() => { if (lots[0] && (!activeId || !lots.some((l: any) => l.id === activeId))) setActiveId(lots[0].id); }, [lots.map((l: any) => l.id).join(",")]);
@@ -199,6 +234,7 @@ export default function WorldPage() {
     const e = events[events.length - 1];
     if (!e) return;
     if (e.kind === "intake_started") setActiveId(e.lot_id);
+    if (e.log) return;
     setToasts((x) => [...x.slice(-3), e]);
     setTimeout(() => setToasts((x) => x.filter((y) => y.key !== e.key)), 7000);
   }, [events]);
@@ -332,11 +368,12 @@ export default function WorldPage() {
             </motion.div>
           ))}
         </AnimatePresence>
-        {lot && !toasts.length && (
-          <div className="hud pointer-events-auto max-h-[30vh] overflow-y-auto p-3">
-            <div className="hud-label mb-1">Event log</div>
-            {[...(lot.events || [])].reverse().slice(0, 12).map((e: any, i: number) => (
-              <div key={i} className="border-b border-ink/5 py-1 text-[11px] last:border-0"><span className={e.severity === "CRITICAL" ? "text-critical" : e.severity === "WARNING" ? "text-gold" : "text-ink"}>{e.title}</span> <span className="text-ink-400">{e.sim_time ? new Date(e.sim_time + "Z").toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : ""}</span></div>
+        {lot && showLogs && (
+          <div className="hud pointer-events-auto max-h-[34vh] overflow-y-auto p-3">
+            <div className="hud-label mb-1 flex justify-between"><span>Log · auto-fixes & minor issues</span><button onClick={() => setShowLogs(false)} aria-label="Hide logs"><X className="h-3.5 w-3.5" /></button></div>
+            {[...(lot.events || [])].reverse().slice(0, 40).map((e: any, i: number) => (
+              <div key={i} className="border-b border-ink/5 py-1 text-[11px] last:border-0"><span className={e.severity === "CRITICAL" ? "text-critical" : e.severity === "WARNING" ? "text-gold" : e.log ? "text-ink-500" : "text-ink"}>{e.log ? "· " : ""}{e.title}</span> <span className="text-ink-400">{e.sim_time ? new Date(e.sim_time + "Z").toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : ""}</span>
+                {e.log && <div className="text-[10px] text-ink-400">{e.message}</div>}</div>
             ))}
           </div>
         )}
@@ -367,6 +404,9 @@ export default function WorldPage() {
             </div>
           )}
           <div className="hud ml-auto flex items-center gap-1 p-1 text-[11px]">
+            <button className={cn("flex items-center gap-1 px-2 py-1.5 font-semibold", showLogs ? "text-gold" : "hover:text-gold")} title="Show / hide logs" onClick={() => setShowLogs((x) => !x)}><ScrollText className="h-4 w-4" />Logs</button>
+            <button className={cn("flex items-center gap-1 px-2 py-1.5 font-semibold", showHistory ? "text-gold" : "hover:text-gold")} title="History" onClick={() => setShowHistory((x) => !x)}><History className="h-4 w-4" />History{state?.history?.length ? ` (${state.history.length})` : ""}</button>
+            <button className="px-2 py-1.5 hover:text-critical" title="Demo reset" onClick={resetDemo}><RotateCcw className="h-4 w-4" /></button>
             <button className="px-2 py-1.5 hover:text-gold" title="Labels" onClick={() => setLabels((x) => !x)}>{labels ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
             <div className="flex overflow-hidden rounded-lg border border-ink/10">{(["auto", "day", "night"] as const).map((d) => <button key={d} onClick={() => setDaylight(d)} className={cn("px-2 py-1 text-[11px] font-semibold capitalize", daylight === d ? "bg-teal text-white" : "hover:text-teal")}>{d === "auto" ? "Sim time" : d}</button>)}</div>
             {scripts.length > 0 && (
@@ -381,6 +421,14 @@ export default function WorldPage() {
             <button className="px-2 py-1.5 text-ink-500 hover:text-gold" title="Sign out" onClick={() => { logout(); nav("/login"); }}><LogOut className="h-4 w-4" /></button>
           </div>
           {actErr && <div className="w-full text-right text-[11px] text-critical">{actErr}</div>}
+        </div>
+      )}
+
+      {showHistory && <HistoryPanel history={state?.history || []} onClose={() => setShowHistory(false)} />}
+      {!lots.length && station && (state?.history?.length || 0) > 0 && (
+        <div className="pointer-events-auto absolute bottom-3 right-3 z-40 flex gap-1">
+          <button className="hud flex items-center gap-1 px-3 py-2 text-[11px] font-semibold hover:text-gold" onClick={() => setShowHistory((x) => !x)}><History className="h-4 w-4" />History ({state.history.length})</button>
+          <button className="hud flex items-center gap-1 px-3 py-2 text-[11px] font-semibold hover:text-critical" onClick={resetDemo}><RotateCcw className="h-4 w-4" />Demo reset</button>
         </div>
       )}
 
