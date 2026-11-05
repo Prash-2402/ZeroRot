@@ -36,7 +36,7 @@ class Settings:
     sim_tick_seconds: float = field(default_factory=lambda: float(env("SIM_TICK_SECONDS", "1")))
     sim_minutes_per_tick: float = field(default_factory=lambda: float(env("SIM_MINUTES_PER_TICK", "2")))
     groq_api_key: str = field(default_factory=lambda: env("GROQ_API_KEY"))
-    groq_model: str = field(default_factory=lambda: env("GROQ_MODEL", "llama-3.3-70b-versatile"))
+    groq_model: str = field(default_factory=lambda: env("GROQ_MODEL", "openai/gpt-oss-120b"))
     groq_timeout: float = field(default_factory=lambda: float(env("GROQ_TIMEOUT_SECONDS", "3")))
     data_gov_api_key: str = field(default_factory=lambda: env("DATA_GOV_API_KEY"))
     agmarknet_resource_id: str = field(default_factory=lambda: env("AGMARKNET_RESOURCE_ID", "9ef84268-d588-465a-a308-a864a43d0070"))

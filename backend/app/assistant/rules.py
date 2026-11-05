@@ -108,7 +108,7 @@ def respond(db: Session, message: str, lang: str, context_batch: str | None):
     if has(text, ["when", "ಯಾವಾಗ", "festival", "ಹಬ್ಬ", "crash", "ಕುಸಿತ", "rain", "ಮಳೆ"]):
         cond = "festival" if has(text, ["festival", "ಹಬ್ಬ"]) else "price_crash" if has(text, ["crash", "ಕುಸಿತ", "fall", "ಇಳಿ"]) else "heavy_rain" if has(text, ["rain", "ಮಳೆ"]) else "normal"
         d = call("when_to_sell", batch=ref or "mango", condition=cond)
-        best = next(x for x in d["periods"] if x["label"] == {"DAY_0": "Today", "DAY_2": "Day 2", "DAY_4": "Day 4", "DAY_7": "Day 7"}[d["recommended"]])
+        best = next(x for x in d["periods"] if x["label"] == d["recommended"])
         out["reply"] = (f"{COND_KN[cond]} ಇದ್ದರೆ, {PERIOD_KN[best['label']]} ಮಾರುವುದು ಉತ್ತಮ: ಸುಮಾರು {inr(best['net'])} ಸಿಗುತ್ತದೆ, ಗುಣಮಟ್ಟ {best['quality']:.0f}%. ಬೆಲೆಗಳು ಅನುಕರಿತ ಅಂದಾಜು."
                         if lang == "kn" else f"With a {cond.replace('_', ' ')} market, selling {best['label'].lower() if best['label'] == 'Today' else 'on ' + best['label']} is best: about {inr(best['net'])} at {best['quality']:.0f}% quality. Prices are simulated scenarios.")
         return out

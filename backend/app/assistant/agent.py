@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import time
 
 import httpx
 from sqlalchemy.orm import Session
@@ -43,8 +45,17 @@ def _groq(messages: list, use_tools: bool = True) -> dict:
     body = {"model": settings.groq_model, "messages": messages, "temperature": 0.2}
     if use_tools:
         body.update(tools=tools.TOOL_SPECS, tool_choice="auto")
-    r = httpx.post("https://api.groq.com/openai/v1/chat/completions", json=body,
-                   headers={"Authorization": f"Bearer {settings.groq_api_key}"}, timeout=TIMEOUT)
+    for attempt in range(2):
+        r = httpx.post("https://api.groq.com/openai/v1/chat/completions", json=body,
+                       headers={"Authorization": f"Bearer {settings.groq_api_key}"}, timeout=TIMEOUT)
+        if r.status_code == 429 and attempt == 0:  # free-tier rate limit: wait once, briefly, then retry
+            try:
+                wait = float(r.headers.get("retry-after", "2"))
+            except ValueError:
+                wait = 2.0
+            time.sleep(min(4.0, max(0.5, wait)))
+            continue
+        break
     r.raise_for_status()
     return r.json()["choices"][0]["message"]
 
@@ -116,6 +127,8 @@ def chat(db: Session, message: str, lang: str | None, context: dict | None, hist
         if k not in seen_src:
             seen_src.add(k)
             sources.append(s)
-    return {"reply": res["reply"], "lang": lang, "ui": _dedupe_ui(res.get("ui", [])), "sources": sources, "tools": res.get("tools", []),
+    reply = re.sub(r"\*\*(.+?)\*\*", r"\1", res["reply"])  # chat shows plain text
+    reply = re.sub(r"^\s*[-*]\s+", "• ", reply, flags=re.M).strip()
+    return {"reply": reply, "lang": lang, "ui": _dedupe_ui(res.get("ui", [])), "sources": sources, "tools": res.get("tools", []),
             "engine": engine, "engine_label": "Agentic assistant (Groq tool calling)" if engine == "groq" else "Rule-based assistant (no AI model)",
             "note": note, "sim_now": domain.iso(domain.sim_now(db))}

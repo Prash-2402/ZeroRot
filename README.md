@@ -114,7 +114,7 @@ The **ಮಿತ್ರ / Mitra** button (bottom left of the farm screen) opens a 
 
 | Capability | Without keys (works now) | With keys |
 |---|---|---|
-| Thinking | Rule-based Kannada/English intents, labelled "Rule-based" | `GROQ_API_KEY`: the Groq model chooses the tools itself (agentic), labelled "AI · Groq". Falls back automatically if Groq fails |
+| Thinking | Rule-based Kannada/English intents, labelled "Rule-based" | `GROQ_API_KEY` (model `openai/gpt-oss-120b` by default): the Groq model chooses the tools itself (agentic), labelled "AI · Groq". Retries once on rate limits, then falls back automatically |
 | Voice in | Browser speech recognition (Chrome/Edge, `kn-IN`) | `GROQ_API_KEY`: Groq Whisper `whisper-large-v3` on the server |
 | Voice out | Browser voice if the device has one (most Windows PCs have **no Kannada voice**, so the reply is shown as text) | `GROQ_API_KEY` is not used for voice; set `GOOGLE_TTS_API_KEY` for Google Cloud `kn-IN` voice. The mouth then follows the real audio |
 

@@ -115,7 +115,8 @@ def when_to_sell(db: Session, batch: str | None = None, condition: str = "normal
         return {"data": {"error": "which crop?"}, "ui": []}
     cond = condition if condition in ("normal", "price_crash", "festival", "heavy_rain") else "normal"
     p = market_shift(b.id, cond, db)
-    return {"data": {"id": b.id, "condition": cond, "recommended": p["recommended"],
+    rec_label = next((x["label"] for x in p["periods"] if x["key"] == p["recommended"]), p["recommended"])
+    return {"data": {"id": b.id, "condition": cond, "recommended": rec_label,
                      "periods": [{k: x[k] for k in ("label", "price_per_kg", "quality", "net")} for x in p["periods"]]},
             "ui": [_focus(b), {"type": "open_choices", "batch_id": b.id}]}
 
@@ -175,4 +176,9 @@ def run_tool(db: Session, name: str, args: dict, context_batch: str | None):
     if fn is None:
         return {"data": {"error": f"unknown tool {name}"}, "ui": []}
     args = {k: v for k, v in (args or {}).items() if k != "context_batch"}
+    if "batch" not in args:  # models sometimes name it crop / produce / batch_id
+        for alias in ("crop", "produce", "batch_id", "item"):
+            if args.get(alias):
+                args["batch"] = args.pop(alias)
+                break
     return fn(db, context_batch=context_batch, **args)
