@@ -50,12 +50,12 @@ function useStation() {
 function Pairing({ station, onClose, big }: { station: Station; onClose?: () => void; big?: boolean }) {
   return (
     <div className="hud p-5 text-center">
-      {onClose && <button className="float-right text-ink-300 hover:text-gold" onClick={onClose} aria-label="Close"><X className="h-4 w-4" /></button>}
+      {onClose && <button className="float-right text-ink-500 hover:text-gold" onClick={onClose} aria-label="Close"><X className="h-4 w-4" /></button>}
       <div className="hud-label mb-3 flex items-center justify-center gap-2"><Smartphone className="h-3.5 w-3.5" /> Scan with your phone</div>
       <div className="inline-block bg-white p-3"><QRCodeSVG value={station.url} size={big ? 220 : 170} /></div>
       <div className="mt-3 hud-label">PIN</div>
       <div className="font-mono text-4xl font-bold tracking-[0.35em] text-gold">{station.pin}</div>
-      <div className="mt-2 max-w-[260px] break-all text-[10px] text-ink-300">{station.url}</div>
+      <div className="mt-2 max-w-[260px] break-all text-[10px] text-ink-500">{station.url}</div>
       <div className="mt-1 text-[10px] text-ink-400">Phone and laptop must be on the same network. Expires {new Date(station.expires_at + "Z").toLocaleString()}.</div>
     </div>
   );
@@ -72,7 +72,7 @@ function LaptopEntry({ stationId, onDone }: { stationId: number; onDone: () => v
     catch (e) { setErr(e); } finally { setBusy(false); }
   };
   return (
-    <div className="hud space-y-2 p-4 text-left text-xs [&_.label]:text-ink-300 [&_.input]:border-ink-500 [&_.input]:bg-ink-800 [&_.input]:text-paper">
+    <div className="hud space-y-2 p-4 text-left text-xs">
       <div className="hud-label">Or start from the laptop (testing)</div>
       <div className="grid grid-cols-3 gap-2">
         <select className="input" value={f.commodity} onChange={(e) => setF({ ...f, commodity: e.target.value })}>{["tomato", "mango", "banana", "potato"].map((c) => <option key={c}>{c}</option>)}</select>
@@ -88,10 +88,10 @@ function LaptopEntry({ stationId, onDone }: { stationId: number; onDone: () => v
 
 function Stat({ label, value, unit, color, sub }: { label: string; value: any; unit?: string; color?: string; sub?: string }) {
   return (
-    <div className="border border-white/10 bg-black/30 px-2.5 py-2">
+    <div className="border border-ink/10 bg-white/70 px-2.5 py-2">
       <div className="hud-label">{label}</div>
-      <div className="font-mono text-lg font-semibold" style={{ color }}>{value}<span className="ml-0.5 text-[11px] text-ink-300">{unit}</span></div>
-      {sub && <div className="text-[10px] text-ink-300">{sub}</div>}
+      <div className="font-mono text-lg font-semibold" style={{ color }}>{value}<span className="ml-0.5 text-[11px] text-ink-500">{unit}</span></div>
+      {sub && <div className="text-[10px] text-ink-500">{sub}</div>}
     </div>
   );
 }
@@ -106,9 +106,9 @@ function ContextPanel({ lot }: { lot: any }) {
           const lv = s.live || {};
           const sp = lv.setpoint ?? 13;
           return (
-            <div key={s.id} className="space-y-2 border-b border-white/10 pb-3 last:border-0">
+            <div key={s.id} className="space-y-2 border-b border-ink/10 pb-3 last:border-0">
               <div className="flex items-center justify-between text-sm"><b>{s.grade === "ALL" ? "All produce" : s.grade} → {s.destination.name}</b><span className={cn("px-1.5 text-[10px] font-bold", s.status === "delivered" ? "bg-ok" : s.status === "arrived" ? "bg-coldlight text-ink" : "bg-gold text-ink")}>{s.status.replace("_", " ").toUpperCase()}</span></div>
-              <div className="h-1.5 bg-white/10"><div className="h-1.5 bg-gold" style={{ width: `${Math.min(100, ((lv.total_done_km || 0) / (lv.total_km || 1)) * 100)}%` }} /></div>
+              <div className="h-1.5 bg-ink/10"><div className="h-1.5 bg-gold" style={{ width: `${Math.min(100, ((lv.total_done_km || 0) / (lv.total_km || 1)) * 100)}%` }} /></div>
               <div className="grid grid-cols-3 gap-1.5">
                 <Stat label="Distance" value={num(lv.total_done_km)} unit={`/${num(lv.total_km, 0)} km`} />
                 <Stat label="ETA" value={lv.route?.eta_h != null ? num(lv.route.eta_h) : "—"} unit="h" sub={lv.route?.delay_s > 300 ? `delay ${num(lv.route.delay_s / 3600)} h` : undefined} />
@@ -121,7 +121,7 @@ function ContextPanel({ lot }: { lot: any }) {
                 </div>
               )}
               <div className="space-y-0.5 text-[11px]">
-                {s.checkpoints.map((c: any, i: number) => <div key={i} className={c.passed ? "text-ok" : "text-ink-300"}>{c.passed ? "✓" : "○"} {c.name || "…"} <span className="text-ink-400">km {num(c.km, 0)}</span></div>)}
+                {s.checkpoints.map((c: any, i: number) => <div key={i} className={c.passed ? "text-ok" : "text-ink-500"}>{c.passed ? "✓" : "○"} {c.name || "…"} <span className="text-ink-400">km {num(c.km, 0)}</span></div>)}
                 {s.reroute_count > 0 && <div className="text-gold">⟲ rerouted {s.reroute_count}×</div>}
               </div>
             </div>
@@ -136,8 +136,8 @@ function ContextPanel({ lot }: { lot: any }) {
     return (
       <div className="space-y-2">
         <div className="grid grid-cols-3 gap-1.5">{["A1", "A2", "A3"].map((k) => <Stat key={k} label={`${k} bags`} value={`${g.bags_filled[k]}/${g.bags[k]}`} sub={kg(g.kg[k])} />)}</div>
-        <div className="h-1.5 bg-white/10"><div className="h-1.5 bg-gold" style={{ width: `${(g.processed_kg / g.total_kg) * 100}%` }} /></div>
-        <div className="text-[11px] text-ink-300">Sample of {g.objects} items · rejected {g.counts.rejected} · uncertain {g.counts.uncertain} · {g.method === "opencv_classical" ? "OpenCV classical" : g.method}</div>
+        <div className="h-1.5 bg-ink/10"><div className="h-1.5 bg-gold" style={{ width: `${(g.processed_kg / g.total_kg) * 100}%` }} /></div>
+        <div className="text-[11px] text-ink-500">Sample of {g.objects} items · rejected {g.counts.rejected} · uncertain {g.counts.uncertain} · {g.method === "opencv_classical" ? "OpenCV classical" : g.method}</div>
       </div>
     );
   }
@@ -155,9 +155,9 @@ function ContextPanel({ lot }: { lot: any }) {
         <Stat label="Shelf life" value={st.prediction ? days(st.prediction.shelf_life_days) : "—"} sub={st.prediction ? `${days(st.prediction.shelf_life_p10)}–${days(st.prediction.shelf_life_p90)}` : undefined} />
       </div>
       <div className="flex flex-wrap gap-1 text-[10px]">
-        <span className={cn("px-1.5 py-0.5", eq.door_open ? "bg-abnormal text-ink" : "bg-white/10")}>DOOR {eq.door_open ? "OPEN" : "closed"}</span>
-        {lot.mode === "traditional" ? <span className={cn("px-1.5 py-0.5", eq.vents_open ? "bg-gold text-ink" : "bg-white/10")}>VENTS {eq.vents_open ? "open" : "closed"}</span>
-          : <span className={cn("px-1.5 py-0.5", (st.flows?.q_cool_w ?? 0) > 0 ? "bg-coldlight text-ink" : "bg-white/10")}>COOLING {num((st.flows?.q_cool_w ?? 0) / 1000, 1)} kW · set {num(sp)}°</span>}
+        <span className={cn("px-1.5 py-0.5", eq.door_open ? "bg-abnormal text-ink" : "bg-ink/10")}>DOOR {eq.door_open ? "OPEN" : "closed"}</span>
+        {lot.mode === "traditional" ? <span className={cn("px-1.5 py-0.5", eq.vents_open ? "bg-gold text-ink" : "bg-ink/10")}>VENTS {eq.vents_open ? "open" : "closed"}</span>
+          : <span className={cn("px-1.5 py-0.5", (st.flows?.q_cool_w ?? 0) > 0 ? "bg-coldlight text-ink" : "bg-ink/10")}>COOLING {num((st.flows?.q_cool_w ?? 0) / 1000, 1)} kW · set {num(sp)}°</span>}
         {st.faults?.map((f: string) => <span key={f} className="bg-critical px-1.5 py-0.5">{f.replace(/_/g, " ")}</span>)}
         {st.loading && !st.loading.done && <span className="bg-gold px-1.5 py-0.5 text-ink">LOADING {Math.round(st.loading.progress * 100)}%</span>}
       </div>
@@ -203,12 +203,12 @@ export default function WorldPage() {
   const amb = moving?.live?.ambient || lot?.storage?.ambient;
   const wx = moving?.live?.weather_extras || lot?.storage?.weather_extras || {};
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-ink text-paper">
+    <div className="relative h-screen w-screen overflow-hidden bg-ink text-ink">
       <div className="absolute inset-0"><WorldScene lots={lots} activeLot={lot} view={resolved.view} ship={resolved.ship} quality={quality} labels={labels} onQuality={setQuality} onReady={() => setReady(true)} /></div>
       {!ready && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-ink">
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-paper">
           <img src="/logo.png" alt="ZERO ROT" className="h-14 w-auto animate-pulse drop-shadow-[0_0_8px_rgba(243,238,232,0.35)]" />
-          <div className="text-xs uppercase tracking-[0.2em] text-ink-300">Building the world on your GPU…</div>
+          <div className="text-xs uppercase tracking-[0.2em] text-ink-500">Building the world on your GPU…</div>
         </div>
       )}
 
@@ -217,7 +217,7 @@ export default function WorldPage() {
         <div className="pointer-events-auto flex flex-col gap-2">
           <div className="hud flex items-center gap-3 px-3 py-2">
             <img src="/logo.png" alt="ZERO ROT" className="h-9 w-auto drop-shadow-[0_0_6px_rgba(243,238,232,0.35)]" />
-            <div className="leading-tight"><div className="flex items-center gap-1.5 text-[10px] text-ink-300"><span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-ok" : "bg-critical")} />{connected ? "live · backend authoritative" : "reconnecting"}</div></div>
+            <div className="leading-tight"><div className="flex items-center gap-1.5 text-[10px] text-ink-500"><span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-ok" : "bg-critical")} />{connected ? "live · backend authoritative" : "reconnecting"}</div></div>
             <button className="ml-2 flex items-center gap-1 border border-gold/50 px-2 py-1 text-[11px] font-semibold text-gold hover:bg-gold hover:text-ink" onClick={() => setShowQR((x) => !x)}><QrCode className="h-3.5 w-3.5" /> Pair phone</button>
           </div>
           {lots.length > 0 && (
@@ -234,23 +234,23 @@ export default function WorldPage() {
         <div className="pointer-events-auto flex flex-col items-end gap-2">
           <div className="hud px-3 py-2 text-right">
             <div className="font-mono text-lg font-semibold">{simTime ? new Date(simTime + "Z").toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}</div>
-            <div className="text-[10px] text-ink-300">{lot ? `${lot.location.name} · ${amb?.t != null ? `${num(amb.t)} °C ${num(amb.rh, 0)}%` : "weather —"}${wx.cloud_pct != null ? ` · cloud ${Math.round(wx.cloud_pct)}%` : ""}${wx.precip_mm ? ` · rain ${num(wx.precip_mm)} mm/h` : ""}` : "simulated time"} · {amb?.source?.replace("_", " ") || ""}</div>
+            <div className="text-[10px] text-ink-500">{lot ? `${lot.location.name} · ${amb?.t != null ? `${num(amb.t)} °C ${num(amb.rh, 0)}%` : "weather —"}${wx.cloud_pct != null ? ` · cloud ${Math.round(wx.cloud_pct)}%` : ""}${wx.precip_mm ? ` · rain ${num(wx.precip_mm)} mm/h` : ""}` : "simulated time"} · {amb?.source?.replace("_", " ") || ""}</div>
           </div>
           <div className="hud flex flex-wrap justify-end gap-0.5 p-1">
-            {VIEWS.map(([v, l]) => <button key={v} onClick={() => setView(v)} className={cn("px-2 py-1 text-[11px] font-semibold", view === v ? "bg-gold text-ink" : "text-ink-300 hover:text-paper")}>{v === "auto" && <Camera className="mr-1 inline h-3 w-3" />}{l}</button>)}
+            {VIEWS.map(([v, l]) => <button key={v} onClick={() => setView(v)} className={cn("px-2 py-1 text-[11px] font-semibold", view === v ? "bg-gold text-ink" : "text-ink-500 hover:text-ink")}>{v === "auto" && <Camera className="mr-1 inline h-3 w-3" />}{l}</button>)}
           </div>
         </div>
       </div>
 
       {/* no lot yet: pairing */}
       {!lots.length && station && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/30">
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-ink/25">
           <div className="flex flex-wrap items-start justify-center gap-4">
             <div className="max-w-sm space-y-3">
               <div className="hud p-5">
                 <div className="font-display text-3xl font-bold leading-tight">Field to market,<br /><span className="text-gold">live.</span></div>
-                <p className="mt-2 text-sm text-ink-300">Scan the QR code with a phone and enter a crop. This world then shows it being loaded into the godown, stored, graded, sold and driven to the mandi — all from the backend's live simulation.</p>
-                <ol className="mt-3 space-y-1 text-xs text-ink-300">{["Live entry on the phone", "Godown: traditional or advanced", "Predict: mandi rates, spoilage, decision", "Scan & bag into A1 / A2 / A3", "Track the truck to the mandi"].map((x, i) => <li key={i}><span className="text-gold">{i + 1}.</span> {x}</li>)}</ol>
+                <p className="mt-2 text-sm text-ink-500">Scan the QR code with a phone and enter a crop. This world then shows it being loaded into the godown, stored, graded, sold and driven to the mandi — all from the backend's live simulation.</p>
+                <ol className="mt-3 space-y-1 text-xs text-ink-500">{["Live entry on the phone", "Godown: traditional or advanced", "Predict: mandi rates, spoilage, decision", "Scan & bag into A1 / A2 / A3", "Track the truck to the mandi"].map((x, i) => <li key={i}><span className="text-gold">{i + 1}.</span> {x}</li>)}</ol>
               </div>
               <LaptopEntry stationId={station.id} onDone={() => undefined} />
             </div>
@@ -258,7 +258,7 @@ export default function WorldPage() {
           </div>
         </div>
       )}
-      {error && <div className="absolute left-1/2 top-24 -translate-x-1/2 border-l-4 border-critical bg-ink px-4 py-2 text-sm">{error.message} <button className="ml-2 underline" onClick={regenerate}>Retry</button></div>}
+      {error && <div className="absolute left-1/2 top-24 -translate-x-1/2 border-l-4 border-critical bg-paper px-4 py-2 text-sm shadow-xl">{error.message} <button className="ml-2 underline" onClick={regenerate}>Retry</button></div>}
 
       {/* left: lot card */}
       {lot && (
@@ -274,7 +274,7 @@ export default function WorldPage() {
                 const skipped = k === "grading" && lot.mode === "traditional";
                 return (
                   <div key={k} className="flex flex-1 flex-col items-center gap-1">
-                    <div className={cn("h-1.5 w-full", skipped ? "bg-white/5" : i < idx ? "bg-gold" : i === idx ? "animate-pulse bg-gold" : "bg-white/15")} />
+                    <div className={cn("h-1.5 w-full", skipped ? "bg-ink/5" : i < idx ? "bg-gold" : i === idx ? "animate-pulse bg-gold" : "bg-ink/15")} />
                     <div className={cn("text-[9px] uppercase tracking-wider", i === idx ? "text-gold" : "text-ink-400", skipped && "line-through")}>{l}</div>
                   </div>
                 );
@@ -290,7 +290,7 @@ export default function WorldPage() {
         <AnimatePresence>
           {toasts.map((e) => (
             <motion.div key={e.key} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className={cn("hud border-l-4 p-3", e.severity === "CRITICAL" ? "!border-l-critical" : e.severity === "WARNING" ? "!border-l-gold" : "!border-l-ok")}>
-              <div className="text-sm font-semibold">{e.title}</div><div className="text-[11px] text-ink-300">{e.message}</div>
+              <div className="text-sm font-semibold">{e.title}</div><div className="text-[11px] text-ink-500">{e.message}</div>
               {e.sim_time && <div className="mt-0.5 font-mono text-[10px] text-ink-400">{new Date(e.sim_time + "Z").toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · simulated</div>}
             </motion.div>
           ))}
@@ -299,7 +299,7 @@ export default function WorldPage() {
           <div className="hud pointer-events-auto max-h-[30vh] overflow-y-auto p-3">
             <div className="hud-label mb-1">Event log</div>
             {[...(lot.events || [])].reverse().slice(0, 12).map((e: any, i: number) => (
-              <div key={i} className="border-b border-white/5 py-1 text-[11px] last:border-0"><span className={e.severity === "CRITICAL" ? "text-critical" : e.severity === "WARNING" ? "text-gold" : "text-paper"}>{e.title}</span> <span className="text-ink-400">{e.sim_time ? new Date(e.sim_time + "Z").toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : ""}</span></div>
+              <div key={i} className="border-b border-ink/5 py-1 text-[11px] last:border-0"><span className={e.severity === "CRITICAL" ? "text-critical" : e.severity === "WARNING" ? "text-gold" : "text-ink"}>{e.title}</span> <span className="text-ink-400">{e.sim_time ? new Date(e.sim_time + "Z").toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : ""}</span></div>
             ))}
           </div>
         )}
@@ -313,7 +313,7 @@ export default function WorldPage() {
             {[[60, "+1 min"], [600, "+10 min"], [3600, "+1 h"]].map(([s, l]) => (
               <button key={s} className="flex items-center gap-1 px-2 py-1.5 text-[11px] font-semibold hover:text-gold" onClick={() => act("step", () => post(`/flow/lots/${lot.id}/step`, { seconds: s }))}><SkipForward className="h-3 w-3" />{l}</button>
             ))}
-            <select className="border border-white/10 bg-ink-800 px-2 py-1 text-[11px]" value={lot.speed} onChange={(e) => act("speed", () => post(`/flow/lots/${lot.id}/speed`, { speed: Number(e.target.value) }))} aria-label="Simulation speed">
+            <select className="border border-ink/10 bg-white px-2 py-1 text-[11px]" value={lot.speed} onChange={(e) => act("speed", () => post(`/flow/lots/${lot.id}/speed`, { speed: Number(e.target.value) }))} aria-label="Simulation speed">
               {SPEEDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
             <span className={cn("px-2 text-[10px] font-bold", lot.paused ? "text-gold" : "text-ok")}>{lot.paused ? "PAUSED" : "RUNNING"}</span>
@@ -323,7 +323,7 @@ export default function WorldPage() {
               <span className="hud-label px-1">Test</span>
               {scen.map((s) => (
                 <button key={s} disabled={!!busy} onClick={() => act(s, () => post(moving ? `/flow/shipments/${moving.id}/scenario` : `/flow/lots/${lot.id}/scenario`, { scenario: s }))}
-                  className={cn("border px-2 py-1 text-[11px] font-semibold disabled:opacity-40", s === "road_blocked" ? "border-critical/60 text-critical hover:bg-critical hover:text-white" : "border-white/10 hover:border-gold hover:text-gold")}>
+                  className={cn("border px-2 py-1 text-[11px] font-semibold disabled:opacity-40", s === "road_blocked" ? "border-critical/60 text-critical hover:bg-critical hover:text-white" : "border-ink/10 hover:border-gold hover:text-gold")}>
                   {busy === s ? "…" : s.replace(/_/g, " ")}
                 </button>
               ))}
@@ -331,10 +331,10 @@ export default function WorldPage() {
           )}
           <div className="hud ml-auto flex items-center gap-1 p-1 text-[11px]">
             <button className="px-2 py-1.5 hover:text-gold" title="Labels" onClick={() => setLabels((x) => !x)}>{labels ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
-            <select className="border border-white/10 bg-ink-800 px-2 py-1" value={quality} onChange={(e) => setQuality(e.target.value as Quality)} aria-label="Graphics quality"><option value="high">GPU high</option><option value="medium">medium</option><option value="low">low</option></select>
+            <select className="border border-ink/10 bg-white px-2 py-1" value={quality} onChange={(e) => setQuality(e.target.value as Quality)} aria-label="Graphics quality"><option value="high">GPU high</option><option value="medium">medium</option><option value="low">low</option></select>
             <button className={cn("px-2 py-1.5", debug ? "text-gold" : "hover:text-gold")} title="Debug values" onClick={() => setDebug((x) => !x)}><Bug className="h-4 w-4" /></button>
-            <Link to="/docs" className="px-2 py-1.5 text-ink-300 hover:text-gold">Docs</Link>
-            <button className="px-2 py-1.5 text-ink-300 hover:text-gold" title="Sign out" onClick={() => { logout(); nav("/login"); }}><LogOut className="h-4 w-4" /></button>
+            <Link to="/docs" className="px-2 py-1.5 text-ink-500 hover:text-gold">Docs</Link>
+            <button className="px-2 py-1.5 text-ink-500 hover:text-gold" title="Sign out" onClick={() => { logout(); nav("/login"); }}><LogOut className="h-4 w-4" /></button>
           </div>
           {actErr && <div className="w-full text-right text-[11px] text-critical">{actErr}</div>}
         </div>
@@ -344,7 +344,7 @@ export default function WorldPage() {
       {debug && lot && (
         <div className="hud pointer-events-auto absolute right-3 top-28 z-40 max-h-[55vh] w-[380px] overflow-auto p-3 font-mono text-[10px]">
           <div className="hud-label mb-1 flex items-center justify-between">Raw backend values <ChevronRight className="h-3 w-3" /></div>
-          <pre className="whitespace-pre-wrap text-ink-300">{JSON.stringify({
+          <pre className="whitespace-pre-wrap text-ink-500">{JSON.stringify({
             stage: lot.stage, speed: lot.speed, paused: lot.paused, sim_time: lot.storage?.sim_time,
             storage: lot.storage && { readings: lot.storage.readings, ambient: lot.storage.ambient, equipment: lot.storage.equipment, flows: lot.storage.flows, loading: lot.storage.loading, prediction: lot.storage.prediction && { q: lot.storage.prediction.quality, sl: lot.storage.prediction.shelf_life_days, p10: lot.storage.prediction.shelf_life_p10, p90: lot.storage.prediction.shelf_life_p90 } },
             shipments: lot.shipments?.map((s: any) => ({ id: s.id, status: s.status, route: s.live?.route && { progress_m: Math.round(s.live.route.progress_m), distance_m: Math.round(s.live.route.distance_m), speed_kmh: s.live.route.speed_kmh, delay_s: Math.round(s.live.route.delay_s) }, pose: s.live?.pose, zones: s.live?.readings?.zone_temperatures_c })),

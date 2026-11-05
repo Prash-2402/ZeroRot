@@ -21,7 +21,7 @@ export function Label({ position, children, show = true, dim = false }: { positi
   if (!show) return null;
   return (
     <Html position={position} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
-      <div className={`whitespace-nowrap border px-1.5 py-0.5 font-mono text-[10px] leading-tight shadow-xl ${dim ? "border-white/10 bg-ink/60 text-ink-300" : "border-gold/60 bg-ink/85 text-paper"}`}>{children}</div>
+      <div className={`whitespace-nowrap border px-1.5 py-0.5 font-mono text-[10px] leading-tight shadow-xl ${dim ? "border-paper-300 bg-paper/75 text-ink-500" : "border-gold/70 bg-paper/95 text-ink"}`}>{children}</div>
     </Html>
   );
 }

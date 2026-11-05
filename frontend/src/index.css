@@ -36,6 +36,6 @@ input[type="range"] { accent-color: #FF684A; }
   .ph-chip { @apply border-2 border-paper-300 bg-white py-2.5 text-sm font-semibold text-ink; }
   .ph-chip-on { @apply border-teal bg-teal text-white; }
   .ph-btn-line { @apply inline-flex items-center justify-center gap-2 border-2 border-teal bg-white px-3 py-3 text-sm font-semibold text-teal disabled:opacity-40; }
-  .hud { @apply border border-white/10 bg-ink/75 text-paper shadow-2xl backdrop-blur-md; }
-  .hud-label { @apply text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-300; }
+  .hud { @apply border border-paper-300 bg-paper/95 text-ink shadow-[0_8px_30px_rgba(10,38,36,0.18)] backdrop-blur-md; }
+  .hud-label { @apply text-[10px] font-semibold uppercase tracking-[0.16em] text-teal; }
 }
