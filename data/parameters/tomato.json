@@ -128,10 +128,10 @@
     {
       "id": "tomato.q10",
       "name": "Temperature coefficient Q10",
-      "value": 2.333,
+      "value": 2.0,
       "range": [
         2.0,
-        2.8
+        2.333
       ],
       "unit": "dimensionless",
       "classification": "derived",
@@ -142,10 +142,10 @@
         "year": 1997,
         "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/tomato"
       },
-      "conditions": "Respiration, mature-green ripening: 6-9 mL CO2/kg.h at 10 degC, 14-21 at 20 degC",
+      "conditions": "Respiration, mature-green ripening: 8-14 mL CO2/kg.h at 15 degC, 18-26 at 25 degC",
       "applicability": "5-25 degC (respiration table range)",
-      "limitations": "Assumes quality loss scales with respiration rate.",
-      "derivation": "Q10 = (17.5/7.5)^(10/(20-10)) = 2.333 (midpoints); range from 15-25 degC pair (2.00) to 5-15 degC pair (3.14)",
+      "limitations": "Assumes quality loss scales with respiration rate. The 15-25 degC pair is used because Indian sheds and trucks mostly operate there.",
+      "derivation": "Q10 = (22/11)^(10/(25-15)) = 2.000 (midpoints); the 10-20 degC pair gives 2.33 (upper end of range)",
       "last_reviewed": "2026-11-05"
     },
     {
@@ -191,7 +191,7 @@
     {
       "id": "tomato.m_turning",
       "name": "Maturity multiplier: turning / light red",
-      "value": 1.478,
+      "value": 1.433,
       "range": null,
       "unit": "x k_ref",
       "classification": "assumption",
@@ -205,13 +205,13 @@
       "conditions": "Geometric mean of mature-green (1.0) and ripe multipliers",
       "applicability": "Turning stage",
       "limitations": "Interpolated, not measured.",
-      "derivation": "sqrt(2.183)",
+      "derivation": "sqrt(2.053)",
       "last_reviewed": "2026-11-05"
     },
     {
       "id": "tomato.m_ripe",
       "name": "Maturity multiplier: firm-ripe",
-      "value": 2.183,
+      "value": 2.053,
       "range": null,
       "unit": "x k_ref",
       "classification": "derived",
@@ -225,7 +225,7 @@
       "conditions": "8-10 days of shelf life at 7-10 degC after reaching firm-ripe",
       "applicability": "Firm-ripe fruit",
       "limitations": "Depends on the Q10 conversion from 8.5 degC to 12.5 degC.",
-      "derivation": "k_ripe(8.5C) = ln(2.5)/9 = 0.1018; at 12.5C = 0.1429; / k_ref = 2.183",
+      "derivation": "k_ripe(8.5C) = ln(2.5)/9 = 0.1018; at 12.5C = 0.1343; / k_ref = 2.053",
       "last_reviewed": "2026-11-05"
     },
     {
@@ -271,10 +271,10 @@
     {
       "id": "tomato.h_low_slope",
       "name": "Humidity penalty slope below recommended RH",
-      "value": 0.02,
+      "value": 0.008,
       "range": [
-        0.013999999999999999,
-        0.026000000000000002
+        0.0056,
+        0.010400000000000001
       ],
       "unit": "per %RH",
       "classification": "assumption",
@@ -287,7 +287,7 @@
       },
       "conditions": "Applied linearly per %RH below the published RH range.",
       "applicability": "Any RH below range",
-      "limitations": "Shape not fitted to data; anchor (range edge) is published, slope is assumed.",
+      "limitations": "Shape not fitted to data; anchor (range edge) is published, slope is assumed. Kept small because moisture loss itself is tracked separately as weight loss W.",
       "derivation": "h(RH) = 1 + slope x (RH_low - RH) for RH < RH_low",
       "last_reviewed": "2026-11-05"
     },

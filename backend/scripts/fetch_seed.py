@@ -110,12 +110,34 @@ def fetch_outline(client):
     print("outline features", len(gj.get("features", [])))
 
 
+def fetch_reroutes(client, loc):
+    """Scenario 2: road routes from evenly spaced points on the Kolar->Hubballi route to rescue targets."""
+    pts = all_points(loc)
+    base = json.loads((SEED / "routes_cache.json").read_text())["routes"]["kolar__m_hubballi"]["coords"]
+    targets = ["cs_tumakuru", "cs_chitradurga", "cs_davanagere", "m_tumakuru", "m_chitradurga", "m_davanagere"]
+    n = 30
+    out = {"source": "OSRM public server route service", "retrieved_at": now(), "origin": "cached", "base": "kolar__m_hubballi", "waypoints": []}
+    for k in range(1, n):
+        i = round(k * (len(base) - 1) / n)
+        lng, lat = base[i]
+        wp = {"index": i, "lng": lng, "lat": lat, "routes": {}}
+        for t in targets:
+            try:
+                wp["routes"][t] = route(client, {"lat": lat, "lng": lng}, pts[t])
+            except Exception as e:
+                print("reroute failed", k, t, e)
+            time.sleep(0.25)
+        out["waypoints"].append(wp)
+        print("waypoint", k, len(wp["routes"]))
+    (SEED / "reroutes_cache.json").write_text(json.dumps(out))
+
+
 def main():
     loc = json.loads((SEED / "locations.json").read_text())
     with httpx.Client(headers=UA) as client:
         for name, fn in [("weather", lambda: fetch_weather(client, loc)), ("table", lambda: fetch_table(client, loc)),
-                         ("routes", lambda: fetch_routes(client, loc)), ("outline", lambda: fetch_outline(client))]:
-            if len(sys.argv) > 1 and name not in sys.argv[1:]:
+                         ("routes", lambda: fetch_routes(client, loc)), ("outline", lambda: fetch_outline(client)), ("reroutes", lambda: fetch_reroutes(client, loc))]:
+            if (len(sys.argv) > 1 and name not in sys.argv[1:]):
                 continue
             try:
                 fn()

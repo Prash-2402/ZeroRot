@@ -29,6 +29,21 @@ COSTS = {
 }
 
 
+AUCTION_START_H, AUCTION_END_H = 4, 10  # demo assumption: APMC auctions run in the morning
+
+
+def auction_wait_hours(start: datetime, hours_to_arrival: float) -> int:
+    """Hours a load waits after arriving until the next morning auction (0 if it arrives during the auction window)."""
+    from datetime import timedelta
+    arr = start + timedelta(hours=hours_to_arrival)
+    if AUCTION_START_H <= arr.hour < AUCTION_END_H:
+        return 0
+    nxt = arr.replace(hour=6, minute=0, second=0, microsecond=0)
+    if nxt <= arr:
+        nxt += timedelta(days=1)
+    return max(0, round((nxt - arr).total_seconds() / 3600))
+
+
 def transport_cost(km: float, mass_kg: float, reefer: bool = False) -> float:
     c = max(COSTS["transport_min"], km * (COSTS["transport_base_per_km"] + COSTS["transport_per_tonne_km"] * mass_kg / 1000.0))
     return c * (COSTS["reefer_multiplier"] if reefer else 1.0)

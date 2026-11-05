@@ -125,10 +125,10 @@
     {
       "id": "mango.q10",
       "name": "Temperature coefficient Q10",
-      "value": 4.107,
+      "value": 2.818,
       "range": [
-        2.917,
-        5.0
+        2.5,
+        4.107
       ],
       "unit": "dimensionless",
       "classification": "derived",
@@ -139,10 +139,10 @@
         "year": 1997,
         "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"
       },
-      "conditions": "Respiration 12-16 mL CO2/kg.h at 10 degC and 35-80 at 20 degC",
+      "conditions": "Respiration 12-16 mL CO2/kg.h at 10 degC, 19-28 at 15 degC, 35-80 at 20 degC",
       "applicability": "10-20 degC",
-      "limitations": "Respiration across the climacteric inflates Q10; large extrapolation error above 20 degC.",
-      "derivation": "Q10 = (57.5/14)^(10/10) = 4.107; low ends 2.92, high ends 5.00",
+      "limitations": "The 20 degC respiration includes the climacteric ripening surge, which would inflate Q10; large extrapolation error above 20 degC.",
+      "derivation": "Q10 = (23.5/14)^(10/5) = 2.818 (10-15 degC midpoints); 10-20 degC pair gives 4.11 (upper end of range); lower end 2.5 is an engineering assumption",
       "last_reviewed": "2026-11-05"
     },
     {
@@ -268,10 +268,10 @@
     {
       "id": "mango.h_low_slope",
       "name": "Humidity penalty slope below recommended RH",
-      "value": 0.02,
+      "value": 0.008,
       "range": [
-        0.013999999999999999,
-        0.026000000000000002
+        0.0056,
+        0.010400000000000001
       ],
       "unit": "per %RH",
       "classification": "assumption",
@@ -284,7 +284,7 @@
       },
       "conditions": "Applied linearly per %RH below the published RH range.",
       "applicability": "Any RH below range",
-      "limitations": "Shape not fitted to data; anchor (range edge) is published, slope is assumed.",
+      "limitations": "Shape not fitted to data; anchor (range edge) is published, slope is assumed. Kept small because moisture loss itself is tracked separately as weight loss W.",
       "derivation": "h(RH) = 1 + slope x (RH_low - RH) for RH < RH_low",
       "last_reviewed": "2026-11-05"
     },

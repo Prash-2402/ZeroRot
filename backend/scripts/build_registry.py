@@ -51,10 +51,10 @@ def p(pid, name, value, unit, cls, src, conditions, applicability, limitations, 
             "applicability": applicability, "limitations": limitations, "derivation": derivation, "last_reviewed": REVIEWED}
 
 
-def shared_assumptions(prod, kw, rh_lo_slope=0.02, rh_hi_slope=0.08, gamma=1.5):
+def shared_assumptions(prod, kw, rh_lo_slope=0.008, rh_hi_slope=0.08, gamma=1.5):
     return [
         p(f"{prod}.h_low_slope", "Humidity penalty slope below recommended RH", rh_lo_slope, "per %RH", "assumption", NONE_SRC,
-          "Applied linearly per %RH below the published RH range.", "Any RH below range", "Shape not fitted to data; anchor (range edge) is published, slope is assumed.",
+          "Applied linearly per %RH below the published RH range.", "Any RH below range", "Shape not fitted to data; anchor (range edge) is published, slope is assumed. Kept small because moisture loss itself is tracked separately as weight loss W.",
           "h(RH) = 1 + slope x (RH_low - RH) for RH < RH_low", [rh_lo_slope * 0.7, rh_lo_slope * 1.3]),
         p(f"{prod}.h_high_slope", "Humidity penalty slope above recommended RH (rot / condensation)", rh_hi_slope, "per %RH", "assumption", NONE_SRC,
           "Applied linearly per %RH above the published RH range.", "RH above range", "Shape not fitted to data.",
@@ -82,8 +82,8 @@ def tomato():
     s = UCD["tomato"]
     L = 14.0
     k = k_from_life(L)
-    q = q10(7.5, 10, 17.5, 20)  # mature-green midpoints 6-9 @10C and 14-21 @20C
-    q_lo, q_hi = q10(11, 15, 22, 25), q10(3.5, 5, 11, 15)
+    q = q10(11, 15, 22, 25)  # mature-green midpoints 8-14 @15C and 18-26 @25C: the pair covering ambient shed temperatures
+    q_lo, q_hi = q, q10(7.5, 10, 17.5, 20)
     k_ripe_85 = k_from_life(9.0)  # firm-ripe 8-10 days at 7-10C
     k_ripe_ref = k_ripe_85 * q ** ((12.5 - 8.5) / 10)
     m_ripe = k_ripe_ref / k
@@ -99,9 +99,10 @@ def tomato():
           "Derived from storage life at 12.5 degC", "Mature-green at T_ref", "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
           f"k_ref = ln(Q0/Q_min)/L = ln({Q0:.0f}/{QMIN:.0f})/{L:.0f} = {k:.5f} /day", [k_from_life(17.0), k_from_life(11.0)]),
         p("tomato.q10", "Temperature coefficient Q10", round(q, 3), "dimensionless", "derived", s,
-          "Respiration, mature-green ripening: 6-9 mL CO2/kg.h at 10 degC, 14-21 at 20 degC", "5-25 degC (respiration table range)",
-          "Assumes quality loss scales with respiration rate.", f"Q10 = (17.5/7.5)^(10/(20-10)) = {q:.3f} (midpoints); range from 15-25 degC pair ({q_lo:.2f}) to 5-15 degC pair ({q_hi:.2f})",
-          [round(q_lo, 3), round(min(q_hi, 2.8), 3)]),
+          "Respiration, mature-green ripening: 8-14 mL CO2/kg.h at 15 degC, 18-26 at 25 degC", "5-25 degC (respiration table range)",
+          "Assumes quality loss scales with respiration rate. The 15-25 degC pair is used because Indian sheds and trucks mostly operate there.",
+          f"Q10 = (22/11)^(10/(25-15)) = {q:.3f} (midpoints); the 10-20 degC pair gives {q_hi:.2f} (upper end of range)",
+          [round(q_lo, 3), round(q_hi, 3)]),
         p("tomato.t_chill", "Chilling-injury threshold", 10.0, "degC", "experimental", s,
           "Chilling sensitive below 10 degC if held >2 weeks, or at 5 degC for >6-8 days; injury is cumulative", "All stages", "Threshold is a published range edge."),
         p("tomato.e_crit", "Critical chilling exposure E_crit", 840.0, "degC.h", "derived", s,
@@ -160,8 +161,8 @@ def mango():
     s = UCD["mango"]
     L = 21.0
     k = k_from_life(L)
-    q = q10(14, 10, 57.5, 20)
-    q_lo, q_hi = q10(12, 10, 35, 20), q10(16, 10, 80, 20)
+    q = q10(14, 10, 23.5, 15)  # pre-climacteric pair 10-15 degC; the 20 degC value includes the ripening surge
+    q_lo, q_hi = 2.5, q10(14, 10, 57.5, 20)
     params = [
         p("mango.t_ref", "Reference storage temperature (mature-green)", 13.0, "degC", "operating_range", s, "13 degC for mature-green mangoes", "Mature-green", "Ripe fruit: 10 degC."),
         p("mango.rh_low", "Recommended RH lower bound", 90.0, "%", "operating_range", s, "Optimum RH 90-95%", "All", ""),
@@ -172,9 +173,9 @@ def mango():
           "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
           f"k_ref = ln(100/40)/{L:.0f} = {k:.5f} /day", [k_from_life(28.0), k_from_life(14.0)]),
         p("mango.q10", "Temperature coefficient Q10", round(q, 3), "dimensionless", "derived", s,
-          "Respiration 12-16 mL CO2/kg.h at 10 degC and 35-80 at 20 degC", "10-20 degC",
-          "Respiration across the climacteric inflates Q10; large extrapolation error above 20 degC.",
-          f"Q10 = (57.5/14)^(10/10) = {q:.3f}; low ends {q_lo:.2f}, high ends {q_hi:.2f}", [round(q_lo, 3), round(q_hi, 3)]),
+          "Respiration 12-16 mL CO2/kg.h at 10 degC, 19-28 at 15 degC, 35-80 at 20 degC", "10-20 degC",
+          "The 20 degC respiration includes the climacteric ripening surge, which would inflate Q10; large extrapolation error above 20 degC.",
+          f"Q10 = (23.5/14)^(10/5) = {q:.3f} (10-15 degC midpoints); 10-20 degC pair gives {q_hi:.2f} (upper end of range); lower end 2.5 is an engineering assumption", [q_lo, round(q_hi, 3)]),
         p("mango.t_chill", "Chilling-injury threshold", 10.0, "degC", "operating_range", s,
           "Recommended 10 degC for partially-ripe and ripe fruit; chilling severity depends on cultivar and ripeness", "All",
           "No explicit threshold published on the sheet; anchored on the lowest recommended temperature."),

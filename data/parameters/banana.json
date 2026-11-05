@@ -271,10 +271,10 @@
     {
       "id": "banana.h_low_slope",
       "name": "Humidity penalty slope below recommended RH",
-      "value": 0.02,
+      "value": 0.008,
       "range": [
-        0.013999999999999999,
-        0.026000000000000002
+        0.0056,
+        0.010400000000000001
       ],
       "unit": "per %RH",
       "classification": "assumption",
@@ -287,7 +287,7 @@
       },
       "conditions": "Applied linearly per %RH below the published RH range.",
       "applicability": "Any RH below range",
-      "limitations": "Shape not fitted to data; anchor (range edge) is published, slope is assumed.",
+      "limitations": "Shape not fitted to data; anchor (range edge) is published, slope is assumed. Kept small because moisture loss itself is tracked separately as weight loss W.",
       "derivation": "h(RH) = 1 + slope x (RH_low - RH) for RH < RH_low",
       "last_reviewed": "2026-11-05"
     },

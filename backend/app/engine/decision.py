@@ -7,7 +7,7 @@ from datetime import datetime
 from .conditions import Segment, WeatherStore
 from .decay import State
 from .geo import points, travel
-from .plans import COSTS, Plan, evaluate_plans, strip_internal, transport_cost
+from .plans import COSTS, Plan, auction_wait_hours, evaluate_plans, strip_internal, transport_cost
 from .registry import get_produce
 
 # Demo default thresholds (configurable per produce)
@@ -38,6 +38,8 @@ class DecisionInput:
     local_mandi_id: str | None = None
     only_market: str | None = None   # what-if: destination market
     sell_day: float | None = None     # what-if: selling date
+    hold_temp: float | None = None    # what-if: storage conditions while holding before the sale
+    hold_rh: float | None = None
     speed_factor: float = 1.0
     missing: list = field(default_factory=list)
 
@@ -77,14 +79,18 @@ def decide(inp: DecisionInput, weather: WeatherStore):
         # what-if selling date: hold under current conditions then sell locally
         hold_h = int(round(inp.sell_day * 24))
         plans.append(Plan("SELL_NOW", "SELL", f"Sell at {local['name']} on day {inp.sell_day:g}",
-                          [Segment("weather", hold_h, point=inp.origin_weather_point), _transit(inp, p, hl, inp.origin_weather_point)],
+                          [Segment("constant", hold_h, t=inp.hold_temp, rh=inp.hold_rh if inp.hold_rh is not None else hold_rh)
+                           if inp.hold_temp is not None else Segment("weather", hold_h, point=inp.origin_weather_point),
+                           _transit(inp, p, hl, inp.origin_weather_point)],
                           hold_h + hl, local_id, local["name"], transport_cost(lg["km"], inp.mass_kg, inp.transit_reefer),
                           handling=COSTS["handling_per_kg"] * inp.mass_kg, meta={"km": round(lg["km"]), "travel_hours": round(lg["hours"], 1)}))
     else:
-        plans.append(Plan("SELL_NOW", "SELL", f"Sell now at {local['name']}", [_transit(inp, p, hl, inp.origin_weather_point)], hl,
+        wl = auction_wait_hours(inp.start, hl)
+        plans.append(Plan("SELL_NOW", "SELL", f"Sell now at {local['name']}",
+                          [_transit(inp, p, hl, inp.origin_weather_point), Segment("weather", wl, point=local_id)], hl + wl,
                           local_id, local["name"], transport_cost(lg["km"], inp.mass_kg, inp.transit_reefer),
                           handling=COSTS["handling_per_kg"] * inp.mass_kg,
-                          meta={"km": round(lg["km"]), "travel_hours": round(lg["hours"], 1), "route_source": lg["source"]}))
+                          meta={"km": round(lg["km"]), "travel_hours": round(lg["hours"], 1), "route_source": lg["source"], "auction_wait_h": wl}))
     rejected = []
     # STORE options: best suitable storage = nearest that accepts the produce and has capacity
     suitable = []
@@ -115,10 +121,12 @@ def decide(inp: DecisionInput, weather: WeatherStore):
             continue
         lg = legs[m["id"]]
         h = max(1, round(lg["hours"]))
-        plans.append(Plan(f"SHIP_{m['id']}", "SHIP", f"Ship to {m['name']}", [_transit(inp, p, h, inp.origin_weather_point)], h,
+        wt = auction_wait_hours(inp.start, h)
+        plans.append(Plan(f"SHIP_{m['id']}", "SHIP", f"Ship to {m['name']}",
+                          [_transit(inp, p, h, inp.origin_weather_point), Segment("weather", wt, point=m["id"])], h + wt,
                           m["id"], m["name"], transport_cost(lg["km"], inp.mass_kg, inp.transit_reefer),
                           handling=COSTS["handling_per_kg"] * inp.mass_kg,
-                          meta={"km": round(lg["km"]), "travel_hours": round(lg["hours"], 1), "route_source": lg["source"], "reefer": inp.transit_reefer}))
+                          meta={"km": round(lg["km"]), "travel_hours": round(lg["hours"], 1), "route_source": lg["source"], "reefer": inp.transit_reefer, "auction_wait_h": wt}))
 
     results = evaluate_plans(p, inp.maturity, inp.state, inp.mass_kg, inp.start, plans, weather, inp.prices)
     feasible = []
@@ -128,8 +136,8 @@ def decide(inp: DecisionInput, weather: WeatherStore):
         travel_h = r["sale_hour"]
         if r["quality_at_sale"] < p.v("q_min"):
             reason = f"quality at sale {r['quality_at_sale']:.0f} is below the sellable threshold"
-        elif r["kind"] == "SHIP" and sl is not None and sl < travel_h + buffer_h:
-            reason = f"shelf life {sl / 24:.1f} days is shorter than the {travel_h:.0f} h trip plus 24 h buffer"
+        elif r["kind"] == "SHIP" and sl is not None and sl < r["meta"]["travel_hours"] + buffer_h:
+            reason = f"shelf life {sl / 24:.1f} days is shorter than the {r['meta']['travel_hours']:.0f} h trip plus 24 h buffer"
         elif r["kind"] in ("SHIP", "STORE") and r["quality_at_sale"] < min_q:
             reason = f"arrival quality {r['quality_at_sale']:.0f} is below the minimum market grade ({min_q:.0f})"
         elif r["kind"] == "STORE" and sl is not None and sl < r["sale_hour"] + buffer_h:
@@ -214,4 +222,4 @@ def _explain(best, sell, pct, local, urgent):
     gain = f", {pct:.0f}% above selling at {local['name']} today" if pct is not None else ""
     if best["kind"] == "STORE":
         return f"STORE {best['meta']['days']} days at {best['meta']['storage_name']}: expected {_fmt(best['net'])} net{gain}, selling at {q:.0f}% quality."
-    return f"SHIP to {best['market_name']}: expected {_fmt(best['net'])} net{gain}, arriving at {q:.0f}% quality."
+    return f"SHIP to {best['market_name']}: expected {_fmt(best['net'])} net{gain}, selling at {q:.0f}% quality."
