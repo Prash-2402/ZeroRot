@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.v1 import auth, catalog, intelligence, operations, simulations
+from app.api.v1 import auth, catalog, flow as flow_api, intelligence, operations, simulations
 from app.core.config import BACKEND, ROOT, settings
 from app.core.deps import limiter, principal_from_ws_token
 from app.db.session import SessionLocal
@@ -45,7 +45,7 @@ async def value_handler(_: Request, exc: ValueError):
     return JSONResponse(status_code=422, content={"detail": {"error": "invalid_input", "message": str(exc)}})
 
 
-for r in (auth.router, catalog.router, operations.router, simulations.router, intelligence.router):
+for r in (auth.router, catalog.router, operations.router, simulations.router, intelligence.router, flow_api.router):
     app.include_router(r, prefix="/api/v1")
 
 
@@ -87,6 +87,15 @@ async def ws_sim(ws: WebSocket, sid: int):
             from app.db.models import Simulation
             s = db.get(Simulation, sid)
             return f"sim:{sid}" if s and s.batch_id and p.can_access("batch", s.batch_id) else None
+    await _ws(ws, topic)
+
+
+@app.websocket("/ws/station/{sid}")
+async def ws_station(ws: WebSocket, sid: int):
+    def topic(p):
+        if p.kind == "user":
+            return f"station:{sid}"
+        return f"station:{sid}" if (p.scope or {}).get("type") == "station" and p.qr_session_id == sid else None
     await _ws(ws, topic)
 
 

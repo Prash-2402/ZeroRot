@@ -7,7 +7,7 @@ from bisect import bisect_right
 from datetime import datetime, timedelta
 
 from app.engine.registry import get_produce
-from . import cold_storage, event_manager, scenario_manager, sensor_generator, truck_model
+from . import cold_storage, event_manager, route_geometry, scenario_manager, sensor_generator, truck_model
 from .deterioration_model import predict, reference_rate
 from .environment import humidity_ratio
 from .state import AirState, Equipment, Overrides, ProduceState, SimState
@@ -63,12 +63,35 @@ def ambient(cfg: dict, s: SimState) -> dict:
     return {"t": float(t), "rh": float(rh), "p": float(p) if p else 101325.0, "source": source}
 
 
+def weather_extras(cfg: dict, s: SimState) -> dict:
+    """Precipitation (mm/h) and cloud cover (%) from the same live forecast, for the 3D sky. None when not available."""
+    pts = (cfg.get("weather") or {}).get("points") or []
+    if not pts:
+        return {"precip_mm": None, "cloud_pct": None}
+    start = datetime.fromisoformat(cfg["start_time"])
+    ts = (start + timedelta(seconds=s.t_seconds)).timestamp()
+    pt = pts[0]
+    if s.kind == "cold_chain" and len(pts) > 1:
+        frac = s.route_progress_m / max(1.0, cfg["route_distance_m"])
+        pt = pts[min(len(pts) - 1, round(frac * (len(pts) - 1)))]
+    times = pt.get("times") or []
+    out = {}
+    for key in ("precip_mm", "cloud_pct"):
+        series = pt.get(key)
+        if not series or not times:
+            out[key] = None
+            continue
+        i = max(0, min(len(times) - 1, bisect_right(times, ts) - 1))
+        out[key] = series[i]
+    return out
+
+
 # ---------------- initial state ----------------
 def initial_state(kind: str, cfg: dict) -> SimState:
     b = cfg["batch"]
     produce = ProduceState(commodity=b["commodity"], maturity=b.get("maturity"), mass_kg=float(b["quantity_kg"]), q=float(b["initial_quality"]))
     eq = Equipment(setpoint=cfg.get("setpoint"), rh_setpoint=cfg.get("rh_setpoint"),
-                   refrigeration_on=kind != "traditional_storage")
+                   refrigeration_on=kind != "traditional_storage" and bool(cfg.get("refrigerated", True)))
     s = SimState(kind=kind, t_seconds=0.0, produce=produce, air=AirState(t=20.0, w=0.01), equipment=eq, overrides=Overrides())
     if cfg.get("manual_ambient"):
         s.overrides.ambient_t = cfg["manual_ambient"]["t"]
@@ -100,6 +123,7 @@ class Runtime:
         self.last_flows: dict = {}
         self.last_amb: dict = {}
         self.last_readings: dict = {}
+        self._cum: list[float] | None = None
 
     # -- helpers --
     def end_seconds(self) -> float:
@@ -116,17 +140,38 @@ class Runtime:
     def delay_s(self) -> float:
         if self.kind != "cold_chain":
             return 0.0
-        planned = self.cfg["route_duration_s"] * (self.s.route_progress_m / max(1.0, self.cfg["route_distance_m"]))
+        planned = self.cfg.get("schedule_offset_s", 0.0) + self.cfg["route_duration_s"] * (self.s.route_progress_m / max(1.0, self.cfg["route_distance_m"]))
         return max(0.0, self.s.t_seconds - planned)
 
-    def gps(self):
+    def pose(self):
+        """(lat, lng, heading_deg) of the truck, interpolated by distance along the road geometry."""
         geom = self.cfg.get("route_geometry") or []
         if not geom:
             return None
-        frac = self.s.route_progress_m / max(1.0, self.cfg["route_distance_m"])
-        idx = min(len(geom) - 1, int(frac * (len(geom) - 1)))
-        lng, lat = geom[idx]
-        return (lat, lng)
+        if self._cum is None:
+            self._cum = route_geometry.cumulative_m(geom)
+        scale = self._cum[-1] / max(1.0, self.cfg["route_distance_m"])
+        return route_geometry.point_at(geom, self._cum, self.s.route_progress_m * scale)
+
+    def gps(self):
+        p = self.pose()
+        return (round(p[0], 6), round(p[1], 6)) if p else None
+
+    def reroute(self, geometry: list, distance_m: float, duration_s: float, reason: str) -> dict:
+        """Continue on a new road geometry that starts at the truck's current position (progress restarts at 0 on it).
+        The schedule offset keeps the delay figure relative to the original plan."""
+        done_m = self.s.route_progress_m
+        planned_done = self.cfg.get("schedule_offset_s", 0.0) + self.cfg["route_duration_s"] * (done_m / max(1.0, self.cfg["route_distance_m"]))
+        old = {"geometry": self.cfg["route_geometry"], "distance_m": self.cfg["route_distance_m"], "at_m": done_m, "reason": reason}
+        self.cfg["route_geometry"] = geometry
+        self.cfg["route_distance_m"] = float(distance_m)
+        self.cfg["route_duration_s"] = float(duration_s)
+        self.cfg["schedule_offset_s"] = planned_done
+        self.cfg["distance_done_before_m"] = self.cfg.get("distance_done_before_m", 0.0) + done_m
+        self.s.route_progress_m = 0.0
+        self.s.delay_remaining_s = 0.0
+        self._cum = None
+        return old
 
     def finished(self) -> bool:
         if self.kind == "cold_chain":
@@ -140,6 +185,14 @@ class Runtime:
         remaining = dt_total
         while remaining > 1e-9 and not self.finished():
             dt = min(SUBSTEP_S, remaining)
+            loading_s = float(self.cfg.get("loading_s") or 0.0)
+            if self.kind != "cold_chain" and loading_s:
+                if self.s.t_seconds < loading_s:
+                    self.s.equipment.door_open = True        # door stays open while crates are carried in
+                    self.meta["door_open_s"] = 0.0           # loading is planned, not a door fault
+                elif not self.meta.get("loaded"):
+                    self.meta["loaded"] = True
+                    self.s.equipment.door_open = False
             amb = ambient(self.cfg, self.s)
             if amb["t"] is None:
                 out["error"] = "Outside weather unavailable for this simulated time; set a manual ambient value to continue."
@@ -255,7 +308,15 @@ class Runtime:
                 "route": {"progress_m": self.s.route_progress_m, "distance_m": self.cfg.get("route_distance_m"), "speed_kmh": self.s.speed_kmh,
                           "delay_remaining_s": self.s.delay_remaining_s, "delay_s": self.delay_s(), "gps": self.gps(),
                           "eta_h": self.planned_remaining_h()} if self.kind == "cold_chain" else None,
-                "sensors": sensor_generator.sensors(self.kind, self.s, r, self.gps()), "labels": {"sensors": "SIMULATED", "ambient": amb.get("source")}}
+                "sensors": sensor_generator.sensors(self.kind, self.s, r, self.gps()), "labels": {"sensors": "SIMULATED", "ambient": amb.get("source")},
+                "weather_extras": weather_extras(self.cfg, self.s), "loading": self.loading(), "pose": self.pose() if self.kind == "cold_chain" else None}
+
+    def loading(self) -> dict | None:
+        ls = float(self.cfg.get("loading_s") or 0.0)
+        if self.kind == "cold_chain" or not ls:
+            return None
+        frac = min(1.0, self.s.t_seconds / ls)
+        return {"duration_s": ls, "progress": round(frac, 4), "kg_loaded": round(self.s.produce.mass_kg * frac, 1), "done": frac >= 1.0}
 
     def summary(self) -> dict:
         p = self.s.produce

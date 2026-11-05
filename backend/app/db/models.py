@@ -354,6 +354,45 @@ class ProfitScenario(TimestampMixin, Base):
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
 
+# ---------------- field flow (phone app -> laptop simulation) ----------------
+class Lot(TimestampMixin, Base):
+    """One intake of produce entered on the phone, followed through godown, grading, sale and delivery."""
+    __tablename__ = "lots"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    batch_id: Mapped[int] = mapped_column(ForeignKey("produce_batches.id", ondelete="CASCADE"), index=True)
+    station_id: Mapped[int | None] = mapped_column(ForeignKey("qr_access_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    mode: Mapped[str] = mapped_column(String(16))
+    stage: Mapped[str] = mapped_column(String(16), default="intake", index=True)
+    storage_sim_id: Mapped[int | None] = mapped_column(ForeignKey("simulations.id", ondelete="SET NULL"), nullable=True)
+    speed: Mapped[float] = mapped_column(Float, default=60.0)
+    paused: Mapped[bool] = mapped_column(Boolean, default=False)
+    grading: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    decision: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    events: Mapped[list] = mapped_column(JSON, default=list)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    __table_args__ = (CheckConstraint("mode in ('traditional','advanced')", name="ck_lot_mode"),
+                      CheckConstraint("stage in ('intake','storage','grading','graded','dispatched','arrived','delivered')", name="ck_lot_stage"))
+
+
+class Shipment(TimestampMixin, Base):
+    __tablename__ = "shipments"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lot_id: Mapped[int] = mapped_column(ForeignKey("lots.id", ondelete="CASCADE"), index=True)
+    simulation_id: Mapped[int | None] = mapped_column(ForeignKey("simulations.id", ondelete="SET NULL"), nullable=True)
+    grade: Mapped[str] = mapped_column(String(8))
+    quantity_kg: Mapped[float] = mapped_column(Float)
+    destination_name: Mapped[str] = mapped_column(String(160))
+    dest_lat: Mapped[float] = mapped_column(Float)
+    dest_lng: Mapped[float] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(16), default="in_transit")
+    checkpoints: Mapped[list] = mapped_column(JSON, default=list)
+    reroutes: Mapped[list] = mapped_column(JSON, default=list)
+    unload_progress: Mapped[float] = mapped_column(Float, default=0.0)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    __table_args__ = (CheckConstraint("grade in ('A1','A2','A3','ALL')", name="ck_ship_grade"),
+                      CheckConstraint("status in ('in_transit','arrived','delivered','cancelled')", name="ck_ship_status"))
+
+
 # ---------------- access & audit ----------------
 class QRAccessSession(TimestampMixin, Base):
     __tablename__ = "qr_access_sessions"
@@ -369,7 +408,7 @@ class QRAccessSession(TimestampMixin, Base):
     uses: Mapped[int] = mapped_column(Integer, default=0)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    __table_args__ = (CheckConstraint("resource_type in ('batch','simulation','zone','truck')", name="ck_qr_resource"),)
+    __table_args__ = (CheckConstraint("resource_type in ('batch','simulation','zone','truck','station')", name="ck_qr_resource"),)
 
 
 class NotificationSubscription(TimestampMixin, Base):

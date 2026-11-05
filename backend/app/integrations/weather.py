@@ -25,7 +25,7 @@ def geocode(query: str, count: int = 6) -> list[dict]:
 def forecast(lat: float, lng: float, days: int = 16, name: str | None = None) -> dict:
     """Hourly temperature (degC), relative humidity (%) and surface pressure (Pa) from now through `days` days."""
     try:
-        r = httpx.get(settings.open_meteo_url, params={"latitude": lat, "longitude": lng, "hourly": "temperature_2m,relative_humidity_2m,surface_pressure",
+        r = httpx.get(settings.open_meteo_url, params={"latitude": lat, "longitude": lng, "hourly": "temperature_2m,relative_humidity_2m,surface_pressure,precipitation,cloud_cover",
                                                        "current": "temperature_2m,relative_humidity_2m,surface_pressure", "forecast_days": min(16, days),
                                                        "past_days": 1, "timezone": "UTC"}, timeout=10)
         r.raise_for_status()
@@ -33,12 +33,15 @@ def forecast(lat: float, lng: float, days: int = 16, name: str | None = None) ->
     except httpx.HTTPError as e:
         raise Unavailable(f"Open-Meteo unreachable ({type(e).__name__})")
     h = j.get("hourly") or {}
-    times, t, rh, p = [], [], [], []
-    for ts, a, b, c in zip(h.get("time", []), h.get("temperature_2m", []), h.get("relative_humidity_2m", []), h.get("surface_pressure", [])):
+    times, t, rh, p, pr, cc = [], [], [], [], [], []
+    n = len(h.get("time", []))
+    precip, cloud = h.get("precipitation") or [None] * n, h.get("cloud_cover") or [None] * n
+    for ts, a, b, c, d, e in zip(h.get("time", []), h.get("temperature_2m", []), h.get("relative_humidity_2m", []), h.get("surface_pressure", []), precip, cloud):
         if a is None or b is None or c is None:
             continue   # never fill gaps with invented values
         times.append(datetime.fromisoformat(ts).replace(tzinfo=timezone.utc).timestamp())
         t.append(float(a)); rh.append(float(b)); p.append(float(c) * 100.0)
+        pr.append(None if d is None else float(d)); cc.append(None if e is None else float(e))
     if not times:
         raise Unavailable("Open-Meteo returned no usable hourly data")
     cur = j.get("current") or {}
@@ -46,8 +49,9 @@ def forecast(lat: float, lng: float, days: int = 16, name: str | None = None) ->
             "lat": lat, "lng": lng, "name": name, "elevation": j.get("elevation"),
             "current": {"temperature_c": cur.get("temperature_2m"), "rh_pct": cur.get("relative_humidity_2m"),
                         "pressure_pa": cur.get("surface_pressure") * 100 if cur.get("surface_pressure") else None, "time": cur.get("time")},
-            "times": times, "t": t, "rh": rh, "p": p}
+            "times": times, "t": t, "rh": rh, "p": p, "precip_mm": pr, "cloud_pct": cc}
 
 
 def series_point(fc: dict) -> dict:
-    return {"name": fc.get("name"), "lat": fc["lat"], "lng": fc["lng"], "times": fc["times"], "t": fc["t"], "rh": fc["rh"], "p": fc["p"]}
+    return {"name": fc.get("name"), "lat": fc["lat"], "lng": fc["lng"], "times": fc["times"], "t": fc["t"], "rh": fc["rh"], "p": fc["p"],
+            "precip_mm": fc.get("precip_mm"), "cloud_pct": fc.get("cloud_pct")}

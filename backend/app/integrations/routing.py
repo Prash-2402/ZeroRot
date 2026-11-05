@@ -12,25 +12,36 @@ class Unavailable(Exception):
     pass
 
 
-def route(origin: tuple[float, float], dest: tuple[float, float]) -> dict:
-    """origin/dest = (lat, lng). Returns distance (m), duration (s), simplified geometry [[lng, lat], ...]."""
-    url = f"{settings.osrm_url}/route/v1/driving/{origin[1]},{origin[0]};{dest[1]},{dest[0]}"
+def _pack(rt: dict) -> dict:
+    coords = rt["geometry"]["coordinates"]
+    step = max(1, len(coords) // 600)
+    geom = coords[::step]
+    if geom[-1] != coords[-1]:
+        geom.append(coords[-1])
+    return {"distance_m": rt["distance"], "duration_s": rt["duration"], "geometry": [[round(x, 5), round(y, 5)] for x, y in geom],
+            "source": "osrm_live", "provider": settings.osrm_url, "retrieved_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+
+
+def routes(points: list[tuple[float, float]], alternatives: bool = False) -> list[dict]:
+    """points = [(lat, lng), ...] (origin, optional vias, destination). Returns one or more road routes (best first)."""
+    path = ";".join(f"{lng},{lat}" for lat, lng in points)
+    params = {"overview": "full", "geometries": "geojson"}
+    if alternatives:
+        params["alternatives"] = "3"
     try:
-        r = httpx.get(url, params={"overview": "full", "geometries": "geojson"}, timeout=12)
+        r = httpx.get(f"{settings.osrm_url}/route/v1/driving/{path}", params=params, timeout=15)
         r.raise_for_status()
         j = r.json()
     except httpx.HTTPError as e:
         raise Unavailable(f"Routing service unreachable ({type(e).__name__})")
     if j.get("code") != "Ok" or not j.get("routes"):
         raise Unavailable(f"No route found ({j.get('code')})")
-    rt = j["routes"][0]
-    coords = rt["geometry"]["coordinates"]
-    step = max(1, len(coords) // 400)
-    geom = coords[::step]
-    if geom[-1] != coords[-1]:
-        geom.append(coords[-1])
-    return {"distance_m": rt["distance"], "duration_s": rt["duration"], "geometry": [[round(x, 5), round(y, 5)] for x, y in geom],
-            "source": "osrm_live", "provider": settings.osrm_url, "retrieved_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    return [_pack(x) for x in j["routes"]]
+
+
+def route(origin: tuple[float, float], dest: tuple[float, float]) -> dict:
+    """origin/dest = (lat, lng). Returns distance (m), duration (s), simplified geometry [[lng, lat], ...]."""
+    return routes([origin, dest])[0]
 
 
 def points_along(geometry: list, n: int = 3) -> list[tuple[float, float]]:

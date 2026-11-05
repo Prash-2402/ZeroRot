@@ -97,6 +97,11 @@ class Manager:
     # ---------- notifications ----------
     def notify(self, db, sim: Simulation, alerts: list[Alert]):
         from app.integrations import push
+        from app.services import flow
+        try:
+            flow.on_sim_alerts(db, sim, alerts)
+        except Exception:
+            log.exception("flow alert forward failed")
         for a in alerts:
             payload = {"type": "alert", "id": a.id, "severity": a.severity, "title": a.title, "message": a.message,
                        "simulation_id": sim.id, "batch_id": sim.batch_id, "recommendation": a.recommendation}
@@ -129,22 +134,34 @@ class Manager:
                     alerts = self.persist(db, sim, rt, out)
                     if alerts:
                         self.notify(db, sim, alerts)
-                    updates.append((sim.id, {"type": "state", "status": sim.status, "speed": sim.speed, "data": rt.live(),
-                                             "error": out.get("error")}))
+                    if hub.has_subscribers(f"sim:{sim.id}"):
+                        updates.append((f"sim:{sim.id}", {"type": "state", "status": sim.status, "speed": sim.speed, "data": rt.live(),
+                                                          "error": out.get("error")}))
                 except Exception as e:
                     log.exception("simulation %s failed", sim.id)
                     db.rollback()
                     sim.status = "failed"
                     sim.config = {**sim.config, "last_error": f"{type(e).__name__}: {e}"}
                     db.commit()
+            from app.services import flow
+            try:
+                flow.tick(db, TICK_SECONDS)
+            except Exception:
+                log.exception("flow tick failed")
+                db.rollback()
+            for topic in [t for t in list(hub.topics) if t.startswith("station:") and hub.has_subscribers(t)]:
+                try:
+                    updates.append((topic, flow.station_payload(db, int(topic.split(":")[1]))))
+                except Exception:
+                    log.exception("station payload failed")
         return updates
 
     async def run(self):
         while True:
             await asyncio.sleep(TICK_SECONDS)
             try:
-                for sim_id, msg in await asyncio.to_thread(self.tick_once):
-                    await hub.broadcast(f"sim:{sim_id}", msg)
+                for topic, msg in await asyncio.to_thread(self.tick_once):
+                    await hub.broadcast(topic, msg)
                 self.last_error = None
             except Exception as e:
                 self.last_error = repr(e)

@@ -50,34 +50,55 @@ TASKS = {
 }
 
 
+def api_keys() -> list[str]:
+    """GROQ_API_KEY plus optional GROQ_API_KEY_1.._5 / GROQ_API_KEYS (comma-separated). Used in rotation."""
+    import os
+    keys = [settings.groq_api_key] + [os.environ.get(f"GROQ_API_KEY_{i}", "") for i in range(1, 6)]
+    keys += [k.strip() for k in os.environ.get("GROQ_API_KEYS", "").split(",")]
+    out = []
+    for k in keys:
+        if k and k not in out:
+            out.append(k)
+    return out
+
+
+_next_key = [0]
+
+
 def available() -> bool:
-    return bool(settings.groq_api_key)
+    return bool(api_keys())
 
 
-def _chat(messages: list, json_mode: bool = True) -> str:
-    if not available():
+def _chat(messages: list, json_mode: bool = True, temperature: float = 0.2) -> str:
+    keys = api_keys()
+    if not keys:
         raise Unavailable("GROQ_API_KEY not configured")
-    body = {"model": settings.groq_model, "messages": messages, "temperature": 0.2}
+    body = {"model": settings.groq_model, "messages": messages, "temperature": temperature}
     if json_mode:
         body["response_format"] = {"type": "json_object"}
-    for attempt in range(2):
+    last = "Groq rate limit reached on every configured key; try again shortly"
+    # try each key once (starting from the last one that worked), then one paced retry
+    order = [keys[(_next_key[0] + i) % len(keys)] for i in range(len(keys))]
+    for attempt, key in enumerate(order + order[:1]):
         try:
             r = httpx.post("https://api.groq.com/openai/v1/chat/completions", json=body,
-                           headers={"Authorization": f"Bearer {settings.groq_api_key}"}, timeout=settings.groq_timeout)
+                           headers={"Authorization": f"Bearer {key}"}, timeout=settings.groq_timeout)
         except httpx.HTTPError as e:
             raise Unavailable(f"Groq unreachable ({type(e).__name__})")
-        if r.status_code == 429 and attempt == 0:
-            try:
-                wait = float(r.headers.get("retry-after", "2"))
-            except ValueError:
-                wait = 2.0
-            time.sleep(min(5.0, max(0.5, wait)))
+        if r.status_code in (401, 403, 429):
+            last = f"Groq error {r.status_code} (key {keys.index(key) + 1} of {len(keys)})"
+            if attempt == len(order) - 1:
+                try:
+                    time.sleep(min(5.0, max(0.5, float(r.headers.get("retry-after", "2")))))
+                except ValueError:
+                    time.sleep(2.0)
             continue
         if r.status_code >= 400:
             msg = r.json().get("error", {}).get("message", r.text[:200]) if r.headers.get("content-type", "").startswith("application/json") else r.text[:200]
             raise Unavailable(f"Groq error {r.status_code}: {msg}")
+        _next_key[0] = keys.index(key)
         return r.json()["choices"][0]["message"]["content"] or ""
-    raise Unavailable("Groq rate limit reached; try again shortly")
+    raise Unavailable(last)
 
 
 _NUM = re.compile(r"(?<![\w.])-?\d+(?:\.\d+)?(?!\d|\s?(?:st|nd|rd|th)\b)")
@@ -138,3 +159,23 @@ def market_events(commodity: str, articles: list[dict]) -> dict:
         return MarketEvents.model_validate(json.loads(raw)).model_dump()
     except (json.JSONDecodeError, ValidationError) as e:
         raise Unavailable(f"Groq returned an invalid structured response ({type(e).__name__})")
+
+
+CHAT_SYSTEM = ("You are 'ZERO ROT Sahayaka', a helpful post-harvest assistant for Indian farmers and godown operators. "
+               "You are given CONTEXT as JSON from the platform's models and live sources (godown sensors are SIMULATED virtual sensors; "
+               "prices are verified mandi data only when present). Answer the user's question briefly and practically. "
+               "Use only numbers that appear in CONTEXT; if something is not in CONTEXT, say you do not have that data. "
+               "Never invent prices, temperatures, dates or forecasts. Reply in {lang}. Plain text, at most 6 short sentences or bullet points.")
+
+
+def chat(question: str, context: dict, history: list[dict], language: str = "en") -> dict:
+    lang = "Kannada (ಕನ್ನಡ script)" if language == "kn" else "simple English"
+    msgs = [{"role": "system", "content": CHAT_SYSTEM.format(lang=lang)},
+            {"role": "system", "content": "CONTEXT: " + json.dumps(context, default=str)[:12000]}]
+    for h in history[-8:]:
+        if h.get("role") in ("user", "assistant") and isinstance(h.get("content"), str):
+            msgs.append({"role": h["role"], "content": h["content"][:2000]})
+    msgs.append({"role": "user", "content": question[:2000]})
+    text = _chat(msgs, json_mode=False, temperature=0.3).strip()
+    bad = unverified_numbers(text, context)
+    return {"answer": text, "model": settings.groq_model, "unverified_numbers": bad, "verified": not bad}
