@@ -263,7 +263,7 @@ export default function WorldPage() {
       )}
 
       {/* top bar */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 p-3">
+      <div className={cn("pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3", showQR ? "z-50" : "z-30")}>
         <div className="pointer-events-auto flex flex-col gap-2">
           <div className="hud flex items-center gap-3 px-3 py-2">
             <img src="/logo.png" alt="ZERO ROT" className="h-9 w-auto drop-shadow-[0_0_6px_rgba(243,238,232,0.35)]" />
