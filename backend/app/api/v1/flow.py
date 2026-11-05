@@ -110,6 +110,8 @@ class LotIn(BaseModel):
     station_id: int | None = None
     speed: float = Field(60, ge=1, le=7200)
     plan_days: float = Field(5, ge=0.5, le=14)   # farmer's intended holding time; spoilage risk is judged against it
+    days_since_harvest: float = Field(0, ge=0, le=365)   # produce may already have been stored before entry
+    kept_as: str = Field("shade", pattern="^(open|shade|cold)$")
     manual_ambient: dict | None = None    # {"t": degC, "rh": %} only when live weather is unavailable (labelled MANUAL)
 
 
@@ -118,7 +120,8 @@ def create_lot(body: LotIn, request: Request, p: Principal = Depends(current_pri
     sid = station_id_of(p) if p.kind == "qr" else body.station_id
     lot = _flow_call(flow.create_lot, db, commodity=body.commodity, quantity_kg=body.quantity_kg, quality=body.quality, maturity=body.maturity,
                      mode=body.mode, lat=body.lat, lng=body.lng, location_name=body.location_name, station_id=sid,
-                     user_id=p.user.id if p.user else None, speed=body.speed, manual_ambient=body.manual_ambient, plan_days=body.plan_days)
+                     user_id=p.user.id if p.user else None, speed=body.speed, manual_ambient=body.manual_ambient, plan_days=body.plan_days,
+                     days_since_harvest=body.days_since_harvest, kept_as=body.kept_as)
     audit(db, p, "create_lot", "lot", lot.id, {"commodity": body.commodity, "kg": body.quantity_kg, "mode": body.mode}, request)
     db.commit()
     return flow.lot_payload(db, lot, full=True)
@@ -393,6 +396,30 @@ def start_script(name: str, body: ScriptIn, request: Request, p: Principal = Dep
     return flow.lot_payload(db, lot, full=True)
 
 
+# ---------------- sell / store / discard ----------------
+class ChoiceIn(BaseModel):
+    choice: str = Field(..., pattern="^(store|discard)$")
+    days: float = Field(3, ge=0.5, le=180)
+    reason: str | None = Field(None, max_length=200)
+
+
+@router.post("/lots/{lot_id}/choice")
+def lot_choice(lot_id: int, body: ChoiceIn, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
+    lot = get_lot(db, lot_id, p)
+    res = _flow_call(flow.store_choice, db, lot, body.days) if body.choice == "store" else _flow_call(flow.discard_choice, db, lot, body.reason)
+    audit(db, p, f"lot_{body.choice}", "lot", lot.id, {}, request)
+    db.commit()
+    return {**res, "lot": flow.lot_payload(db, lot, full=True)}
+
+
+@router.post("/stations/{sid}/reset")
+def reset_station(sid: int, request: Request, p: Principal = Depends(current_user), db: Session = Depends(get_db)):
+    n = flow.reset_station(db, sid)
+    audit(db, p, "reset_station", "qr_session", sid, {"lots": n}, request)
+    db.commit()
+    return {"removed_lots": n}
+
+
 # ---------------- fixes approved by the farmer ----------------
 @router.post("/lots/{lot_id}/fixes/{cid}/approve")
 def approve_fix(lot_id: int, cid: int, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
@@ -401,6 +428,66 @@ def approve_fix(lot_id: int, cid: int, request: Request, p: Principal = Depends(
     audit(db, p, "approve_fix", "corrective_action", cid, {"lot": lot.id}, request)
     db.commit()
     return {**res, "lot": flow.lot_payload(db, lot, full=True)}
+
+
+# ---------------- voice entry ----------------
+class ParseIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=500)
+
+
+KN_UNITS = {"ಒಂದು": 1, "ಒಂದೂವರೆ": 1.5, "ಎರಡು": 2, "ಎರಡೂವರೆ": 2.5, "ಮೂರು": 3, "ನಾಲ್ಕು": 4, "ಐದು": 5, "ಆರು": 6, "ಏಳು": 7, "ಎಂಟು": 8,
+            "ಒಂಬತ್ತು": 9, "ಹತ್ತು": 10, "ಹದಿನೈದು": 15, "ಇಪ್ಪತ್ತು": 20, "ಇಪ್ಪತ್ತೈದು": 25, "ಮೂವತ್ತು": 30, "ನಲವತ್ತು": 40, "ಐವತ್ತು": 50,
+            "ಅರವತ್ತು": 60, "ಎಪ್ಪತ್ತು": 70, "ಎಂಬತ್ತು": 80, "ತೊಂಬತ್ತು": 90, "ಅರ್ಧ": 0.5}
+KN_HUNDREDS = {"ನೂರು": 100, "ಇನ್ನೂರು": 200, "ಮುನ್ನೂರು": 300, "ನಾನ್ನೂರು": 400, "ನಾನೂರು": 400, "ಐನೂರು": 500, "ಆರುನೂರು": 600, "ಆರ್ನೂರು": 600,
+               "ಏಳುನೂರು": 700, "ಎಳ್ನೂರು": 700, "ಎಂಟುನೂರು": 800, "ಒಂಬೈನೂರು": 900, "ಒಂಬತ್ತುನೂರು": 900}
+KN_THOUSAND = ("ಸಾವಿರ", "ಸಾವಿರದ")
+
+
+def kn_number(text: str) -> float | None:
+    """Kannada number words -> value, e.g. 'ಎರಡು ಸಾವಿರದ ಐನೂರು' = 2500, 'ಐನೂರು' = 500, 'ಮೂರು' = 3."""
+    words = text.replace(",", " ").split()
+    total, cur, seen = 0.0, 0.0, False
+    for w in words:
+        base = w.rstrip("ಕೆ").rstrip("ಗೆ") if w not in KN_UNITS and w not in KN_HUNDREDS else w
+        if w in KN_UNITS or base in KN_UNITS:
+            cur += KN_UNITS.get(w, KN_UNITS.get(base, 0)); seen = True
+        elif w in KN_HUNDREDS or base in KN_HUNDREDS:
+            cur = (cur or 1) * 100 if (w == "ನೂರು" and cur) else cur + KN_HUNDREDS.get(w, KN_HUNDREDS.get(base, 0)); seen = True
+        elif any(w.startswith(t) for t in KN_THOUSAND):
+            total += (cur or 1) * 1000; cur = 0; seen = True
+    return total + cur if seen else None
+
+
+def _local_parse(text: str, crops: dict) -> dict:
+    import re
+    t = text.lower()
+    com = next((cid for cid, names in crops.items() if any(n.lower() in t for n in names if n)), None)
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(t|ton|tonne|tonnes|quintal|quintals|kg|kgs|kilo|kilos|ಕೆಜಿ|ಟನ್|ಕ್ವಿಂಟಾಲ್)?", t)
+    qty = None
+    knv = None if m else kn_number(text)
+    if m or knv is not None:
+        v = float(m.group(1)) if m else knv
+        u = (m.group(2) if m else None) or next((x for x in ("ಟನ್", "ಕ್ವಿಂಟಾಲ್", "quintal", "tonne", "ton") if x in t), "kg")
+        qty = v * 1000 if u in ("t", "ton", "tonne", "tonnes", "ಟನ್") else v * 100 if u in ("quintal", "quintals", "ಕ್ವಿಂಟಾಲ್") else v
+    return {"commodity": com, "quantity_kg": qty, "days_since_harvest": None, "heard": text}
+
+
+@router.post("/parse-entry")
+def parse_entry(body: ParseIn, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
+    from app.db.models import Commodity
+    crops = {c.id: [c.name, c.name_kn, c.id.replace("_", " ")] for c in db.scalars(select(Commodity)).all() if c.prediction_supported}
+    local = _local_parse(body.text, crops)
+    if local["commodity"] and local["quantity_kg"]:
+        return {**local, "parser": "rules"}
+    if not ai_limiter.check(f"ai:{request.client.host if request.client else '?'}"):
+        err(429, "rate_limited", "Too many requests; wait a little")
+    try:
+        d = groq_ai.parse_entry(body.text, crops)
+    except groq_ai.Unavailable as e:
+        if local["commodity"] or local["quantity_kg"]:
+            return {**local, "parser": "rules"}
+        err(503, "ai_unavailable", f"Could not understand the entry: {e}")
+    return {**d, "commodity": d["commodity"] or local["commodity"], "quantity_kg": d["quantity_kg"] or local["quantity_kg"], "parser": "groq"}
 
 
 # ---------------- assistant ----------------

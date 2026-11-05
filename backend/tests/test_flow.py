@@ -59,10 +59,11 @@ def setup():
     migrate()
     with SessionLocal() as db:
         sync_commodities(db)
-    saved = (weather.forecast, routing.routes, places.reverse, settings.groq_api_key)
+    saved = (weather.forecast, routing.routes, places.reverse, places.reverse_names, settings.groq_api_key)
     weather.forecast, routing.routes, places.reverse = _forecast, _routes, (lambda lat, lng: "Testpur")
+    places.reverse_names = lambda lat, lng: {"en": "Testpur", "kn": "ಟೆಸ್ಟ್‌ಪುರ"}
     yield
-    weather.forecast, routing.routes, places.reverse, settings.groq_api_key = saved
+    weather.forecast, routing.routes, places.reverse, places.reverse_names, settings.groq_api_key = saved
 
 
 @pytest.fixture(scope="module")
@@ -313,3 +314,30 @@ def test_advanced_dispatch_scans_first_and_fixes_need_approval(H, monkeypatch):
     s = step(P, lot["id"], j["grading"]["total_kg"] / 1500 * 3600 + 120)
     assert s["stage"] in ("graded", "dispatched") and s["shipments"]
     assert {sh["grade"] for sh in s["shipments"]} <= {"A1", "A2", "A3"} and all(sh["live"]["refrigerated"] for sh in s["shipments"])
+
+
+def test_old_produce_store_discard_history_and_reset(H, monkeypatch):
+    def _hist(lat, lng, days):
+        now = time.time()
+        n = days * 24
+        return {"source": "fixture", "times": [now - (n - i) * 3600 for i in range(n)], "t": [30.0] * n, "rh": [60.0] * n}
+    monkeypatch.setattr(weather, "history", _hist)
+    sid, P = pair(H)
+    # registered 3 days after harvest, kept in the open at 30 degC -> starts well below harvest quality, with causes
+    lot = client.post("/api/v1/flow/lots", headers=P, json={"commodity": "tomato", "quantity_kg": 500, "quality": 95, "maturity": "turning", "mode": "traditional",
+                                                            "lat": KOLAR[0], "lng": KOLAR[1], "location_name": "Kolar", "speed": 600,
+                                                            "days_since_harvest": 3, "kept_as": "open"}).json()
+    assert lot["storage"]["produce"]["quality"] < 70 and lot["storage"]["preaged"]["days"] == 3
+    assert lot["storage"]["loss"]["temperature"] > 0 and any(e["kind"] == "preaged" for e in lot["events"])
+    cold = client.post("/api/v1/flow/lots", headers=P, json={"commodity": "tomato", "quantity_kg": 500, "quality": 95, "maturity": "turning", "mode": "traditional",
+                                                             "lat": KOLAR[0], "lng": KOLAR[1], "location_name": "Kolar", "days_since_harvest": 3, "kept_as": "cold"}).json()
+    assert cold["storage"]["produce"]["quality"] > lot["storage"]["produce"]["quality"]
+    step(P, lot["id"], 1200)
+    r = client.post(f"/api/v1/flow/lots/{lot['id']}/choice", headers=P, json={"choice": "store", "days": 2})
+    assert r.status_code == 200 and r.json()["choice"] == "store"
+    r = client.post(f"/api/v1/flow/lots/{lot['id']}/choice", headers=P, json={"choice": "discard", "reason": "soft fruit"})
+    assert r.status_code == 200 and r.json()["lot"]["stage"] == "discarded" and r.json()["salvage"]
+    st = client.get(f"/api/v1/flow/stations/{sid}/state", headers=H).json()
+    assert lot["id"] not in [l["id"] for l in st["lots"]] and lot["id"] in [h["id"] for h in st["history"]]
+    assert client.post(f"/api/v1/flow/stations/{sid}/reset", headers=H).json()["removed_lots"] == 2
+    assert client.get(f"/api/v1/flow/stations/{sid}/state", headers=H).json()["lots"] == []

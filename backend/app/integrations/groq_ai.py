@@ -180,3 +180,22 @@ def chat(question: str, context: dict, history: list[dict], language: str = "en"
     text = _chat(msgs, json_mode=False, temperature=0.3).strip().replace("**", "").replace("__", "")
     bad = unverified_numbers(text, context)
     return {"answer": text, "model": settings.groq_model, "unverified_numbers": bad, "verified": not bad}
+
+
+def parse_entry(text: str, crops: dict[str, list[str]]) -> dict:
+    """Turn a spoken entry ("ಟೊಮೆಟೊ ಐನೂರು ಕೆಜಿ", "two tonnes of onion") into {commodity, quantity_kg}. The model only maps
+    words to fields; it must not guess a quantity that was not said."""
+    msgs = [{"role": "system", "content": "Extract a produce entry from a farmer's spoken sentence (Kannada or English, maybe mixed). "
+             "Return JSON {\"commodity\": one id from the list or null, \"quantity_kg\": number or null, \"days_since_harvest\": number or null}. "
+             "Convert tonnes/quintals to kg (1 quintal = 100 kg). Understand Kannada number words. Never invent a value that was not said. "
+             "Commodity ids with their names: " + json.dumps(crops, ensure_ascii=False)},
+            {"role": "user", "content": text[:500]}]
+    raw = _chat(msgs, json_mode=True, temperature=0.0)
+    try:
+        d = json.loads(raw)
+    except json.JSONDecodeError:
+        raise Unavailable("Could not understand the entry")
+    c = d.get("commodity")
+    q = d.get("quantity_kg")
+    return {"commodity": c if c in crops else None, "quantity_kg": float(q) if isinstance(q, (int, float)) and 0 < q <= 50000 else None,
+            "days_since_harvest": float(d["days_since_harvest"]) if isinstance(d.get("days_since_harvest"), (int, float)) else None, "heard": text}

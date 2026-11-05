@@ -39,9 +39,31 @@ def step_produce(p: ProduceState, t: float, rh: float, x_o2: float, x_co2: float
     if gas_injury(p.commodity, x_o2, x_co2):
         q_new *= math.exp(-(GAS_INJURY_FACTOR - 1.0) * k * dt_h / 24.0)
         k *= GAS_INJURY_FACTOR
+    _attribute(prm, p, q_new, t, rh, float(e[0]), gas_injury(p.commodity, x_o2, x_co2), dt_h)
     p.q, p.w, p.r, p.e = q_new, float(w[0]), float(r[0]), float(e[0])
     transp = max(0.0, (p.w - w_before)) * p.mass_kg / max(dt_s, 1e-6)
     return transp, k
+
+
+def _attribute(prm, p: ProduceState, q_new: float, t: float, rh: float, e: float, gas: bool, dt_h: float):
+    """Split this step's quality loss by cause. Loss that would happen at the ideal conditions is 'ageing'; the extra
+    (or the saving, if conditions are better than reference) is shared between factors by their log-multiplier."""
+    from app.engine.decay import chill_factor, humidity_factor
+    lost = p.q - q_new
+    if lost <= 0:
+        return
+    sc = lambda x: float(np.ravel(x)[0])
+    base = p.q * (1 - math.exp(-sc(prm.k_ref) * dt_h / 24.0))
+    f = {"temperature": sc(prm.q10 ** ((t - prm.t_ref) / 10.0)), "humidity": sc(humidity_factor(prm, rh)),
+         "chilling": sc(chill_factor(prm, e)), "ripeness": sc(prm.m), "gas": GAS_INJURY_FACTOR if gas else 1.0}
+    logs = {k: math.log(v) for k, v in f.items() if v > 0 and abs(math.log(v)) > 1e-9}
+    total = sum(logs.values())
+    acc = p.loss
+    acc["ageing"] = acc.get("ageing", 0.0) + base
+    extra = lost - base
+    if total and abs(extra) > 0:
+        for k, v in logs.items():
+            acc[k] = acc.get(k, 0.0) + extra * v / total
 
 
 def reference_rate(commodity: str, maturity: str | None) -> float:

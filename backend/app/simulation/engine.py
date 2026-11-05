@@ -287,6 +287,17 @@ class Runtime:
             eq.setpoint = round(old - 1.0, 2)
             return {"action": "adjust_setpoint", "reason": f"Temperature excursion; setpoint lowered {old} -> {eq.setpoint} degC (safety minimum {safe_min:.1f} degC).",
                     "parameters": {"old": old, "new": eq.setpoint, "safe_min": safe_min}}
+        if f.code == "HUMIDITY_DEVIATION" and eq.rh_setpoint is not None:
+            low = f.reading.get("rh_pct", 100) < f.expected.get("min_pct", 0)
+            old = eq.rh_setpoint
+            if low:
+                eq.rh_setpoint = min(98.0, old + 2.0)
+            else:
+                eq.humidifier_fault = False
+                eq.rh_setpoint = max(80.0, old - 2.0)
+                eq.fresh_air_ach = max(eq.fresh_air_ach or 0.0, 1.0)
+            return {"action": "adjust_humidity", "reason": f"Humidity {f.reading.get('rh_pct')}% outside range; RH setpoint {old:.0f} -> {eq.rh_setpoint:.0f}%"
+                    + ("" if low else ", humidifier checked and fresh air increased") + ".", "parameters": {"old": old, "new": eq.rh_setpoint}}
         if f.code == "GAS_ABNORMAL":
             old = eq.fresh_air_ach
             eq.fresh_air_ach = max((old or self.cfg.get("ach", 0.3)) * 2, 1.0)

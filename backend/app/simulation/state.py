@@ -48,6 +48,7 @@ class ProduceState:
     w: float = 0.0
     r: float = 0.0
     e: float = 0.0  # chilling exposure, degC.h
+    loss: dict = field(default_factory=dict)   # quality points lost, by cause (ageing, temperature, humidity, chilling, ripeness, gas)
 
 
 @dataclass

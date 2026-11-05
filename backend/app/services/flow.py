@@ -75,7 +75,17 @@ def saleable_kg(rt) -> float:
     return p.mass_kg * (1 - p.w) * (1 - p.r)
 
 
-def add_event(db: Session, lot: Lot, kind: str, title: str, message: str, severity: str = "INFO", sim_id: int | None = None, push_it: bool = True):
+EMERGENCY_CODES = {"COOLING_FAILURE", "DOOR_OPEN", "ROUTE_DELAY"}
+
+
+def is_emergency(code: str, severity: str) -> bool:
+    """Only emergencies interrupt the farmer (pop-up + approval). Everything else goes to the log."""
+    code = code.upper()
+    return code in EMERGENCY_CODES or (severity == "CRITICAL" and code in ("TEMP_EXCURSION", "GAS_ABNORMAL"))
+
+
+def add_event(db: Session, lot: Lot, kind: str, title: str, message: str, severity: str = "INFO", sim_id: int | None = None, push_it: bool = True,
+              log: bool = False):
     sim_time = None
     if sim_id is None:   # narrate on the clock of whatever is moving now (truck), else the godown
         moving = db.scalars(select(Shipment).where(Shipment.lot_id == lot.id, Shipment.status != "delivered").order_by(Shipment.id.desc())).first()
@@ -84,7 +94,9 @@ def add_event(db: Session, lot: Lot, kind: str, title: str, message: str, severi
     if sid and sid in _manager().runtimes:
         rt = _manager().runtimes[sid]
         sim_time = rt.live()["sim_time"]
-    ev = {"at": datetime.utcnow().isoformat(timespec="seconds"), "sim_time": sim_time, "kind": kind, "title": title, "message": message, "severity": severity}
+    ev = {"at": datetime.utcnow().isoformat(timespec="seconds"), "sim_time": sim_time, "kind": kind, "title": title, "message": message, "severity": severity,
+          "log": log}
+    push_it = push_it and not log
     lot.events = (list(lot.events or []) + [ev])[-120:]
     db.add(Alert(simulation_id=sid, batch_id=lot.batch_id, severity=severity, code=kind.upper()[:48], title=title, message=message,
                  reading={"lot": lot.id}, expected={}, risk="", recommendation="", status="resolved" if severity == "INFO" else "open"))
@@ -101,7 +113,7 @@ def add_event(db: Session, lot: Lot, kind: str, title: str, message: str, severi
 
 
 ACTION_TITLE = {"activate_backup_cooling": "Auto-control: backup cooling on", "adjust_setpoint": "Auto-control: setpoint lowered",
-                "ventilate": "Auto-control: ventilation increased"}
+                "ventilate": "Auto-control: ventilation increased", "adjust_humidity": "Auto-control: humidity corrected"}
 
 
 def on_sim_actions(db: Session, sim: Simulation, actions: list[dict]):
@@ -113,7 +125,7 @@ def on_sim_actions(db: Session, sim: Simulation, actions: list[dict]):
     if lot is None:
         return
     for a in actions:
-        add_event(db, lot, "auto_" + a["action"], ACTION_TITLE.get(a["action"], "Auto-control action"), a["reason"], severity="INFO", sim_id=sim.id)
+        add_event(db, lot, "auto_" + a["action"], ACTION_TITLE.get(a["action"], "Auto-control action"), a["reason"], severity="INFO", sim_id=sim.id, log=True)
 
 
 FIX_LABEL = {
@@ -179,7 +191,7 @@ def pending_fixes(db: Session, lot: Lot) -> list[dict]:
                             .where(CorrectiveAction.simulation_id == sid, CorrectiveAction.applied == False, CorrectiveAction.automatic == False,  # noqa: E712
                                    Alert.status == "open").order_by(CorrectiveAction.id.desc())).all() if sid else []:
             ca, al = c
-            if ca.action in seen or ca.action not in FIX_LABEL or al.id in handled:
+            if ca.action in seen or ca.action not in FIX_LABEL or al.id in handled or not is_emergency(al.code, al.severity):
                 continue
             seen.add(ca.action)
             out.append({"id": ca.id, "action": ca.action, "label": FIX_LABEL[ca.action], "where": where, "alert": al.title, "severity": al.severity,
@@ -258,9 +270,11 @@ def on_sim_alerts(db: Session, sim: Simulation, alerts: list):
     if lot is None or not lot.station_id:
         return
     for a in alerts:
-        fixes = _ensure_fixes(db, sim, a) if a.severity != "INFO" else []
+        emergency = is_emergency(a.code, a.severity)
+        fixes = _ensure_fixes(db, sim, a) if emergency else []
         ev = {"at": datetime.utcnow().isoformat(timespec="seconds"), "sim_time": None, "kind": a.code.lower(), "title": a.title,
-              "message": a.message, "severity": a.severity, "recommendation": a.recommendation, "fixes": fixes}
+              "message": a.message, "severity": a.severity if emergency else "INFO", "recommendation": a.recommendation, "fixes": fixes,
+              "log": not emergency}
         if fixes:
             for s_ in db.scalars(select(NotificationSubscription).where(NotificationSubscription.active == True,  # noqa: E712
                                                                         NotificationSubscription.qr_session_id == lot.station_id)).all():
@@ -312,19 +326,69 @@ def _truck(db: Session, refrigerated: bool) -> Truck:
     return t
 
 
+# ---------------- produce that was stored before it was entered ----------------
+KEPT = {"open": "in the open (outdoor air)", "shade": "in a shaded shed (outdoor air, daily swings damped)", "cold": "in cold storage (recommended conditions)"}
+
+
+def preage(commodity: str, maturity: str | None, quality: float, days: float, kept: str, lat: float, lng: float) -> dict:
+    """Replay the time since harvest through the decay model with the real past weather of the location (or the
+    recommended conditions for 'cold'), so a lot registered late starts with its present quality, weight loss and rot."""
+    from bisect import bisect_left
+    from app.simulation.deterioration_model import step_produce
+    pp = get_produce(commodity)
+    st = ProduceState(commodity, maturity, 1000.0, float(quality))
+    hours = int(round(days * 24))
+    source = "recommended storage conditions"
+    if kept == "cold":
+        series = [(pp.v("t_ref"), (pp.v("rh_low") + pp.v("rh_high")) / 2)] * hours
+    else:
+        try:
+            h = weather.history(lat, lng, math.ceil(days))
+        except weather.Unavailable as e:
+            raise FlowError(503, "weather_unavailable", f"Cannot reconstruct the storage history: {e}")
+        import time as _t
+        now = _t.time()
+        ts, tt, rr = h["times"], h["t"], h["rh"]
+        series = []
+        for i in range(hours):
+            want = now - (hours - i) * 3600
+            j = min(len(ts) - 1, max(0, bisect_left(ts, want)))
+            series.append((tt[j], rr[j]))
+        if kept == "shade":   # a shed lags and damps the outdoor swing: blend with the 24 h running mean
+            out, win = [], []
+            for t_, r_ in series:
+                win = (win + [t_])[-24:]
+                out.append((0.6 * t_ + 0.4 * sum(win) / len(win), r_))
+            series = out
+        source = h["source"]
+    for t_, r_ in series:
+        step_produce(st, t_, r_, 0.2095, 0.00042, 3600.0)
+    temps = [x[0] for x in series] or [pp.v("t_ref")]
+    return {"days": days, "kept": kept, "kept_label": KEPT[kept], "quality_at_harvest": quality, "quality_now": round(st.q, 2),
+            "w": st.w, "r": st.r, "e": st.e, "loss": {k: round(v, 2) for k, v in st.loss.items()},
+            "mean_temp_c": round(sum(temps) / len(temps), 1), "max_temp_c": round(max(temps), 1), "weather_source": source}
+
+
 # ---------------- lots ----------------
 def create_lot(db: Session, *, commodity: str, quantity_kg: float, quality: float, maturity: str | None, mode: str,
                lat: float, lng: float, location_name: str, station_id: int | None, user_id: int | None, speed: float = 60.0,
-               manual_ambient: dict | None = None, plan_days: float = 5.0) -> Lot:
+               manual_ambient: dict | None = None, plan_days: float = 5.0, days_since_harvest: float = 0.0, kept_as: str = "shade") -> Lot:
     try:
         p = get_produce(commodity)
     except ValueError as e:
         raise FlowError(422, "unsupported_commodity", str(e))
     if not 50 <= quantity_kg <= 50000:
         raise FlowError(422, "invalid_input", "Quantity must be between 50 kg and 50 tonnes")
+    aged = None
+    if days_since_harvest and days_since_harvest > 0:
+        if kept_as not in KEPT:
+            raise FlowError(422, "invalid_input", "kept_as must be open, shade or cold")
+        aged = preage(commodity, maturity if commodity in ("tomato", "mango", "banana") else None, quality, days_since_harvest, kept_as, lat, lng)
     seq = (db.scalar(select(ProduceBatch.id).order_by(ProduceBatch.id.desc())) or 0) + 1
     code = f"ZR-{commodity[:3].upper()}-{seq:05d}"
-    b = ProduceBatch(code=code, commodity_id=commodity, quantity_kg=quantity_kg, harvest_time=datetime.utcnow(), initial_quality=quality,
+    from datetime import timedelta as _td
+    b = ProduceBatch(code=code, commodity_id=commodity, quantity_kg=quantity_kg, harvest_time=datetime.utcnow() - _td(days=days_since_harvest or 0),
+                     initial_quality=aged["quality_now"] if aged else quality,
                      maturity=maturity if commodity in ("tomato", "mango", "banana") else None,
                      location_name=location_name, lat=lat, lng=lng, storage_path=mode, status="in_storage", created_by=user_id)
     db.add(b)
@@ -366,6 +430,17 @@ def create_lot(db: Session, *, commodity: str, quantity_kg: float, quality: floa
     except ValueError as ex:
         db.rollback()
         raise FlowError(422, "invalid_input", str(ex))
+    if aged:
+        rt.s.produce.w, rt.s.produce.r, rt.s.produce.e = aged["w"], aged["r"], aged["e"]
+        rt.s.produce.loss = dict(aged["loss"])
+        rt.meta["preaged"] = aged
+        top = sorted(((k, v) for k, v in aged["loss"].items() if v > 0.05), key=lambda x: -x[1])[:3]
+        add_event(db, lot, "preaged", f"Already {aged['days']:.0f} days since harvest",
+                  f"Kept {aged['kept_label']} (mean {aged['mean_temp_c']} °C, max {aged['max_temp_c']} °C): quality {aged['quality_at_harvest']:.0f} → "
+                  f"{aged['quality_now']:.0f}. Biggest causes: " + ", ".join(f"{k} −{v:.1f}" for k, v in top) + ".", push_it=False)
+        if aged["quality_now"] < get_produce(commodity).v("q_min"):
+            add_event(db, lot, "unsellable_on_entry", "Below sellable quality on entry",
+                      "The model estimates this lot is already below the minimum sellable quality. Consider discarding or processing.", severity="WARNING")
     add_event(db, lot, "intake_started", "Intake started",
               f"{quantity_kg:.0f} kg of {p.display_name.lower()} entering the {mode} godown at {location_name} "
               f"(about {loading_s / 60:.0f} min of loading at {LOADING_KG_PER_H:.0f} kg/h).", push_it=False)
@@ -645,8 +720,11 @@ def _name_checkpoints_async(shipment_id: int):
             used = {c["name"] for c in cps if c.get("name")}
             for c in cps:
                 if not c.get("name"):
-                    n = places.reverse(c["lat"], c["lng"]) or f"Km {c['km']:.0f}"
-                    c["name"] = n if n not in used else f"{n} (km {c['km']:.0f})"
+                    nm = places.reverse_names(c["lat"], c["lng"])
+                    n = nm["en"] or f"Km {c['km']:.0f}"
+                    dup = n in used
+                    c["name"] = n if not dup else f"{n} (km {c['km']:.0f})"
+                    c["name_kn"] = (nm["kn"] + (f" (ಕಿಮೀ {c['km']:.0f})" if dup else "")) if nm["kn"] else None
                     used.add(c["name"])
             sh2 = db.get(Shipment, shipment_id)
             # merge names only (passed flags may have changed meanwhile)
@@ -654,7 +732,7 @@ def _name_checkpoints_async(shipment_id: int):
             for m in merged:
                 hit = next((c for c in cps if c["km"] == m["km"]), None)
                 if hit and not m.get("name"):
-                    m["name"] = hit["name"]
+                    m["name"], m["name_kn"] = hit["name"], hit.get("name_kn")
             sh2.checkpoints = merged
             db.commit()
     threading.Thread(target=work, daemon=True).start()
@@ -1062,6 +1140,80 @@ def _tick_shipment(db: Session, lot: Lot, sh: Shipment, dt: float):
                       sim_id=sim.id)
 
 
+# ---------------- the farmer's choice: store or discard (sell = dispatch) ----------------
+SALVAGE = ["Processing unit (pulp, juice, sauce or dried product) for produce that is soft but safe",
+           "Animal feed for unspoiled but unsaleable produce", "Compost or biogas for rotten produce"]
+
+
+def store_choice(db: Session, lot: Lot, days: float) -> dict:
+    if lot.stage not in ("storage", "graded"):
+        raise FlowError(409, "wrong_stage", "Only produce in the godown can be kept in storage")
+    sim, rt = _runtime(db, lot.storage_sim_id)
+    if rt is not None and days:
+        rt.cfg["plan_days"] = rt.s.t_seconds / 86400.0 + float(days)
+        sim.config = {**sim.config, "plan_days": rt.cfg["plan_days"]}
+    add_event(db, lot, "choice_store", "Decision: keep in storage", f"Kept in the godown for about {days:.0f} more days; the Decision will be re-checked.")
+    db.commit()
+    return {"choice": "store", "days": days}
+
+
+def discard_choice(db: Session, lot: Lot, reason: str | None) -> dict:
+    if lot.stage not in ("intake", "storage", "graded"):
+        raise FlowError(409, "wrong_stage", "Only produce still in the godown can be discarded")
+    b = db.get(ProduceBatch, lot.batch_id)
+    sim, rt = _runtime(db, lot.storage_sim_id)
+    lost = saleable_kg(rt) if rt else b.quantity_kg
+    if sim is not None and sim.status != "completed":
+        sim.status = "completed"
+        if rt is not None:
+            sim.config = {**sim.config, "summary": rt.summary()}
+    lot.stage = "discarded"
+    b.status = "discarded"
+    add_event(db, lot, "choice_discard", "Decision: discard", f"{lost:.0f} kg removed from storage{(': ' + reason) if reason else ''}. "
+              "Salvage options: " + "; ".join(SALVAGE) + ".")
+    db.commit()
+    return {"choice": "discard", "kg": round(lost, 1), "salvage": SALVAGE}
+
+
+def history_entry(db: Session, lot: Lot) -> dict:
+    b = db.get(ProduceBatch, lot.batch_id)
+    ships = db.scalars(select(Shipment).where(Shipment.lot_id == lot.id).order_by(Shipment.id)).all()
+    out = []
+    for sh in ships:
+        sim = db.get(Simulation, sh.simulation_id) if sh.simulation_id else None
+        summ = (sim.config or {}).get("summary") if sim else None
+        out.append({"grade": sh.grade, "kg": sh.quantity_kg, "to": sh.destination_name, "status": sh.status,
+                    "delivered_at": sh.delivered_at.isoformat(timespec="minutes") if sh.delivered_at else None,
+                    "final_quality": summ.get("final_quality") if summ else None, "reroutes": len(sh.reroutes or [])})
+    return {"id": lot.id, "code": b.code, "commodity": b.commodity_id, "quantity_kg": b.quantity_kg, "mode": lot.mode, "stage": lot.stage,
+            "created_at": lot.created_at.isoformat(timespec="minutes"), "location": b.location_name, "shipments": out,
+            "decision": lot.decision, "events": (lot.events or [])[-12:]}
+
+
+def reset_station(db: Session, station_id: int) -> int:
+    """Demo reset: remove every lot of this station with its simulations (readings, alerts, snapshots cascade)."""
+    from sqlalchemy import delete
+    lots = db.scalars(select(Lot).where(Lot.station_id == station_id)).all()
+    sim_ids, batch_ids = [], []
+    for lot in lots:
+        sim_ids += [lot.storage_sim_id] + [sh.simulation_id for sh in db.scalars(select(Shipment).where(Shipment.lot_id == lot.id)).all()]
+        batch_ids.append(lot.batch_id)
+    sim_ids = [x for x in sim_ids if x]
+    with _manager().lock:
+        for sid in sim_ids:
+            _manager().drop(sid)
+        db.execute(delete(Shipment).where(Shipment.lot_id.in_([l.id for l in lots])))
+        db.execute(delete(Lot).where(Lot.station_id == station_id))
+        from app.db.models import CorrectiveAction, Prediction, SimulationState, VirtualSensorReading
+        for model in (VirtualSensorReading, SimulationState, Prediction, CorrectiveAction, Alert):
+            db.execute(delete(model).where(model.simulation_id.in_(sim_ids)))
+        db.execute(delete(Simulation).where(Simulation.id.in_(sim_ids)))
+        db.execute(delete(Alert).where(Alert.batch_id.in_(batch_ids)))
+        db.execute(delete(ProduceBatch).where(ProduceBatch.id.in_(batch_ids)))
+        db.commit()
+    return len(lots)
+
+
 # ---------------- payloads ----------------
 def lot_payload(db: Session, lot: Lot, full: bool = False) -> dict:
     b = db.get(ProduceBatch, lot.batch_id)
@@ -1079,7 +1231,9 @@ def lot_payload(db: Session, lot: Lot, full: bool = False) -> dict:
                           "prediction": lv["prediction"], "flows": lv["flows"], "loading": lv["loading"], "faults": lv["faults"],
                           "active_alerts": lv["active_alerts"], "weather_extras": lv["weather_extras"], "saleable_kg": round(saleable_kg(rt), 1),
                           "sensors": lv["sensors"] if full else None, "setpoint": rt.cfg.get("setpoint"), "dimensions_m": rt.cfg.get("dimensions_m"),
-                          "structure": rt.cfg.get("structure")}
+                          "structure": rt.cfg.get("structure"), "loss": {k: round(v, 2) for k, v in (rt.s.produce.loss or {}).items()},
+                          "preaged": rt.meta.get("preaged") and {k: rt.meta["preaged"][k] for k in ("days", "kept_label", "quality_at_harvest", "quality_now")},
+                          "history": rt.meta.get("history", [])[-120::4]}
     for sh in db.scalars(select(Shipment).where(Shipment.lot_id == lot.id).order_by(Shipment.id)).all():
         ssim, srt = _runtime(db, sh.simulation_id)
         d = {"id": sh.id, "grade": sh.grade, "quantity_kg": sh.quantity_kg, "destination": {"name": sh.destination_name, "lat": sh.dest_lat, "lng": sh.dest_lng},
@@ -1106,8 +1260,10 @@ def shipment_geometry(db: Session, sh: Shipment) -> dict:
 
 
 def station_payload(db: Session, station_id: int) -> dict:
-    lots = db.scalars(select(Lot).where(Lot.station_id == station_id).order_by(Lot.id.desc()).limit(6)).all()
-    return {"type": "station", "station_id": station_id, "at": datetime.utcnow().isoformat(timespec="seconds"), "lots": [lot_payload(db, l) for l in lots]}
+    active = db.scalars(select(Lot).where(Lot.station_id == station_id, Lot.stage.notin_(("delivered", "discarded"))).order_by(Lot.id.desc()).limit(6)).all()
+    done = db.scalars(select(Lot).where(Lot.station_id == station_id, Lot.stage.in_(("delivered", "discarded"))).order_by(Lot.id.desc()).limit(20)).all()
+    return {"type": "station", "station_id": station_id, "at": datetime.utcnow().isoformat(timespec="seconds"), "lots": [lot_payload(db, l) for l in active],
+            "history": [history_entry(db, l) for l in done]}
 
 
 def chat_context(db: Session, lot: Lot | None) -> dict:

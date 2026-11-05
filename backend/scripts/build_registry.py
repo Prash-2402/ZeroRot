@@ -319,15 +319,15 @@ EXTRA = [
     lambda: crop("rice", "Rice (paddy)", "ಭತ್ತ", 25.0, (60, 70), 270, (180, 365), 4.0, HARRINGTON,
                  "Harrington's rule: storage life halves for each 5 degC rise (0-50 degC) -> Q10 = 2^(10/5) = 4", -5.0, NONE_SRC, "none", False,
                  ["Sona Masuri", "IR-64", "Local"], FAO_GRAIN, "Dry paddy (about 14% moisture) in cool, dry godowns; safe storage roughly 6-12 months",
-                 kw=0.0002, grain=True, rh_hi_slope=0.15),
+                 kw=0.0002, grain=True, rh_hi_slope=0.03),
     lambda: crop("wheat", "Wheat", "ಗೋಧಿ", 25.0, (60, 70), 365, (270, 540), 4.0, HARRINGTON,
                  "Harrington's rule: storage life halves for each 5 degC rise (0-50 degC) -> Q10 = 2^(10/5) = 4", -5.0, NONE_SRC, "none", False,
                  ["Lokwan", "Sharbati", "Local"], FAO_GRAIN, "Dry wheat (about 12% moisture); safe storage 9-18 months in sound godowns",
-                 kw=0.0002, grain=True, rh_hi_slope=0.15),
+                 kw=0.0002, grain=True, rh_hi_slope=0.03),
     lambda: crop("maize", "Maize", "ಮೆಕ್ಕೆಜೋಳ", 25.0, (60, 70), 240, (180, 365), 4.0, HARRINGTON,
                  "Harrington's rule: storage life halves for each 5 degC rise (0-50 degC) -> Q10 = 2^(10/5) = 4", -5.0, NONE_SRC, "none", False,
                  ["Hybrid", "Local"], FAO_GRAIN, "Dry shelled maize (about 13% moisture); safe storage 6-12 months",
-                 kw=0.0002, grain=True, rh_hi_slope=0.15),
+                 kw=0.0002, grain=True, rh_hi_slope=0.03),
 ]
 
 

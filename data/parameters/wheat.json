@@ -291,10 +291,10 @@
     {
       "id": "wheat.h_high_slope",
       "name": "Humidity penalty slope above recommended RH (rot / condensation)",
-      "value": 0.15,
+      "value": 0.03,
       "range": [
-        0.105,
-        0.195
+        0.020999999999999998,
+        0.039
       ],
       "unit": "per %RH",
       "classification": "assumption",
