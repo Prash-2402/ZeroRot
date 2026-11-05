@@ -99,7 +99,7 @@ def me(p: Principal = Depends(current_principal), db: Session = Depends(get_db))
 
 # ---------------- lots ----------------
 class LotIn(BaseModel):
-    commodity: str = Field(..., pattern="^(tomato|mango|banana|potato|onion)$")
+    commodity: str = Field(..., pattern="^[a-z_]{3,32}$")   # validated against the parameter registry
     quantity_kg: float = Field(..., gt=0, le=50000)
     quality: float = Field(90, ge=40, le=100)
     maturity: str | None = Field(None, pattern="^(mature_green|turning|ripe)$")
@@ -317,11 +317,17 @@ class DispatchIn(BaseModel):
     destination_name: str = Field(..., min_length=2, max_length=160)
     lat: float = Field(..., ge=-90, le=90)
     lng: float = Field(..., ge=-180, le=180)
+    plan: dict | None = None   # advanced lots: {"A1": {name, lat, lng}, "A2": ..., "A3": ...}
 
 
 @router.post("/lots/{lot_id}/dispatch", status_code=201)
 def lot_dispatch(lot_id: int, body: DispatchIn, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
     lot = get_lot(db, lot_id, p)
+    if lot.mode == "advanced" and lot.stage == "storage":
+        _flow_call(flow.scan_then_dispatch, db, lot, body.destination_name, body.lat, body.lng, body.plan)
+        audit(db, p, "lot_scan_dispatch", "lot", lot.id, {"to": body.destination_name}, request)
+        db.commit()
+        return flow.lot_payload(db, lot, full=True)
     sh = _flow_call(flow.dispatch, db, lot, grade=body.grade, dest_name=body.destination_name, dest_lat=body.lat, dest_lng=body.lng,
                     user_id=p.user.id if p.user else None)
     audit(db, p, "lot_dispatch", "shipment", sh.id, {"lot": lot.id, "grade": body.grade, "to": body.destination_name}, request)
@@ -385,6 +391,16 @@ def start_script(name: str, body: ScriptIn, request: Request, p: Principal = Dep
     audit(db, p, "start_script", "lot", lot.id, {"script": name}, request)
     db.commit()
     return flow.lot_payload(db, lot, full=True)
+
+
+# ---------------- fixes approved by the farmer ----------------
+@router.post("/lots/{lot_id}/fixes/{cid}/approve")
+def approve_fix(lot_id: int, cid: int, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
+    lot = get_lot(db, lot_id, p)
+    res = _flow_call(flow.approve_fix, db, lot, cid)
+    audit(db, p, "approve_fix", "corrective_action", cid, {"lot": lot.id}, request)
+    db.commit()
+    return {**res, "lot": flow.lot_payload(db, lot, full=True)}
 
 
 # ---------------- assistant ----------------

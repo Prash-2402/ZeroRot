@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Bot, Crosshair, DoorOpen, Fan, Languages, LineChart, MapPin, PackageCheck, Plus, ScanLine, Search, Snowflake, Thermometer, Truck, Warehouse, Wind } from "lucide-react";
+import { Bell, Bot, Crosshair, DoorOpen, Fan, Languages, LineChart, MapPin, PackageCheck, Plus, Search, Snowflake, Thermometer, Truck, Warehouse, Wind } from "lucide-react";
 import { api, post } from "../lib/api";
 import { days, kg, num, qualityColor, tempColor } from "../lib/format";
 import { useAuth } from "../stores/auth";
@@ -10,7 +10,8 @@ import { ErrorBox, Spinner, cn } from "../components/ui";
 import { useLang, useT } from "./i18n";
 import { useStationLive } from "./usePhone";
 import { PredictTab } from "./PhonePredict";
-import { BagTab, HelpTab, TrackTab } from "./PhoneTrack";
+import { HelpTab, TrackTab } from "./PhoneTrack";
+import { post as postFix } from "../lib/api";
 
 export const CROPS = [
   { id: "tomato", name: "Tomato", kn: "ಟೊಮೆಟೊ", img: "/produce/tomato_fresh.jpg" },
@@ -262,7 +263,6 @@ const TABS = [
   { id: "entry", label: "New entry", icon: Plus },
   { id: "godown", label: "Godown", icon: Warehouse },
   { id: "predict", label: "Predict", icon: LineChart },
-  { id: "bag", label: "Scan & sort", icon: ScanLine },
   { id: "track", label: "Track", icon: Truck },
   { id: "help", label: "Help", icon: Bot },
 ] as const;
@@ -286,9 +286,9 @@ function App({ stationId }: { stationId: number }) {
     if (["delivered", "completed"].includes(e.kind)) setTab("track");
   }, [events]);
   const refresh = () => undefined;   // WebSocket pushes the new state within a second
-  const visible = TABS.filter((x) => x.id !== "bag" || lot?.mode === "advanced");
+  const visible = TABS;
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-paper text-ink shadow-[0_0_60px_rgba(10,38,36,0.12)]">
+    <div className="phone-ui mx-auto flex min-h-screen max-w-md flex-col bg-paper text-ink shadow-[0_0_60px_rgba(10,38,36,0.12)]">
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-paper-300 bg-paper/95 px-3 py-2 backdrop-blur">
         <div className="flex items-center gap-2"><img src="/logo.png" alt="ZERO ROT" className="h-8 w-auto" />
           <div className="leading-tight"><div className="flex items-center gap-1 text-[10px] text-ink-400"><span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-ok" : "bg-critical")} />{t("Live on laptop")}</div></div></div>
@@ -308,11 +308,21 @@ function App({ stationId }: { stationId: number }) {
         </div>
       )}
       <main className="flex-1">
+        {lot?.pending_fixes?.length > 0 && tab !== "entry" && (
+          <div className="m-3 space-y-2 rounded-2xl border-2 border-critical/50 bg-white p-3 shadow-lg">
+            <div className="text-xs font-bold uppercase tracking-wider text-critical">Needs your approval</div>
+            {lot.pending_fixes.map((f: any) => (
+              <div key={f.id} className="flex items-center justify-between gap-2 rounded-xl bg-paper-200 p-2">
+                <div className="min-w-0 text-xs"><b>{f.alert}</b> · {f.where}<div className="text-ink-400">{f.label}</div></div>
+                <button className="shrink-0 rounded-xl bg-teal px-3 py-2 text-xs font-bold text-white" onClick={() => postFix(`/flow/lots/${lot.id}/fixes/${f.id}/approve`, {}, true).catch(() => undefined)}>Approve</button>
+              </div>
+            ))}
+          </div>
+        )}
         {!state ? <div className="p-8 text-center"><Spinner /></div>
           : tab === "entry" || !lot ? <Entry onCreated={(id) => { setLotId(id); setTab("godown"); }} />
           : tab === "godown" ? <GodownTab lot={lot} refresh={refresh} />
           : tab === "predict" ? <PredictTab lot={lot} onDispatched={() => setTab("track")} />
-          : tab === "bag" ? <BagTab lot={lot} />
           : tab === "track" ? <TrackTab lot={lot} onHelp={() => setTab("help")} />
           : <HelpTab lot={lot} />}
       </main>

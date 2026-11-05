@@ -73,7 +73,10 @@ def test_auth_flow(H):
 
 def test_commodity_catalog_flags_onion():
     c = {x["id"]: x for x in client.get("/api/v1/commodities").json()["commodities"]}
-    assert set(c) == {"tomato", "mango", "banana", "potato", "onion"}
+    assert {"tomato", "mango", "banana", "potato", "onion", "rice", "wheat", "maize", "okra", "grapes"} <= set(c)
+    assert all(c[k]["prediction_supported"] for k in c if k != "onion")
+    # each crop has its own decay rate: grains keep far longer than leafy / soft produce
+    assert c["rice"]["storage"]["storage_life_days"] > 100 > c["okra"]["storage"]["storage_life_days"]
     assert c["onion"]["prediction_supported"] is False and "dormancy" in c["onion"]["prediction_note"]
 
 

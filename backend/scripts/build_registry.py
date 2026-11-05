@@ -252,6 +252,85 @@ def onion():
             "params": params}
 
 
+
+
+# ---------------- additional crops (generic builder) ----------------
+HB66 = {"title": "The Commercial Storage of Fruits, Vegetables, and Florist and Nursery Stocks (Agriculture Handbook 66)",
+        "publisher": "USDA Agricultural Research Service; K.C. Gross, C.Y. Wang, M. Saltveit (eds.)", "year": 2016,
+        "url": "https://www.ars.usda.gov/arsuserfiles/oc/np/commercialstorage/commercialstorage.pdf"}
+FAO_GRAIN = {"title": "Grain storage techniques: evolution and trends in developing countries (FAO Agricultural Services Bulletin 109)",
+             "publisher": "FAO; D.L. Proctor (ed.)", "year": 1994, "url": "https://www.fao.org/4/t1838e/t1838e00.htm"}
+HARRINGTON = {"title": "Seed storage and longevity (Harrington's rules of thumb)", "publisher": "J.F. Harrington, in Seed Biology vol. III, Academic Press",
+              "year": 1972, "url": None}
+
+
+def crop(prod, name, kn, t_ref, rh, life, life_rng, q10v, q10_src, q10_note, t_chill, chill_src, ethylene, eth_sens, varieties, src, conditions,
+         kw=0.004, grain=False, rh_hi_slope=0.08):
+    """Generic produce entry: t_ref, RH and storage life are published; k_ref is calibrated from the life; Q10 as documented."""
+    L = float(life)
+    k = k_from_life(L)
+    q10_cls = "derived" if q10_src is not NONE_SRC else "assumption"
+    params = [
+        p(f"{prod}.t_ref", "Reference storage temperature", t_ref, "degC", "operating_range", src, conditions, "Commercial storage", ""),
+        p(f"{prod}.rh_low", "Recommended RH lower bound", rh[0], "%", "operating_range", src, conditions, "Commercial storage", ""),
+        p(f"{prod}.rh_high", "Recommended RH upper bound", rh[1], "%", "operating_range", src, conditions, "Commercial storage", ""),
+        p(f"{prod}.storage_life", "Published storage life at T_ref", L, "days", "operating_range", src, conditions,
+          "Typical commercial lots", "Midpoint of the published range; cultivar and condition dependent.", None, list(life_rng)),
+        p(f"{prod}.k_ref", "Reference decay rate k_ref", round(k, 6), "1/day", "calibrated", src, f"Derived from {L:.0f}-day life at {t_ref} degC", "At T_ref",
+          "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
+          f"k_ref = ln(100/40)/{L:.0f} = {k:.5f} /day", [k_from_life(life_rng[1]), k_from_life(life_rng[0])]),
+        p(f"{prod}.q10", "Temperature coefficient Q10", q10v, "dimensionless", q10_cls, q10_src, q10_note, "Around T_ref to ambient",
+          "Rate assumed to scale with temperature by Q10 only.", None, [round(q10v * 0.8, 2), round(q10v * 1.2, 2)]),
+        p(f"{prod}.t_chill", "Chilling-injury threshold", t_chill, "degC", "experimental" if chill_src is src else "assumption", chill_src,
+          "Chilling-sensitive below this temperature" if t_chill > 0 else "Not chilling-sensitive; threshold set below freezing", "All", "Cultivar dependent."),
+        p(f"{prod}.e_crit", "Critical chilling exposure E_crit", 240.0, "degC.h", "assumption", NONE_SRC, "Assumed 5 degC below threshold for 2 days", "Below threshold", "Assumed."),
+        p(f"{prod}.m_turning", "Maturity multiplier (not applicable, set to 1)", 1.0, "x k_ref", "assumption", NONE_SRC, "Single maturity stage modelled", "", ""),
+        p(f"{prod}.m_ripe", "Maturity multiplier (not applicable, set to 1)", 1.0, "x k_ref", "assumption", NONE_SRC, "Single maturity stage modelled", "", ""),
+        p(f"{prod}.t_app_low", "Applicability: lowest temperature", min(t_ref, 0.0) if not grain else 10.0, "degC", "assumption", NONE_SRC, "", "", ""),
+        p(f"{prod}.t_app_high", "Applicability: highest temperature", 30.0 if not grain else 40.0, "degC", "assumption", NONE_SRC, "", "", ""),
+    ] + shared_assumptions(prod, kw, rh_hi_slope=rh_hi_slope)
+    return {"produce": prod, "display_name": name, "kannada": kn, "ethylene": ethylene, "ethylene_sensitive": eth_sens,
+            "default_price_per_kg": None, "varieties": varieties, "maturity_stages": ["mature_green"], "prediction_supported": True,
+            "category": "grain" if grain else "fresh", "params": params}
+
+
+Q10_TYPICAL = "Typical fresh-produce Q10 of 2-3 between 0 and 20 degC; value not crop-specific"
+EXTRA = [
+    lambda: crop("cabbage", "Cabbage", "ಎಲೆಕೋಸು", 0.0, (98, 100), 35, (21, 42), 2.5, NONE_SRC, Q10_TYPICAL, -0.5, NONE_SRC, "producer_low", True,
+                 ["Green", "Red", "Local"], HB66, "Early cabbage 0 degC, 98-100% RH, 3-6 weeks"),
+    lambda: crop("cauliflower", "Cauliflower", "ಹೂಕೋಸು", 0.0, (95, 98), 25, (21, 28), 2.5, NONE_SRC, Q10_TYPICAL, -0.5, NONE_SRC, "producer_low", True,
+                 ["Snowball", "Local"], HB66, "0 degC, 95-98% RH, 3-4 weeks"),
+    lambda: crop("carrot", "Carrot", "ಗಜ್ಜರಿ", 0.0, (98, 100), 35, (28, 42), 2.5, NONE_SRC, Q10_TYPICAL, -0.5, NONE_SRC, "producer_low", True,
+                 ["Ooty", "Local"], HB66, "Immature/bunched carrots 0 degC, 98-100% RH, 4-6 weeks (mature topped carrots keep months)"),
+    lambda: crop("brinjal", "Brinjal", "ಬದನೆಕಾಯಿ", 11.0, (90, 95), 10, (7, 14), 2.5, NONE_SRC, Q10_TYPICAL, 10.0, HB66, "producer_low", True,
+                 ["Purple long", "Green round", "Local"], HB66, "Eggplant 10-12 degC, 90-95% RH, 1-2 weeks; chilling injury below 10 degC"),
+    lambda: crop("okra", "Okra", "ಬೆಂಡೆಕಾಯಿ", 8.5, (90, 95), 8, (7, 10), 2.5, NONE_SRC, Q10_TYPICAL, 7.0, HB66, "producer_low", True,
+                 ["Local"], HB66, "7-10 degC, 90-95% RH, 7-10 days; chilling injury below 7 degC"),
+    lambda: crop("green_chilli", "Green chilli", "ಹಸಿಮೆಣಸಿನಕಾಯಿ", 8.5, (90, 95), 18, (14, 21), 2.5, NONE_SRC, Q10_TYPICAL, 7.0, HB66, "producer_low", True,
+                 ["Byadgi green", "Local"], HB66, "Hot peppers 7-10 degC, 90-95% RH, 2-3 weeks; chilling injury below 7 degC"),
+    lambda: crop("grapes", "Grapes", "ದ್ರಾಕ್ಷಿ", 0.0, (90, 95), 28, (14, 56), 2.5, NONE_SRC, Q10_TYPICAL, -1.0, NONE_SRC, "producer_low", False,
+                 ["Thompson Seedless", "Bangalore Blue", "Sharad"], HB66, "Table grapes -0.5 to 0 degC, 90-95% RH, 2-8 weeks (with SO2 pads)"),
+    lambda: crop("papaya", "Papaya", "ಪಪ್ಪಾಯಿ", 10.0, (85, 90), 14, (7, 21), 2.5, NONE_SRC, Q10_TYPICAL, 7.0, HB66, "producer_moderate", True,
+                 ["Red Lady", "Local"], HB66, "7-13 degC, 85-90% RH, 1-3 weeks; chilling injury below 7 degC"),
+    lambda: crop("pomegranate", "Pomegranate", "ದಾಳಿಂಬೆ", 6.0, (90, 95), 75, (60, 90), 2.5, NONE_SRC, Q10_TYPICAL, 5.0, HB66, "producer_low", False,
+                 ["Bhagwa", "Ganesh"], HB66, "5-7 degC, 90-95% RH, 2-3 months; chilling injury below 5 degC"),
+    lambda: crop("orange", "Orange", "ಕಿತ್ತಳೆ", 6.0, (85, 90), 40, (21, 56), 2.5, NONE_SRC, Q10_TYPICAL, 3.0, HB66, "producer_low", False,
+                 ["Coorg mandarin", "Nagpur"], HB66, "3-9 degC, 85-90% RH, 3-8 weeks"),
+    lambda: crop("rice", "Rice (paddy)", "ಭತ್ತ", 25.0, (60, 70), 270, (180, 365), 4.0, HARRINGTON,
+                 "Harrington's rule: storage life halves for each 5 degC rise (0-50 degC) -> Q10 = 2^(10/5) = 4", -5.0, NONE_SRC, "none", False,
+                 ["Sona Masuri", "IR-64", "Local"], FAO_GRAIN, "Dry paddy (about 14% moisture) in cool, dry godowns; safe storage roughly 6-12 months",
+                 kw=0.0002, grain=True, rh_hi_slope=0.15),
+    lambda: crop("wheat", "Wheat", "ಗೋಧಿ", 25.0, (60, 70), 365, (270, 540), 4.0, HARRINGTON,
+                 "Harrington's rule: storage life halves for each 5 degC rise (0-50 degC) -> Q10 = 2^(10/5) = 4", -5.0, NONE_SRC, "none", False,
+                 ["Lokwan", "Sharbati", "Local"], FAO_GRAIN, "Dry wheat (about 12% moisture); safe storage 9-18 months in sound godowns",
+                 kw=0.0002, grain=True, rh_hi_slope=0.15),
+    lambda: crop("maize", "Maize", "ಮೆಕ್ಕೆಜೋಳ", 25.0, (60, 70), 240, (180, 365), 4.0, HARRINGTON,
+                 "Harrington's rule: storage life halves for each 5 degC rise (0-50 degC) -> Q10 = 2^(10/5) = 4", -5.0, NONE_SRC, "none", False,
+                 ["Hybrid", "Local"], FAO_GRAIN, "Dry shelled maize (about 13% moisture); safe storage 6-12 months",
+                 kw=0.0002, grain=True, rh_hi_slope=0.15),
+]
+
+
 PENDING_REFS = [
     ("Mango (journal article)", "https://ccsenet.org/journal/index.php/jas/article/view/66567"),
     ("Mango (ICAR IJAgS)", "https://epubs.icar.org.in/index.php/IJAgS/article/download/101489/39854/340992"),
@@ -264,7 +343,7 @@ PENDING_REFS = [
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     DOCS.mkdir(parents=True, exist_ok=True)
-    regs = [tomato(), mango(), banana(), potato(), onion()]
+    regs = [tomato(), mango(), banana(), potato(), onion()] + [f() for f in EXTRA]
     lines = [f"# ZERO ROT parameter evidence audit (registry v{VERSION}, reviewed {REVIEWED})", "",
              "Generated by `backend/scripts/build_registry.py`. Every coefficient used by the decay engine is listed with its value, source, conditions, classification and limitations.", "",
              "**Calibration caveat.** `k_ref` is calibrated so that quality falls from 100 to the minimum sellable score (40) exactly at the published storage life. "

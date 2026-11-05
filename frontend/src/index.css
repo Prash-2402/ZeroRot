@@ -46,3 +46,10 @@ input[type="range"] { accent-color: #FF684A; }
 .world-ui .chip, .world-ui span[class*="px-1.5"] { border-radius: 9999px; }
 .world-ui img { border-radius: 8px; }
 .world-ui [class*="h-1.5"] { border-radius: 9999px; }
+
+/* phone: curved edges and depth */
+.phone-ui :is(button, input, select, textarea) { border-radius: 12px; }
+.phone-ui :is(div, label, section)[class*="border"] { border-radius: 16px; }
+.phone-ui div[class*="bg-white"] { box-shadow: 0 1px 2px rgba(10,38,36,.06), 0 6px 18px rgba(10,38,36,.06); }
+.phone-ui [class*="h-2 "] { border-radius: 9999px; }
+.phone-ui nav, .phone-ui header { border-radius: 0; }

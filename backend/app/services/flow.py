@@ -116,8 +116,139 @@ def on_sim_actions(db: Session, sim: Simulation, actions: list[dict]):
         add_event(db, lot, "auto_" + a["action"], ACTION_TITLE.get(a["action"], "Auto-control action"), a["reason"], severity="INFO", sim_id=sim.id)
 
 
+FIX_LABEL = {
+    "restore_cooling": "Repair the cooling unit (send technician)", "activate_backup_cooling": "Switch on backup cooling",
+    "close_door": "Close the door", "adjust_setpoint": "Lower the setpoint by 1 °C", "raise_setpoint": "Raise the setpoint by 1 °C",
+    "ventilate": "Increase ventilation", "open_vents": "Open the vents", "increase_humidity": "Raise humidity setpoint",
+    "reduce_humidity": "Fix humidifier and ventilate", "replan_route": "Take an alternative road", "prioritise_batch": "Sell sooner (open the decision)",
+}
+
+
+def _fixes_for(sim: Simulation, a) -> list[str]:
+    """Which fixes to offer for an alert. Traditional godowns have no cooling, so heat alerts can only be answered by selling sooner."""
+    kind = sim.kind
+    code = a.code
+    if code == "COOLING_FAILURE":
+        return ["restore_cooling", "activate_backup_cooling"]
+    if code == "DOOR_OPEN":
+        return ["close_door"]
+    if code == "TEMP_EXCURSION":
+        return ["prioritise_batch"] if kind == "traditional_storage" else ["adjust_setpoint", "restore_cooling"]
+    if code == "CHILLING_RISK":
+        return ["raise_setpoint"]
+    if code == "GAS_ABNORMAL":
+        return ["open_vents"] if kind == "traditional_storage" else ["ventilate"]
+    if code == "HUMIDITY_DEVIATION":
+        low = (a.reading or {}).get("rh_pct", 100) < (a.expected or {}).get("min_pct", 0)
+        if kind == "traditional_storage":
+            return [] if low else ["open_vents"]
+        return ["increase_humidity"] if low else ["reduce_humidity"]
+    if code == "ROUTE_DELAY":
+        return ["replan_route"]
+    if code in ("SPOILAGE_RISK", "ABNORMAL_DETERIORATION"):
+        return ["prioritise_batch"]
+    return []
+
+
+def _ensure_fixes(db: Session, sim: Simulation, a) -> list[dict]:
+    from app.db.models import CorrectiveAction
+    existing = {c.action: c for c in db.scalars(select(CorrectiveAction).where(CorrectiveAction.alert_id == a.id)).all()}
+    out = []
+    for act in _fixes_for(sim, a):
+        c = existing.get(act)
+        if c is None:
+            c = CorrectiveAction(alert_id=a.id, simulation_id=sim.id, action=act, reason=a.recommendation or "", parameters={"label": FIX_LABEL.get(act)},
+                                 automatic=False, applied=False)
+            db.add(c)
+            db.flush()
+        out.append({"id": c.id, "action": act, "label": FIX_LABEL.get(act, act)})
+    return out
+
+
+def pending_fixes(db: Session, lot: Lot) -> list[dict]:
+    from app.db.models import CorrectiveAction
+    sims = {lot.storage_sim_id: "godown"} if lot.stage in ("intake", "storage") else {}
+    for sh in db.scalars(select(Shipment).where(Shipment.lot_id == lot.id, Shipment.status == "in_transit")).all():
+        sims[sh.simulation_id] = f"truck {sh.grade if sh.grade != 'ALL' else ''}".strip()
+    out = []
+    for sid, where in sims.items():
+        seen = set()
+        for c in db.execute(select(CorrectiveAction, Alert).join(Alert, Alert.id == CorrectiveAction.alert_id)
+                            .where(CorrectiveAction.simulation_id == sid, CorrectiveAction.applied == False, CorrectiveAction.automatic == False,  # noqa: E712
+                                   Alert.status == "open").order_by(CorrectiveAction.id.desc())).all() if sid else []:
+            ca, al = c
+            if ca.action in seen or ca.action not in FIX_LABEL:
+                continue
+            seen.add(ca.action)
+            out.append({"id": ca.id, "action": ca.action, "label": FIX_LABEL[ca.action], "where": where, "alert": al.title, "severity": al.severity,
+                        "message": al.message})
+    return out
+
+
+def approve_fix(db: Session, lot: Lot, cid: int) -> dict:
+    from app.db.models import CorrectiveAction
+    from app.engine.registry import get_produce as gp
+    c = db.get(CorrectiveAction, cid)
+    if c is None or c.simulation_id is None:
+        raise FlowError(404, "not_found", "Fix not found")
+    sh = db.scalars(select(Shipment).where(Shipment.simulation_id == c.simulation_id)).first()
+    if not (c.simulation_id == lot.storage_sim_id or (sh is not None and sh.lot_id == lot.id)):
+        raise FlowError(404, "not_found", "Fix not found")
+    if c.applied:
+        return {"applied": True, "message": "Already applied"}
+    sim, rt = _runtime(db, c.simulation_id)
+    if rt is None:
+        raise FlowError(409, "no_state", "Simulation not available")
+    eq, act = rt.s.equipment, c.action
+    msg = None
+    with _manager().lock:
+        if act == "restore_cooling":
+            eq.cooling_failed, eq.refrigeration_on, eq.cooling_efficiency = False, True, 1.0
+            rt.s.faults = [f for f in rt.s.faults if f not in ("cooling_failure", "refrigeration_failure", "cooling_degradation")]
+            msg = "Technician repaired the cooling unit; full capacity restored."
+        elif act == "activate_backup_cooling":
+            eq.backup_cooling = True
+            msg = "Backup cooling switched on (about 50% of rated capacity)."
+        elif act == "close_door":
+            eq.door_open = False
+            rt.s.faults = [f for f in rt.s.faults if f != "door_open"]
+            msg = "Door closed."
+        elif act in ("adjust_setpoint", "raise_setpoint") and eq.setpoint is not None:
+            safe = gp(rt.s.produce.commodity).v("t_chill") + 0.5
+            eq.setpoint = round(max(safe, eq.setpoint - 1.0), 2) if act == "adjust_setpoint" else round(eq.setpoint + 1.0, 2)
+            msg = f"Setpoint now {eq.setpoint:.1f} °C."
+        elif act == "ventilate":
+            eq.fresh_air_ach = max(eq.fresh_air_ach or 0.0, 4.0)
+            msg = "Fresh-air ventilation increased to 4 air changes/h."
+        elif act == "open_vents":
+            eq.vents_open = True
+            rt.s.faults = [f for f in rt.s.faults if f != "vents_closed"]
+            msg = "Vents opened."
+        elif act == "increase_humidity" and eq.rh_setpoint is not None:
+            eq.rh_setpoint = min(98.0, eq.rh_setpoint + 3.0)
+            msg = f"Humidity setpoint raised to {eq.rh_setpoint:.0f}%."
+        elif act == "reduce_humidity":
+            eq.humidifier_fault = False
+            eq.fresh_air_ach = max(eq.fresh_air_ach or 0.0, 2.0)
+            rt.s.faults = [f for f in rt.s.faults if f != "humidity_deviation"]
+            msg = "Humidifier fixed and ventilation increased."
+    if act == "replan_route" and sh is not None:
+        info = reroute(db, sh, "Delay ahead")
+        msg = f"Alternative road taken: {info['new_remaining_km']:.1f} km to go."
+    if act == "prioritise_batch":
+        msg = "Open Predict → Decision to sell sooner."
+    if msg is None:
+        raise FlowError(422, "not_applicable", "This fix cannot be applied here")
+    if sim.scenario and act in ("restore_cooling", "close_door", "open_vents", "reduce_humidity"):
+        sim.scenario = None
+    c.applied = True
+    add_event(db, lot, "fix_applied", f"Fix approved: {FIX_LABEL.get(act, act)}", msg, sim_id=sim.id)
+    db.commit()
+    return {"applied": True, "message": msg}
+
+
 def on_sim_alerts(db: Session, sim: Simulation, alerts: list):
-    """Forward physics alerts of a lot's simulations to its station (phone + laptop)."""
+    """Forward physics alerts of a lot's simulations to its station (phone + laptop), with the fixes the farmer can approve."""
     lot = db.scalars(select(Lot).where((Lot.storage_sim_id == sim.id))).first()
     if lot is None:
         sh = db.scalars(select(Shipment).where(Shipment.simulation_id == sim.id)).first()
@@ -125,8 +256,14 @@ def on_sim_alerts(db: Session, sim: Simulation, alerts: list):
     if lot is None or not lot.station_id:
         return
     for a in alerts:
+        fixes = _ensure_fixes(db, sim, a) if a.severity != "INFO" else []
         ev = {"at": datetime.utcnow().isoformat(timespec="seconds"), "sim_time": None, "kind": a.code.lower(), "title": a.title,
-              "message": a.message, "severity": a.severity, "recommendation": a.recommendation}
+              "message": a.message, "severity": a.severity, "recommendation": a.recommendation, "fixes": fixes}
+        if fixes:
+            for s_ in db.scalars(select(NotificationSubscription).where(NotificationSubscription.active == True,  # noqa: E712
+                                                                        NotificationSubscription.qr_session_id == lot.station_id)).all():
+                push.send({"endpoint": s_.endpoint, "keys": {"p256dh": s_.p256dh, "auth": s_.auth}},
+                          {"title": f"ZERO ROT · {a.title}", "body": f"{a.message} Tap to approve a fix.", "url": "/", "tag": f"fix-{a.id}"})
         lot.events = (list(lot.events or []) + [ev])[-120:]
         hub.publish(f"station:{lot.station_id}", {"type": "event", "lot_id": lot.id, "event": ev})
 
@@ -487,6 +624,25 @@ def _name_checkpoints_async(shipment_id: int):
     threading.Thread(target=work, daemon=True).start()
 
 
+def scan_then_dispatch(db: Session, lot: Lot, dest_name: str, dest_lat: float, dest_lng: float, plan: dict | None = None) -> dict:
+    """Advanced lots never leave unsorted: scanning starts now and each grade ships automatically when sorting finishes.
+    Default plan: A1 and A2 to the chosen market, A3 to the nearest local market (low-budget outlet)."""
+    b = db.get(ProduceBatch, lot.batch_id)
+    chosen = {"name": dest_name, "lat": dest_lat, "lng": dest_lng}
+    if not plan:
+        towns = [t for t in market_towns(b.lat, b.lng) if t["name"] != dest_name]
+        local = towns[0] if towns else None
+        plan = {"A1": chosen, "A2": chosen, "A3": ({"name": local["name"], "lat": local["lat"], "lng": local["lng"]} if local else chosen)}
+    g = scan(db, lot)
+    g = dict(lot.grading)
+    g["pending_dispatch"] = plan
+    lot.grading = g
+    add_event(db, lot, "scan_before_dispatch", "Sorting before dispatch",
+              f"Advanced lots are scanned and boxed first. Then A1 → {plan['A1']['name']}, A2 → {plan['A2']['name']}, A3 → {plan['A3']['name']}.", push_it=False)
+    db.commit()
+    return g
+
+
 def dispatch(db: Session, lot: Lot, *, grade: str, dest_name: str, dest_lat: float, dest_lng: float, user_id: int | None) -> Shipment:
     if lot.stage not in ("storage", "graded"):
         raise FlowError(409, "wrong_stage", f"Lot is in stage '{lot.stage}'; it can be dispatched from the godown or after bagging")
@@ -808,8 +964,20 @@ def _tick_lot(db: Session, lot: Lot, dt_real: float):
             g["bags_filled"] = dict(g["bags"])
             lot.grading = g
             lot.stage = "graded"
+            plan = g.get("pending_dispatch")
             add_event(db, lot, "bagged", "Sorting complete", f"{g['bags']['A1']} A1, {g['bags']['A2']} A2 and {g['bags']['A3']} A3 boxes ready "
-                      f"({g['kg']['rejected']:.0f} kg rejected). Open Predict to choose where to sell each grade.")
+                      f"({g['kg']['rejected']:.0f} kg rejected). " + ("Trucks are leaving now." if plan else "Open Predict to choose where to sell each grade."))
+            if plan:
+                g2 = dict(lot.grading)
+                g2.pop("pending_dispatch", None)
+                lot.grading = g2
+                for grade in GRADES:
+                    if g["kg"].get(grade, 0) > 0 and grade in plan:
+                        d = plan[grade]
+                        try:
+                            dispatch(db, lot, grade=grade, dest_name=d["name"], dest_lat=d["lat"], dest_lng=d["lng"], user_id=None)
+                        except FlowError as e:
+                            add_event(db, lot, "dispatch_failed", f"{grade} not dispatched", e.message, severity="WARNING")
     if lot.stage in ("graded", "dispatched", "arrived"):
         ships = db.scalars(select(Shipment).where(Shipment.lot_id == lot.id, Shipment.status != "cancelled")).all()
         for sh in ships:
@@ -864,7 +1032,7 @@ def lot_payload(db: Session, lot: Lot, full: bool = False) -> dict:
     out = {"id": lot.id, "code": b.code, "commodity": b.commodity_id, "quantity_kg": b.quantity_kg, "initial_quality": b.initial_quality,
            "maturity": b.maturity, "location": {"name": b.location_name, "lat": b.lat, "lng": b.lng}, "mode": lot.mode, "stage": lot.stage,
            "speed": lot.speed, "paused": lot.paused, "grading": lot.grading, "decision": lot.decision, "events": (lot.events or [])[-30:],
-           "created_at": lot.created_at.isoformat(timespec="seconds"), "storage": None, "shipments": [],
+           "created_at": lot.created_at.isoformat(timespec="seconds"), "storage": None, "shipments": [], "pending_fixes": pending_fixes(db, lot),
            "script": ({"name": lot.script["name"], "title": SCRIPTS[lot.script["name"]]["title"], "step": lot.script["idx"],
                        "steps": len(SCRIPTS[lot.script["name"]]["steps"]), "done": lot.script["done"]} if lot.script else None)}
     sim, rt = _runtime(db, lot.storage_sim_id)

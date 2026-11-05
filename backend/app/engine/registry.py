@@ -10,7 +10,8 @@ import numpy as np
 
 PARAM_DIR = pathlib.Path(__file__).resolve().parents[3] / "data" / "parameters"
 CLASS_SCORE = {"experimental": 1.0, "operating_range": 0.8, "derived": 0.7, "calibrated": 0.4, "assumption": 0.4, "demo": 0.2}
-SUPPORTED = ("tomato", "mango", "banana", "potato")  # onion: catalogued, prediction not supported
+SUPPORTED = ("tomato", "mango", "banana", "potato", "cabbage", "cauliflower", "carrot", "brinjal", "okra", "green_chilli",
+             "grapes", "papaya", "pomegranate", "orange", "rice", "wheat", "maize")  # onion: catalogued, prediction not supported
 # Parameters that the decay engine actually uses (for the confidence P factor and the twin's "parameters used" panel)
 USED = ["t_ref", "rh_low", "rh_high", "k_ref", "q10", "t_chill", "e_crit", "chill_gamma", "h_low_slope", "h_high_slope", "kw", "r0", "q_rot"]
 

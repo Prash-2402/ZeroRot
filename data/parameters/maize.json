@@ -1,0 +1,459 @@
+{
+  "produce": "maize",
+  "display_name": "Maize",
+  "kannada": "ಮೆಕ್ಕೆಜೋಳ",
+  "ethylene": "none",
+  "ethylene_sensitive": false,
+  "default_price_per_kg": null,
+  "varieties": [
+    "Hybrid",
+    "Local"
+  ],
+  "maturity_stages": [
+    "mature_green"
+  ],
+  "prediction_supported": true,
+  "category": "grain",
+  "params": [
+    {
+      "id": "maize.t_ref",
+      "name": "Reference storage temperature",
+      "value": 25.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Grain storage techniques: evolution and trends in developing countries (FAO Agricultural Services Bulletin 109)",
+        "publisher": "FAO; D.L. Proctor (ed.)",
+        "year": 1994,
+        "url": "https://www.fao.org/4/t1838e/t1838e00.htm"
+      },
+      "conditions": "Dry shelled maize (about 13% moisture); safe storage 6-12 months",
+      "applicability": "Commercial storage",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.rh_low",
+      "name": "Recommended RH lower bound",
+      "value": 60,
+      "range": null,
+      "unit": "%",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Grain storage techniques: evolution and trends in developing countries (FAO Agricultural Services Bulletin 109)",
+        "publisher": "FAO; D.L. Proctor (ed.)",
+        "year": 1994,
+        "url": "https://www.fao.org/4/t1838e/t1838e00.htm"
+      },
+      "conditions": "Dry shelled maize (about 13% moisture); safe storage 6-12 months",
+      "applicability": "Commercial storage",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.rh_high",
+      "name": "Recommended RH upper bound",
+      "value": 70,
+      "range": null,
+      "unit": "%",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Grain storage techniques: evolution and trends in developing countries (FAO Agricultural Services Bulletin 109)",
+        "publisher": "FAO; D.L. Proctor (ed.)",
+        "year": 1994,
+        "url": "https://www.fao.org/4/t1838e/t1838e00.htm"
+      },
+      "conditions": "Dry shelled maize (about 13% moisture); safe storage 6-12 months",
+      "applicability": "Commercial storage",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.storage_life",
+      "name": "Published storage life at T_ref",
+      "value": 240.0,
+      "range": [
+        180,
+        365
+      ],
+      "unit": "days",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Grain storage techniques: evolution and trends in developing countries (FAO Agricultural Services Bulletin 109)",
+        "publisher": "FAO; D.L. Proctor (ed.)",
+        "year": 1994,
+        "url": "https://www.fao.org/4/t1838e/t1838e00.htm"
+      },
+      "conditions": "Dry shelled maize (about 13% moisture); safe storage 6-12 months",
+      "applicability": "Typical commercial lots",
+      "limitations": "Midpoint of the published range; cultivar and condition dependent.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.k_ref",
+      "name": "Reference decay rate k_ref",
+      "value": 0.003818,
+      "range": [
+        0.0025103855667785073,
+        0.005090504065967528
+      ],
+      "unit": "1/day",
+      "classification": "calibrated",
+      "classification_label": "Calibrated demonstration assumption",
+      "source": {
+        "title": "Grain storage techniques: evolution and trends in developing countries (FAO Agricultural Services Bulletin 109)",
+        "publisher": "FAO; D.L. Proctor (ed.)",
+        "year": 1994,
+        "url": "https://www.fao.org/4/t1838e/t1838e00.htm"
+      },
+      "conditions": "Derived from 240-day life at 25.0 degC",
+      "applicability": "At T_ref",
+      "limitations": "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
+      "derivation": "k_ref = ln(100/40)/240 = 0.00382 /day",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.q10",
+      "name": "Temperature coefficient Q10",
+      "value": 4.0,
+      "range": [
+        3.2,
+        4.8
+      ],
+      "unit": "dimensionless",
+      "classification": "derived",
+      "classification_label": "Derived parameter",
+      "source": {
+        "title": "Seed storage and longevity (Harrington's rules of thumb)",
+        "publisher": "J.F. Harrington, in Seed Biology vol. III, Academic Press",
+        "year": 1972,
+        "url": null
+      },
+      "conditions": "Harrington's rule: storage life halves for each 5 degC rise (0-50 degC) -> Q10 = 2^(10/5) = 4",
+      "applicability": "Around T_ref to ambient",
+      "limitations": "Rate assumed to scale with temperature by Q10 only.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.t_chill",
+      "name": "Chilling-injury threshold",
+      "value": -5.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Not chilling-sensitive; threshold set below freezing",
+      "applicability": "All",
+      "limitations": "Cultivar dependent.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.e_crit",
+      "name": "Critical chilling exposure E_crit",
+      "value": 240.0,
+      "range": null,
+      "unit": "degC.h",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Assumed 5 degC below threshold for 2 days",
+      "applicability": "Below threshold",
+      "limitations": "Assumed.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.m_turning",
+      "name": "Maturity multiplier (not applicable, set to 1)",
+      "value": 1.0,
+      "range": null,
+      "unit": "x k_ref",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Single maturity stage modelled",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.m_ripe",
+      "name": "Maturity multiplier (not applicable, set to 1)",
+      "value": 1.0,
+      "range": null,
+      "unit": "x k_ref",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Single maturity stage modelled",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.t_app_low",
+      "name": "Applicability: lowest temperature",
+      "value": 10.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.t_app_high",
+      "name": "Applicability: highest temperature",
+      "value": 40.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.h_low_slope",
+      "name": "Humidity penalty slope below recommended RH",
+      "value": 0.008,
+      "range": [
+        0.0056,
+        0.010400000000000001
+      ],
+      "unit": "per %RH",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Applied linearly per %RH below the published RH range.",
+      "applicability": "Any RH below range",
+      "limitations": "Shape not fitted to data; anchor (range edge) is published, slope is assumed. Kept small because moisture loss itself is tracked separately as weight loss W.",
+      "derivation": "h(RH) = 1 + slope x (RH_low - RH) for RH < RH_low",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.h_high_slope",
+      "name": "Humidity penalty slope above recommended RH (rot / condensation)",
+      "value": 0.15,
+      "range": [
+        0.105,
+        0.195
+      ],
+      "unit": "per %RH",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Applied linearly per %RH above the published RH range.",
+      "applicability": "RH above range",
+      "limitations": "Shape not fitted to data.",
+      "derivation": "h(RH) = 1 + slope x (RH - RH_high) for RH > RH_high",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.chill_gamma",
+      "name": "Chilling penalty strength",
+      "value": 1.5,
+      "range": [
+        1.0499999999999998,
+        1.9500000000000002
+      ],
+      "unit": "dimensionless",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "c = 1 + gamma x min(E / E_crit, 3), E = cumulative degree-hours below chilling threshold.",
+      "applicability": "After any chilling exposure",
+      "limitations": "Penalty shape is assumed; real chilling injury often appears after transfer to warm conditions.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.kw",
+      "name": "Weight-loss coefficient (transpiration)",
+      "value": 0.0002,
+      "range": null,
+      "unit": "fraction / day / kPa VPD",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "dW/dt = kw x VPD(T, RH) x (1 - W)",
+      "applicability": "Whole fruit, unpackaged",
+      "limitations": "Not from a measured transpiration coefficient; order of magnitude only.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.r0",
+      "name": "Rot onset rate below Q_rot",
+      "value": 0.25,
+      "range": null,
+      "unit": "fraction / day",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "dR/dt = r0 x max(0, (Q_rot - Q)/Q_rot) x (1 + 0.1 x max(0, RH - RH_high)) + heat and chilling terms",
+      "applicability": "All conditions",
+      "limitations": "Rejection dynamics assumed; not fitted.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.q_rot",
+      "name": "Quality at which rot rejection begins",
+      "value": 60.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Rejection starts accumulating when Q falls below this value.",
+      "applicability": "All conditions",
+      "limitations": "Assumed threshold.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.r_heat",
+      "name": "Heat-excursion rejection rate",
+      "value": 0.004,
+      "range": null,
+      "unit": "fraction / day / degC above T_ref+12",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Extra rejection while temperature exceeds T_ref + 12 degC.",
+      "applicability": "Excursions",
+      "limitations": "Assumed.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.q_min",
+      "name": "Minimum sellable quality",
+      "value": 40.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "demo",
+      "classification_label": "Unvalidated demo parameter",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Quality score below which a unit is unsellable (category Unsellable < 40).",
+      "applicability": "All",
+      "limitations": "Scale is a ZERO ROT index, not a grading standard.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "maize.min_arrival_quality",
+      "name": "Minimum market grade on arrival",
+      "value": 55.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "demo",
+      "classification_label": "Unvalidated demo parameter",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Ship/store options must keep quality at or above this value.",
+      "applicability": "All",
+      "limitations": "Demo default, configurable.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    }
+  ],
+  "version": "1.0.0",
+  "last_reviewed": "2026-11-05"
+}

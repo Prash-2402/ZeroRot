@@ -281,3 +281,34 @@ def test_sample_situations_play_to_the_end(H, monkeypatch, name):
         assert {sh["grade"] for sh in s["shipments"]} == {"A1", "A2", "A3"}
     else:
         assert s["shipments"][0]["grade"] == "ALL" and s["shipments"][0]["live"]["refrigerated"] is False
+
+
+def test_advanced_dispatch_scans_first_and_fixes_need_approval(H, monkeypatch):
+    monkeypatch.setattr(weather, "geocode", _geocode)
+    from app.services import flow as flow_svc
+    flow_svc._geo_cache.clear()
+    _, P = pair(H)
+    lot = client.post("/api/v1/flow/lots", headers=P, json={"commodity": "grapes", "quantity_kg": 800, "mode": "advanced", "lat": KOLAR[0],
+                                                            "lng": KOLAR[1], "location_name": "Kolar", "speed": 600}).json()
+    step(P, lot["id"], 1800)
+    # cooling failure -> alert with fixes offered to the farmer
+    client.post(f"/api/v1/flow/lots/{lot['id']}/scenario", headers=P, json={"scenario": "cooling_failure"})
+    s = step(P, lot["id"], 1200)
+    fixes = s["pending_fixes"]
+    assert any(f["action"] == "restore_cooling" for f in fixes), fixes
+    ev = next(e for e in reversed(s["events"]) if e["kind"] == "cooling_failure")
+    assert ev["fixes"]
+    fid = next(f["id"] for f in fixes if f["action"] == "restore_cooling")
+    r = client.post(f"/api/v1/flow/lots/{lot['id']}/fixes/{fid}/approve", headers=P)
+    assert r.status_code == 200, r.text
+    after = r.json()["lot"]
+    assert after["storage"]["equipment"]["cooling_failed"] is False and "cooling_failure" not in after["storage"]["faults"]
+    assert any(e["kind"] == "fix_applied" for e in after["events"])
+    # dispatching an advanced lot from the godown scans and sorts first, then ships each grade automatically
+    r = client.post(f"/api/v1/flow/lots/{lot['id']}/dispatch", headers=P, json={"destination_name": "Bengaluru APMC", "lat": BLR[0], "lng": BLR[1]})
+    assert r.status_code == 201, r.text
+    j = r.json()
+    assert j["stage"] == "grading" and not j["shipments"] and j["grading"]["pending_dispatch"]["A1"]["name"] == "Bengaluru APMC"
+    s = step(P, lot["id"], j["grading"]["total_kg"] / 1500 * 3600 + 120)
+    assert s["stage"] in ("graded", "dispatched") and s["shipments"]
+    assert {sh["grade"] for sh in s["shipments"]} <= {"A1", "A2", "A3"} and all(sh["live"]["refrigerated"] for sh in s["shipments"])

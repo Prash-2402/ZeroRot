@@ -54,6 +54,10 @@ def reference_rate(commodity: str, maturity: str | None) -> float:
 def predict(p: ProduceState, t: float, rh: float, remaining_planned_h: float, seed_key: str, draws: int = 200, horizon_h: int = 720) -> dict:
     """Shelf life if current conditions persist; P10-P90 band and spoilage probability over the planned remaining time."""
     pp = get_produce(p.commodity)
+    # look far enough ahead for long-keeping crops (grains, pomegranate): 1.3 x published life, 30 days to ~13 months
+    horizon_h = int(min(9600, max(horizon_h, pp.v("storage_life") * 24 * 1.3)))
+    if horizon_h > 1500:   # keep the Monte Carlo cost roughly constant for long horizons
+        draws = max(40, int(draws * 1500 / horizon_h))
     temps = np.full(horizon_h, float(t))
     rhs = np.full(horizon_h, float(rh))
     s0 = DecayState(q=p.q, w=p.w, r=p.r, e=p.e)

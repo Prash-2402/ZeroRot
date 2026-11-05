@@ -17,6 +17,25 @@ COMMODITY_PHYSICS = {
     "potato": {"resp_ref": 9.0, "resp_t": 10.0, "o2_min": 5.0, "o2_critical": 1.5, "co2_max": 10.0, "co2_critical": 12.0, "cp": 3600.0,
                "source": "UC Davis potato: respiration 7-11 at 10 degC; wound healing delayed below 5% O2; injury below 1.5% O2 or above 10% CO2"},
 }
+_APPROX = "Approximate respiration and gas tolerance from USDA Agriculture Handbook 66 respiration tables (order of magnitude)"
+COMMODITY_PHYSICS.update({
+    "cabbage": {"resp_ref": 12.0, "resp_t": 10.0, "o2_min": 2.0, "o2_critical": 1.0, "co2_max": 6.0, "co2_critical": 10.0, "cp": 3900.0, "source": _APPROX},
+    "cauliflower": {"resp_ref": 25.0, "resp_t": 10.0, "o2_min": 2.0, "o2_critical": 1.0, "co2_max": 5.0, "co2_critical": 8.0, "cp": 3900.0, "source": _APPROX},
+    "carrot": {"resp_ref": 15.0, "resp_t": 10.0, "o2_min": 3.0, "o2_critical": 1.0, "co2_max": 5.0, "co2_critical": 8.0, "cp": 3800.0, "source": _APPROX},
+    "brinjal": {"resp_ref": 30.0, "resp_t": 12.5, "o2_min": 3.0, "o2_critical": 1.0, "co2_max": 5.0, "co2_critical": 8.0, "cp": 3900.0, "source": _APPROX},
+    "okra": {"resp_ref": 45.0, "resp_t": 10.0, "o2_min": 3.0, "o2_critical": 1.0, "co2_max": 8.0, "co2_critical": 12.0, "cp": 3800.0, "source": _APPROX},
+    "green_chilli": {"resp_ref": 15.0, "resp_t": 10.0, "o2_min": 3.0, "o2_critical": 1.0, "co2_max": 5.0, "co2_critical": 8.0, "cp": 3800.0, "source": _APPROX},
+    "grapes": {"resp_ref": 6.0, "resp_t": 10.0, "o2_min": 2.0, "o2_critical": 1.0, "co2_max": 5.0, "co2_critical": 10.0, "cp": 3600.0, "source": _APPROX},
+    "papaya": {"resp_ref": 10.0, "resp_t": 13.0, "o2_min": 2.0, "o2_critical": 1.0, "co2_max": 5.0, "co2_critical": 8.0, "cp": 3800.0, "source": _APPROX},
+    "pomegranate": {"resp_ref": 6.0, "resp_t": 10.0, "o2_min": 3.0, "o2_critical": 1.0, "co2_max": 10.0, "co2_critical": 15.0, "cp": 3600.0, "source": _APPROX},
+    "orange": {"resp_ref": 6.0, "resp_t": 10.0, "o2_min": 5.0, "o2_critical": 2.0, "co2_max": 5.0, "co2_critical": 8.0, "cp": 3700.0, "source": _APPROX},
+    "rice": {"resp_ref": 0.05, "resp_t": 25.0, "o2_min": 1.0, "o2_critical": 0.5, "co2_max": 20.0, "co2_critical": 40.0, "cp": 1700.0,
+             "source": "Dry grain respiration is very low (order 0.01-0.1 mL CO2/kg.h at safe moisture); grain is tolerant of low O2 / high CO2 (hermetic storage)"},
+    "wheat": {"resp_ref": 0.03, "resp_t": 25.0, "o2_min": 1.0, "o2_critical": 0.5, "co2_max": 20.0, "co2_critical": 40.0, "cp": 1600.0,
+              "source": "Dry grain respiration is very low at about 12% moisture; tolerant of hermetic conditions"},
+    "maize": {"resp_ref": 0.05, "resp_t": 25.0, "o2_min": 1.0, "o2_critical": 0.5, "co2_max": 20.0, "co2_critical": 40.0, "cp": 1700.0,
+              "source": "Dry grain respiration is very low at about 13% moisture; tolerant of hermetic conditions"},
+})
 W_PER_ML_CO2 = 0.00591  # W/kg per (mL CO2/kg.h)
 
 
