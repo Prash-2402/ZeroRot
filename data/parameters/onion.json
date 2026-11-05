@@ -1,0 +1,125 @@
+{
+  "produce": "onion",
+  "display_name": "Onion",
+  "kannada": "ಈರುಳ್ಳಿ",
+  "ethylene": "producer_low",
+  "ethylene_sensitive": true,
+  "default_price_per_kg": 25.0,
+  "varieties": [
+    "Bellary Red",
+    "Nashik Red",
+    "Local"
+  ],
+  "maturity_stages": [
+    "mature_green"
+  ],
+  "prediction_supported": false,
+  "prediction_note": "Shelf-life prediction not supported for onion: ambient onion storage is governed by dormancy and sprouting, which the respiration-based Q10 decay model does not represent. Parameters are listed for storage setpoints only.",
+  "params": [
+    {
+      "id": "onion.t_ref",
+      "name": "Recommended storage temperature",
+      "value": 0.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Onions (Dry): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow",
+        "year": 1996,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/onions-dry"
+      },
+      "conditions": "Storage at 0 degC",
+      "applicability": "Cured dry bulbs",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "onion.rh_low",
+      "name": "Recommended RH lower bound",
+      "value": 65.0,
+      "range": null,
+      "unit": "%",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Onions (Dry): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow",
+        "year": 1996,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/onions-dry"
+      },
+      "conditions": "65-70% RH with air circulation",
+      "applicability": "Cured dry bulbs",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "onion.rh_high",
+      "name": "Recommended RH upper bound",
+      "value": 70.0,
+      "range": null,
+      "unit": "%",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Onions (Dry): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow",
+        "year": 1996,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/onions-dry"
+      },
+      "conditions": "65-70% RH",
+      "applicability": "Cured dry bulbs",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "onion.storage_life",
+      "name": "Published storage life at 0 degC (pungent cultivars)",
+      "value": 210.0,
+      "range": [
+        180.0,
+        270.0
+      ],
+      "unit": "days",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Onions (Dry): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow",
+        "year": 1996,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/onions-dry"
+      },
+      "conditions": "Mild onions 0.5-1 month; pungent onions up to 6-9 months at 0 degC",
+      "applicability": "Pungent cultivars at 0 degC",
+      "limitations": "Cultivar dependent.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "onion.q10",
+      "name": "Respiration temperature coefficient",
+      "value": 2.423,
+      "range": null,
+      "unit": "dimensionless",
+      "classification": "derived",
+      "classification_label": "Derived parameter",
+      "source": {
+        "title": "Onions (Dry): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow",
+        "year": 1996,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/onions-dry"
+      },
+      "conditions": "3-4 mL/kg.h at 0-5 degC; 27-29 at 25-27 degC",
+      "applicability": "0-27 degC",
+      "limitations": "Respiration only; storage life at ambient is driven by dormancy and sprouting.",
+      "derivation": "Q10 = (28/3.5)^(10/23.5) = 2.423",
+      "last_reviewed": "2026-11-05"
+    }
+  ],
+  "version": "1.0.0",
+  "last_reviewed": "2026-11-05"
+}

@@ -14,8 +14,11 @@ def validate_batch(*, produce: str, quantity_kg: float, harvest_time: datetime, 
                    initial_quality: float | None = None, humidity: float | None = None, temperature: float | None = None,
                    storage_type: str | None = None) -> list[str]:
     errors = []
-    if produce not in load_registry():
+    reg = load_registry()
+    if produce not in reg:
         errors.append(f"Unsupported produce '{produce}'. Supported: {', '.join(SUPPORTED)}")
+    elif not reg[produce].prediction_supported:
+        errors.append(reg[produce].meta.get("prediction_note", f"Prediction is not supported for {produce}"))
     if quantity_kg is None or quantity_kg <= 0:
         errors.append("Quantity must be greater than 0 kg")
     elif quantity_kg > 100000:

@@ -10,3 +10,6 @@ frontend/dist/
 .vite/
 *.db-shm
 *.db-wal
+
+# local admin bootstrap secrets
+backend/models/*.onnx

@@ -10,7 +10,7 @@ import numpy as np
 
 PARAM_DIR = pathlib.Path(__file__).resolve().parents[3] / "data" / "parameters"
 CLASS_SCORE = {"experimental": 1.0, "operating_range": 0.8, "derived": 0.7, "calibrated": 0.4, "assumption": 0.4, "demo": 0.2}
-SUPPORTED = ("tomato", "mango", "banana")
+SUPPORTED = ("tomato", "mango", "banana", "potato")  # onion: catalogued, prediction not supported
 # Parameters that the decay engine actually uses (for the confidence P factor and the twin's "parameters used" panel)
 USED = ["t_ref", "rh_low", "rh_high", "k_ref", "q10", "t_chill", "e_crit", "chill_gamma", "h_low_slope", "h_high_slope", "kw", "r0", "q_rot"]
 
@@ -38,6 +38,10 @@ class Produce:
             return self.v("m_turning")
         return 1.0
 
+    @property
+    def prediction_supported(self) -> bool:
+        return bool(self.meta.get("prediction_supported", True))
+
     def parameter_quality(self) -> float:
         return float(np.mean([CLASS_SCORE[self.params[k]["classification"]] for k in USED]))
 
@@ -60,4 +64,6 @@ def get_produce(name: str) -> Produce:
     reg = load_registry()
     if name not in reg:
         raise ValueError(f"Unsupported produce '{name}'. Supported: {', '.join(sorted(reg))}")
+    if not reg[name].prediction_supported:
+        raise ValueError(reg[name].meta.get("prediction_note", f"Prediction is not supported for {name}"))
     return reg[name]

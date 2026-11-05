@@ -1,0 +1,459 @@
+{
+  "produce": "potato",
+  "display_name": "Potato",
+  "kannada": "ಆಲೂಗಡ್ಡೆ",
+  "ethylene": "producer_low",
+  "ethylene_sensitive": false,
+  "default_price_per_kg": 22.0,
+  "varieties": [
+    "Kufri Jyoti",
+    "Kufri Pukhraj",
+    "Local"
+  ],
+  "maturity_stages": [
+    "mature_green"
+  ],
+  "prediction_supported": true,
+  "params": [
+    {
+      "id": "potato.t_ref",
+      "name": "Reference storage temperature (table use, early crop)",
+      "value": 7.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Potato (Early Crop): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & R. Voss",
+        "year": 1998,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/potato"
+      },
+      "conditions": "Table potatoes 7 degC at 98% RH (frying 10-15 degC, chipping 15-20 degC)",
+      "applicability": "Early-crop table potatoes",
+      "limitations": "Processing potatoes are stored warmer.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.rh_low",
+      "name": "Recommended RH lower bound",
+      "value": 95.0,
+      "range": null,
+      "unit": "%",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Potato (Early Crop): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & R. Voss",
+        "year": 1998,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/potato"
+      },
+      "conditions": "95-98% RH",
+      "applicability": "All uses",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.rh_high",
+      "name": "Recommended RH upper bound",
+      "value": 98.0,
+      "range": null,
+      "unit": "%",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Potato (Early Crop): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & R. Voss",
+        "year": 1998,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/potato"
+      },
+      "conditions": "95-98% RH",
+      "applicability": "All uses",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.storage_life",
+      "name": "Published storage life at T_ref",
+      "value": 28.0,
+      "range": [
+        21.0,
+        35.0
+      ],
+      "unit": "days",
+      "classification": "operating_range",
+      "classification_label": "Published recommended operating range",
+      "source": {
+        "title": "Potato (Early Crop): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & R. Voss",
+        "year": 1998,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/potato"
+      },
+      "conditions": "Good quality after 3 to 5 weeks at optimum conditions (early crop)",
+      "applicability": "Early-crop potatoes, uncured",
+      "limitations": "Cured mature potatoes keep months at 4 degC; this registry models early-crop table potatoes only.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.k_ref",
+      "name": "Reference decay rate k_ref",
+      "value": 0.032725,
+      "range": [
+        0.02617973519640443,
+        0.04363289199400738
+      ],
+      "unit": "1/day",
+      "classification": "calibrated",
+      "classification_label": "Calibrated demonstration assumption",
+      "source": {
+        "title": "Potato (Early Crop): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & R. Voss",
+        "year": 1998,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/potato"
+      },
+      "conditions": "Derived from 28-day life at 7 degC",
+      "applicability": "Early crop at T_ref",
+      "limitations": "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
+      "derivation": "k_ref = ln(100/40)/28 = 0.03272 /day",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.q10",
+      "name": "Temperature coefficient Q10",
+      "value": 1.778,
+      "range": [
+        1.643,
+        2.0
+      ],
+      "unit": "dimensionless",
+      "classification": "derived",
+      "classification_label": "Derived parameter",
+      "source": {
+        "title": "Potato (Early Crop): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & R. Voss",
+        "year": 1998,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/potato"
+      },
+      "conditions": "Respiration 7-11 mL CO2/kg.h at 10 degC and 9-23 at 20 degC",
+      "applicability": "5-20 degC",
+      "limitations": "Assumes quality loss scales with respiration.",
+      "derivation": "Q10 = (16/9)^(10/10) = 1.778; 5-15 degC pair gives 1.64",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.t_chill",
+      "name": "Chilling-injury threshold",
+      "value": 3.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Sheet: storage near 0 degC for a few weeks may cause mahogany discoloration",
+      "applicability": "All",
+      "limitations": "Threshold anchored on near 0 degC; engineering assumption.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.e_crit",
+      "name": "Critical chilling exposure E_crit",
+      "value": 1512.0,
+      "range": null,
+      "unit": "degC.h",
+      "classification": "derived",
+      "classification_label": "Derived parameter",
+      "source": {
+        "title": "Potato (Early Crop): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & R. Voss",
+        "year": 1998,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/potato"
+      },
+      "conditions": "Near 0 degC for a few weeks",
+      "applicability": "Below 3 degC",
+      "limitations": "Linear dose assumption.",
+      "derivation": "E_crit = (3 - 0) degC x 24 h x 21 d = 1512 degC.h",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.m_turning",
+      "name": "Maturity multiplier (not applicable, set to 1)",
+      "value": 1.0,
+      "range": null,
+      "unit": "x k_ref",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Potatoes have no ripening stages",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.m_ripe",
+      "name": "Maturity multiplier (not applicable, set to 1)",
+      "value": 1.0,
+      "range": null,
+      "unit": "x k_ref",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Potatoes have no ripening stages",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.t_app_low",
+      "name": "Applicability: lowest temperature in source data",
+      "value": 5.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "experimental",
+      "classification_label": "Published experimental parameter",
+      "source": {
+        "title": "Potato (Early Crop): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & R. Voss",
+        "year": 1998,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/potato"
+      },
+      "conditions": "Respiration table",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.t_app_high",
+      "name": "Applicability: highest temperature in source data",
+      "value": 20.0,
+      "range": null,
+      "unit": "degC",
+      "classification": "experimental",
+      "classification_label": "Published experimental parameter",
+      "source": {
+        "title": "Potato (Early Crop): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+        "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & R. Voss",
+        "year": 1998,
+        "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/potato"
+      },
+      "conditions": "Respiration table",
+      "applicability": "",
+      "limitations": "",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.h_low_slope",
+      "name": "Humidity penalty slope below recommended RH",
+      "value": 0.008,
+      "range": [
+        0.0056,
+        0.010400000000000001
+      ],
+      "unit": "per %RH",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Applied linearly per %RH below the published RH range.",
+      "applicability": "Any RH below range",
+      "limitations": "Shape not fitted to data; anchor (range edge) is published, slope is assumed. Kept small because moisture loss itself is tracked separately as weight loss W.",
+      "derivation": "h(RH) = 1 + slope x (RH_low - RH) for RH < RH_low",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.h_high_slope",
+      "name": "Humidity penalty slope above recommended RH (rot / condensation)",
+      "value": 0.08,
+      "range": [
+        0.055999999999999994,
+        0.10400000000000001
+      ],
+      "unit": "per %RH",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Applied linearly per %RH above the published RH range.",
+      "applicability": "RH above range",
+      "limitations": "Shape not fitted to data.",
+      "derivation": "h(RH) = 1 + slope x (RH - RH_high) for RH > RH_high",
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.chill_gamma",
+      "name": "Chilling penalty strength",
+      "value": 1.5,
+      "range": [
+        1.0499999999999998,
+        1.9500000000000002
+      ],
+      "unit": "dimensionless",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "c = 1 + gamma x min(E / E_crit, 3), E = cumulative degree-hours below chilling threshold.",
+      "applicability": "After any chilling exposure",
+      "limitations": "Penalty shape is assumed; real chilling injury often appears after transfer to warm conditions.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.kw",
+      "name": "Weight-loss coefficient (transpiration)",
+      "value": 0.004,
+      "range": null,
+      "unit": "fraction / day / kPa VPD",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "dW/dt = kw x VPD(T, RH) x (1 - W)",
+      "applicability": "Whole fruit, unpackaged",
+      "limitations": "Not from a measured transpiration coefficient; order of magnitude only.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.r0",
+      "name": "Rot onset rate below Q_rot",
+      "value": 0.25,
+      "range": null,
+      "unit": "fraction / day",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "dR/dt = r0 x max(0, (Q_rot - Q)/Q_rot) x (1 + 0.1 x max(0, RH - RH_high)) + heat and chilling terms",
+      "applicability": "All conditions",
+      "limitations": "Rejection dynamics assumed; not fitted.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.q_rot",
+      "name": "Quality at which rot rejection begins",
+      "value": 60.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Rejection starts accumulating when Q falls below this value.",
+      "applicability": "All conditions",
+      "limitations": "Assumed threshold.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.r_heat",
+      "name": "Heat-excursion rejection rate",
+      "value": 0.004,
+      "range": null,
+      "unit": "fraction / day / degC above T_ref+12",
+      "classification": "assumption",
+      "classification_label": "Engineering assumption",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Extra rejection while temperature exceeds T_ref + 12 degC.",
+      "applicability": "Excursions",
+      "limitations": "Assumed.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.q_min",
+      "name": "Minimum sellable quality",
+      "value": 40.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "demo",
+      "classification_label": "Unvalidated demo parameter",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Quality score below which a unit is unsellable (category Unsellable < 40).",
+      "applicability": "All",
+      "limitations": "Scale is a ZERO ROT index, not a grading standard.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    },
+    {
+      "id": "potato.min_arrival_quality",
+      "name": "Minimum market grade on arrival",
+      "value": 55.0,
+      "range": null,
+      "unit": "quality score",
+      "classification": "demo",
+      "classification_label": "Unvalidated demo parameter",
+      "source": {
+        "title": "ZERO ROT engineering assumption (no published source)",
+        "publisher": "ZERO ROT team",
+        "year": 2026,
+        "url": null
+      },
+      "conditions": "Ship/store options must keep quality at or above this value.",
+      "applicability": "All",
+      "limitations": "Demo default, configurable.",
+      "derivation": null,
+      "last_reviewed": "2026-11-05"
+    }
+  ],
+  "version": "1.0.0",
+  "last_reviewed": "2026-11-05"
+}

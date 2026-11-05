@@ -25,6 +25,12 @@ UCD = {
               "publisher": "UC Davis Postharvest Research and Extension Center; A.A. Kader", "year": 1997,
               "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/mango"},
 }
+UCD["potato"] = {"title": "Potato (Early Crop): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+                 "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow & R. Voss", "year": 1998,
+                 "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/potato"}
+UCD["onion"] = {"title": "Onions (Dry): Recommendations for Maintaining Postharvest Quality (Produce Fact Sheet)",
+                "publisher": "UC Davis Postharvest Research and Extension Center; T.V. Suslow", "year": 1996,
+                "url": "https://postharvest.ucdavis.edu/produce-facts-sheets/onions-dry"}
 NONE_SRC = {"title": "ZERO ROT engineering assumption (no published source)", "publisher": "ZERO ROT team", "year": 2026, "url": None}
 
 CLASS = {
@@ -190,6 +196,62 @@ def mango():
             "maturity_stages": ["mature_green", "turning", "ripe"], "params": params}
 
 
+def potato():
+    s = UCD["potato"]
+    L = 28.0
+    k = k_from_life(L)
+    q = q10(9, 10, 16, 20)  # midpoints 7-11 @10C and 9-23 @20C
+    q_lo = q10(7, 5, 11.5, 15)
+    params = [
+        p("potato.t_ref", "Reference storage temperature (table use, early crop)", 7.0, "degC", "operating_range", s,
+          "Table potatoes 7 degC at 98% RH (frying 10-15 degC, chipping 15-20 degC)", "Early-crop table potatoes", "Processing potatoes are stored warmer."),
+        p("potato.rh_low", "Recommended RH lower bound", 95.0, "%", "operating_range", s, "95-98% RH", "All uses", ""),
+        p("potato.rh_high", "Recommended RH upper bound", 98.0, "%", "operating_range", s, "95-98% RH", "All uses", ""),
+        p("potato.storage_life", "Published storage life at T_ref", L, "days", "operating_range", s,
+          "Good quality after 3 to 5 weeks at optimum conditions (early crop)", "Early-crop potatoes, uncured",
+          "Cured mature potatoes keep months at 4 degC; this registry models early-crop table potatoes only.", None, [21.0, 35.0]),
+        p("potato.k_ref", "Reference decay rate k_ref", round(k, 6), "1/day", "calibrated", s, "Derived from 28-day life at 7 degC", "Early crop at T_ref",
+          "Guarantees Q reaches Q_min at day L by construction; does NOT validate curve shape.",
+          f"k_ref = ln(100/40)/{L:.0f} = {k:.5f} /day", [k_from_life(35.0), k_from_life(21.0)]),
+        p("potato.q10", "Temperature coefficient Q10", round(q, 3), "dimensionless", "derived", s,
+          "Respiration 7-11 mL CO2/kg.h at 10 degC and 9-23 at 20 degC", "5-20 degC",
+          "Assumes quality loss scales with respiration.", f"Q10 = (16/9)^(10/10) = {q:.3f}; 5-15 degC pair gives {q_lo:.2f}", [round(q_lo, 3), 2.0]),
+        p("potato.t_chill", "Chilling-injury threshold", 3.0, "degC", "assumption", NONE_SRC,
+          "Sheet: storage near 0 degC for a few weeks may cause mahogany discoloration", "All", "Threshold anchored on near 0 degC; engineering assumption."),
+        p("potato.e_crit", "Critical chilling exposure E_crit", 1512.0, "degC.h", "derived", s,
+          "Near 0 degC for a few weeks", "Below 3 degC", "Linear dose assumption.", "E_crit = (3 - 0) degC x 24 h x 21 d = 1512 degC.h"),
+        p("potato.m_turning", "Maturity multiplier (not applicable, set to 1)", 1.0, "x k_ref", "assumption", NONE_SRC, "Potatoes have no ripening stages", "", ""),
+        p("potato.m_ripe", "Maturity multiplier (not applicable, set to 1)", 1.0, "x k_ref", "assumption", NONE_SRC, "Potatoes have no ripening stages", "", ""),
+        p("potato.t_app_low", "Applicability: lowest temperature in source data", 5.0, "degC", "experimental", s, "Respiration table", "", ""),
+        p("potato.t_app_high", "Applicability: highest temperature in source data", 20.0, "degC", "experimental", s, "Respiration table", "", ""),
+    ] + shared_assumptions("potato", 0.004)
+    return {"produce": "potato", "display_name": "Potato", "kannada": "ಆಲೂಗಡ್ಡೆ", "ethylene": "producer_low", "ethylene_sensitive": False,
+            "default_price_per_kg": 22.0, "varieties": ["Kufri Jyoti", "Kufri Pukhraj", "Local"], "maturity_stages": ["mature_green"],
+            "prediction_supported": True, "params": params}
+
+
+def onion():
+    """Catalogued with sourced storage parameters, but shelf-life prediction is NOT supported (see limitation)."""
+    s = UCD["onion"]
+    q = q10(3.5, 2.5, 28, 26)
+    params = [
+        p("onion.t_ref", "Recommended storage temperature", 0.0, "degC", "operating_range", s, "Storage at 0 degC", "Cured dry bulbs", ""),
+        p("onion.rh_low", "Recommended RH lower bound", 65.0, "%", "operating_range", s, "65-70% RH with air circulation", "Cured dry bulbs", ""),
+        p("onion.rh_high", "Recommended RH upper bound", 70.0, "%", "operating_range", s, "65-70% RH", "Cured dry bulbs", ""),
+        p("onion.storage_life", "Published storage life at 0 degC (pungent cultivars)", 210.0, "days", "operating_range", s,
+          "Mild onions 0.5-1 month; pungent onions up to 6-9 months at 0 degC", "Pungent cultivars at 0 degC", "Cultivar dependent.", None, [180.0, 270.0]),
+        p("onion.q10", "Respiration temperature coefficient", round(q, 3), "dimensionless", "derived", s,
+          "3-4 mL/kg.h at 0-5 degC; 27-29 at 25-27 degC", "0-27 degC", "Respiration only; storage life at ambient is driven by dormancy and sprouting.",
+          f"Q10 = (28/3.5)^(10/23.5) = {q:.3f}"),
+    ]
+    return {"produce": "onion", "display_name": "Onion", "kannada": "ಈರುಳ್ಳಿ", "ethylene": "producer_low", "ethylene_sensitive": True,
+            "default_price_per_kg": 25.0, "varieties": ["Bellary Red", "Nashik Red", "Local"], "maturity_stages": ["mature_green"],
+            "prediction_supported": False,
+            "prediction_note": "Shelf-life prediction not supported for onion: ambient onion storage is governed by dormancy and sprouting, "
+                               "which the respiration-based Q10 decay model does not represent. Parameters are listed for storage setpoints only.",
+            "params": params}
+
+
 PENDING_REFS = [
     ("Mango (journal article)", "https://ccsenet.org/journal/index.php/jas/article/view/66567"),
     ("Mango (ICAR IJAgS)", "https://epubs.icar.org.in/index.php/IJAgS/article/download/101489/39854/340992"),
@@ -202,7 +264,7 @@ PENDING_REFS = [
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     DOCS.mkdir(parents=True, exist_ok=True)
-    regs = [tomato(), mango(), banana()]
+    regs = [tomato(), mango(), banana(), potato(), onion()]
     lines = [f"# ZERO ROT parameter evidence audit (registry v{VERSION}, reviewed {REVIEWED})", "",
              "Generated by `backend/scripts/build_registry.py`. Every coefficient used by the decay engine is listed with its value, source, conditions, classification and limitations.", "",
              "**Calibration caveat.** `k_ref` is calibrated so that quality falls from 100 to the minimum sellable score (40) exactly at the published storage life. "
@@ -210,6 +272,7 @@ def main():
              "It will be upgraded only if experimental quality-over-time observations are found and fitted.", "",
              "**Weight loss (W) and rejection (R) functions are engineering assumptions.** The humidity and chilling penalty shapes are engineering assumptions anchored on published range edges.", ""]
     for r in regs:
+        r.setdefault("prediction_supported", True)
         r["version"] = VERSION
         r["last_reviewed"] = REVIEWED
         (OUT / f"{r['produce']}.json").write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding="utf-8")

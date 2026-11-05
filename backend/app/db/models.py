@@ -1,376 +1,396 @@
-"""SQLAlchemy 2 models. SQLite for the hackathon; Postgres-compatible types via DATABASE_URL.
-Times are naive local (Asia/Kolkata) simulation times."""
+"""ZERO ROT relational schema (PostgreSQL in production, SQLite for local development).
+All times are UTC. Every reading/record that can be simulated, live or manual carries an `origin`."""
 from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import (JSON, Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String, Text,
+                        UniqueConstraint)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+def utcnow() -> datetime:
+    return datetime.utcnow()
 
 
 class Base(DeclarativeBase):
     pass
 
 
-def ts_col():
-    return mapped_column(DateTime, default=datetime.now)
+class TimestampMixin:
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
 
 
-class AppState(Base):
-    __tablename__ = "app_state"
-    key: Mapped[str] = mapped_column(String(64), primary_key=True)
-    value: Mapped[dict] = mapped_column(JSON)
-
-
-class Farmer(Base):
-    __tablename__ = "farmers"
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+# ---------------- people ----------------
+class User(TimestampMixin, Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(120))
-    district: Mapped[str] = mapped_column(String(64))
-    phone: Mapped[str | None] = mapped_column(String(32), nullable=True)  # never exposed publicly
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(16), default="operator")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    __table_args__ = (CheckConstraint("role in ('admin','operator','farmer')", name="ck_users_role"),)
+
+
+class FarmerProfile(TimestampMixin, Base):
+    __tablename__ = "farmer_profiles"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, unique=True)
+    managed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    village: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    location_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lng: Mapped[float | None] = mapped_column(Float, nullable=True)
     language: Mapped[str] = mapped_column(String(8), default="kn")
-    origin: Mapped[str] = mapped_column(String(24), default="simulated")
-    created_at: Mapped[datetime] = ts_col()
 
 
-class ProduceType(Base):
-    __tablename__ = "produce_types"
+# ---------------- commodities ----------------
+class Commodity(TimestampMixin, Base):
+    __tablename__ = "commodities"
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    display_name: Mapped[str] = mapped_column(String(64))
-    kannada: Mapped[str] = mapped_column(String(64))
-    version: Mapped[str] = mapped_column(String(16))
-    meta: Mapped[dict] = mapped_column(JSON)
-    created_at: Mapped[datetime] = ts_col()
+    name: Mapped[str] = mapped_column(String(64))
+    name_kn: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    prediction_supported: Mapped[bool] = mapped_column(Boolean, default=True)
+    prediction_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ethylene: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    ethylene_sensitive: Mapped[bool] = mapped_column(Boolean, default=False)
+    registry_version: Mapped[str] = mapped_column(String(16))
+    parameters: Mapped[list["CommodityStorageParameter"]] = relationship(back_populates="commodity", cascade="all, delete-orphan")
 
 
-class ProduceParameter(Base):
-    __tablename__ = "produce_parameters"
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    produce: Mapped[str] = mapped_column(String(32), index=True)
-    version: Mapped[str] = mapped_column(String(16))
+class CommodityStorageParameter(TimestampMixin, Base):
+    __tablename__ = "commodity_storage_parameters"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    commodity_id: Mapped[str] = mapped_column(ForeignKey("commodities.id", ondelete="CASCADE"), index=True)
+    key: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(200))
+    value: Mapped[float] = mapped_column(Float)
+    unit: Mapped[str] = mapped_column(String(48))
+    range_low: Mapped[float | None] = mapped_column(Float, nullable=True)
+    range_high: Mapped[float | None] = mapped_column(Float, nullable=True)
     classification: Mapped[str] = mapped_column(String(32))
-    data: Mapped[dict] = mapped_column(JSON)
-    created_at: Mapped[datetime] = ts_col()
+    source: Mapped[dict] = mapped_column(JSON)
+    derivation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    limitations: Mapped[str | None] = mapped_column(Text, nullable=True)
+    commodity: Mapped[Commodity] = relationship(back_populates="parameters")
+    __table_args__ = (UniqueConstraint("commodity_id", "key", name="uq_param_commodity_key"),)
 
 
-class Facility(Base):
-    __tablename__ = "facilities"
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    type: Mapped[str] = mapped_column(String(16))  # mandi | cold_storage
-    name: Mapped[str] = mapped_column(String(120))
-    district: Mapped[str] = mapped_column(String(64))
-    lat: Mapped[float] = mapped_column(Float)
-    lng: Mapped[float] = mapped_column(Float)
-    accepts: Mapped[list] = mapped_column(JSON, default=list)
-    capacity_t: Mapped[float] = mapped_column(Float, default=0)
-    used_t: Mapped[float] = mapped_column(Float, default=0)
-    rent_per_kg_day: Mapped[float] = mapped_column(Float, default=0)
-    origin: Mapped[str] = mapped_column(String(24), default="simulated")
-    created_at: Mapped[datetime] = ts_col()
-
-
-class Batch(Base):
-    __tablename__ = "batches"
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    farmer_id: Mapped[str | None] = mapped_column(ForeignKey("farmers.id"), nullable=True)
-    produce: Mapped[str] = mapped_column(String(32))
+# ---------------- batches & inspection ----------------
+class ProduceBatch(TimestampMixin, Base):
+    __tablename__ = "produce_batches"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    farmer_id: Mapped[int | None] = mapped_column(ForeignKey("farmer_profiles.id", ondelete="SET NULL"), nullable=True, index=True)
+    commodity_id: Mapped[str] = mapped_column(ForeignKey("commodities.id"), index=True)
     variety: Mapped[str | None] = mapped_column(String(64), nullable=True)
     quantity_kg: Mapped[float] = mapped_column(Float)
     harvest_time: Mapped[datetime] = mapped_column(DateTime)
+    initial_quality: Mapped[float] = mapped_column(Float)
     maturity: Mapped[str | None] = mapped_column(String(24), nullable=True)
-    initial_quality: Mapped[float | None] = mapped_column(Float, nullable=True)
-    district: Mapped[str] = mapped_column(String(64))
-    lat: Mapped[float] = mapped_column(Float)
-    lng: Mapped[float] = mapped_column(Float)
-    storage_type: Mapped[str] = mapped_column(String(24))  # open_shed | cold_storage | reefer
-    facility_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    status: Mapped[str] = mapped_column(String(24), default="stored")  # stored | in_transit | delivered
-    q: Mapped[float] = mapped_column(Float)
-    w: Mapped[float] = mapped_column(Float, default=0)
-    r: Mapped[float] = mapped_column(Float, default=0)
-    e: Mapped[float] = mapped_column(Float, default=0)
-    state_at: Mapped[datetime] = mapped_column(DateTime)
-    risk: Mapped[str] = mapped_column(String(16), default="healthy")
-    shelf_life_days: Mapped[float | None] = mapped_column(Float, nullable=True)
-    value_inr: Mapped[float | None] = mapped_column(Float, nullable=True)
-    manual_bias_t: Mapped[float] = mapped_column(Float, default=0)
-    manual_bias_rh: Mapped[float] = mapped_column(Float, default=0)
-    manual_bias_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    passport_token: Mapped[str | None] = mapped_column(String(48), nullable=True, index=True)
-    lane_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    is_judge: Mapped[bool] = mapped_column(Boolean, default=False)
-    origin: Mapped[str] = mapped_column(String(24), default="simulated")  # simulated | manual
-    mode: Mapped[str] = mapped_column(String(8), default="demo")
-    created_at: Mapped[datetime] = ts_col()
-
-
-class StorageRecord(Base):
-    __tablename__ = "storage_records"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    batch_id: Mapped[str] = mapped_column(ForeignKey("batches.id"), index=True)
-    facility_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    storage_type: Mapped[str] = mapped_column(String(24))
-    label: Mapped[str] = mapped_column(String(160))
-    start: Mapped[datetime] = mapped_column(DateTime)
-    end: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    origin: Mapped[str] = mapped_column(String(24), default="simulated")
-
-
-class Reading(Base):
-    __tablename__ = "readings"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    batch_id: Mapped[str] = mapped_column(String(32), index=True)
-    trip_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    ts: Mapped[datetime] = mapped_column(DateTime, index=True)
-    temp_c: Mapped[float | None] = mapped_column(Float, nullable=True)
-    rh: Mapped[float | None] = mapped_column(Float, nullable=True)
-    origin: Mapped[str] = mapped_column(String(24))  # manual | simulated | external_api | cached | image_derived
-
-
-class Prediction(Base):
-    __tablename__ = "predictions"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    batch_id: Mapped[str] = mapped_column(String(32), index=True)
-    ts: Mapped[datetime] = mapped_column(DateTime)
-    quality: Mapped[float] = mapped_column(Float)
-    shelf_life_days: Mapped[float | None] = mapped_column(Float, nullable=True)
-    shelf_p10: Mapped[float | None] = mapped_column(Float, nullable=True)
-    shelf_p90: Mapped[float | None] = mapped_column(Float, nullable=True)
-    value_inr: Mapped[float | None] = mapped_column(Float, nullable=True)
-    confidence_score: Mapped[float] = mapped_column(Float)
-    confidence_category: Mapped[str] = mapped_column(String(16))
-    model_version: Mapped[str] = mapped_column(String(32))
-    parameter_version: Mapped[str] = mapped_column(String(16))
-    input_snapshot: Mapped[dict] = mapped_column(JSON)
-    data_origins: Mapped[list] = mapped_column(JSON)
-    mode: Mapped[str] = mapped_column(String(8))
-    origin: Mapped[str] = mapped_column(String(24), default="model_prediction")
-
-
-class MarketPrice(Base):
-    __tablename__ = "market_prices"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    commodity: Mapped[str] = mapped_column(String(32), index=True)
-    mandi_id: Mapped[str] = mapped_column(String(32), index=True)
-    variety: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    date: Mapped[datetime] = mapped_column(DateTime)
-    min_price: Mapped[float] = mapped_column(Float)
-    max_price: Mapped[float] = mapped_column(Float)
-    modal_price: Mapped[float] = mapped_column(Float)
-    unit: Mapped[str] = mapped_column(String(16), default="Rs/quintal")
-    arrivals_t: Mapped[float | None] = mapped_column(Float, nullable=True)
-    origin: Mapped[str] = mapped_column(String(24))
-    source: Mapped[str] = mapped_column(String(200))
-    retrieved_at: Mapped[datetime] = mapped_column(DateTime)
-
-
-class PriceForecast(Base):
-    __tablename__ = "price_forecasts"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    commodity: Mapped[str] = mapped_column(String(32))
-    mandi_id: Mapped[str] = mapped_column(String(32))
-    created: Mapped[datetime] = mapped_column(DateTime)
-    data: Mapped[dict] = mapped_column(JSON)
-    origin: Mapped[str] = mapped_column(String(24), default="model_prediction")
-
-
-class Decision(Base):
-    __tablename__ = "decisions"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    batch_id: Mapped[str] = mapped_column(String(32), index=True)
-    ts: Mapped[datetime] = mapped_column(DateTime)
-    action: Mapped[str] = mapped_column(String(32))
-    explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
-    recommended: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    alternatives: Mapped[list] = mapped_column(JSON, default=list)
-    rejected: Mapped[list] = mapped_column(JSON, default=list)
-    farmer_choice: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    choice_difference: Mapped[float | None] = mapped_column(Float, nullable=True)
-    mode: Mapped[str] = mapped_column(String(8), default="demo")
-
-
-class MarketShiftPlan(Base):
-    __tablename__ = "market_shift_plans"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    batch_id: Mapped[str] = mapped_column(String(32), index=True)
-    ts: Mapped[datetime] = mapped_column(DateTime)
-    condition: Mapped[str] = mapped_column(String(24))
-    periods: Mapped[list] = mapped_column(JSON)
-    recommended: Mapped[str] = mapped_column(String(16))
-    chosen: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    difference: Mapped[float | None] = mapped_column(Float, nullable=True)
-    mode: Mapped[str] = mapped_column(String(8), default="demo")
-
-
-class Trip(Base):
-    __tablename__ = "trips"
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    batch_id: Mapped[str] = mapped_column(String(32), index=True)
-    lane_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    origin_id: Mapped[str] = mapped_column(String(32))
-    dest_id: Mapped[str] = mapped_column(String(32))
-    dest_name: Mapped[str] = mapped_column(String(120))
-    route: Mapped[list] = mapped_column(JSON)  # [[lng, lat], ...]
-    route_source: Mapped[str] = mapped_column(String(32), default="osrm_cached")
-    distance_m: Mapped[float] = mapped_column(Float)
-    duration_s: Mapped[float] = mapped_column(Float)
-    progress_s: Mapped[float] = mapped_column(Float, default=0)
-    status: Mapped[str] = mapped_column(String(16), default="in_transit")  # in_transit | arrived
-    reefer: Mapped[bool] = mapped_column(Boolean, default=False)
-    reefer_status: Mapped[str] = mapped_column(String(16), default="na")  # ok | failed | na
-    failed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    cargo_temp: Mapped[float | None] = mapped_column(Float, nullable=True)
-    cargo_rh: Mapped[float | None] = mapped_column(Float, nullable=True)
+    location_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     lng: Mapped[float | None] = mapped_column(Float, nullable=True)
-    started_at: Mapped[datetime] = mapped_column(DateTime)
-    pending_reroute: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    rerouted: Mapped[bool] = mapped_column(Boolean, default=False)
-    ghost_route: Mapped[list | None] = mapped_column(JSON, nullable=True)
-    ghost_progress_s: Mapped[float | None] = mapped_column(Float, nullable=True)
-    ghost_duration_s: Mapped[float | None] = mapped_column(Float, nullable=True)
-    is_scenario: Mapped[bool] = mapped_column(Boolean, default=False)
-    loop: Mapped[bool] = mapped_column(Boolean, default=True)
-    origin: Mapped[str] = mapped_column(String(24), default="simulated")
-    created_at: Mapped[datetime] = ts_col()
+    storage_path: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default="registered", index=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    __table_args__ = (CheckConstraint("quantity_kg > 0", name="ck_batch_qty"),
+                      CheckConstraint("initial_quality >= 0 and initial_quality <= 100", name="ck_batch_quality"),
+                      CheckConstraint("status in ('registered','inspected','in_storage','in_transit','sold','discarded')", name="ck_batch_status"))
 
 
-class ReeferEvent(Base):
-    __tablename__ = "reefer_events"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    trip_id: Mapped[str] = mapped_column(String(32), index=True)
-    ts: Mapped[datetime] = mapped_column(DateTime)
-    kind: Mapped[str] = mapped_column(String(24))
-    detail: Mapped[dict] = mapped_column(JSON, default=dict)
-    origin: Mapped[str] = mapped_column(String(24), default="simulated")
+class Inspection(TimestampMixin, Base):
+    __tablename__ = "inspections"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    batch_id: Mapped[int | None] = mapped_column(ForeignKey("produce_batches.id", ondelete="SET NULL"), nullable=True, index=True)
+    commodity_id: Mapped[str] = mapped_column(ForeignKey("commodities.id"))
+    method: Mapped[str] = mapped_column(String(48))
+    model_version: Mapped[str] = mapped_column(String(64))
+    images_count: Mapped[int] = mapped_column(Integer, default=0)
+    objects_detected: Mapped[int] = mapped_column(Integer, default=0)
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    results: Mapped[list["InspectionResult"]] = relationship(cascade="all, delete-orphan")
 
 
-class WorkflowRun(Base):
-    __tablename__ = "workflow_runs"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    trip_id: Mapped[str] = mapped_column(String(32), index=True)
-    batch_id: Mapped[str] = mapped_column(String(32))
-    kind: Mapped[str] = mapped_column(String(24))  # agentic | rule_based
-    status: Mapped[str] = mapped_column(String(16), default="running")
-    started: Mapped[datetime] = mapped_column(DateTime)
-    finished: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+class InspectionResult(TimestampMixin, Base):
+    __tablename__ = "inspection_results"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    inspection_id: Mapped[int] = mapped_column(ForeignKey("inspections.id", ondelete="CASCADE"), index=True)
+    image_name: Mapped[str] = mapped_column(String(255))
+    object_index: Mapped[int] = mapped_column(Integer)
+    bbox: Mapped[list] = mapped_column(JSON)
+    category: Mapped[str] = mapped_column(String(16))
+    confidence: Mapped[float] = mapped_column(Float)
+    features: Mapped[dict] = mapped_column(JSON, default=dict)
+    __table_args__ = (CheckConstraint("category in ('good','damaged','rejected','uncertain')", name="ck_insp_category"),)
 
 
-class WorkflowStep(Base):
-    __tablename__ = "workflow_steps"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    run_id: Mapped[int] = mapped_column(ForeignKey("workflow_runs.id"), index=True)
-    idx: Mapped[int] = mapped_column(Integer)
-    stage: Mapped[str] = mapped_column(String(24))
-    tool: Mapped[str] = mapped_column(String(48))
-    summary: Mapped[str] = mapped_column(Text)
-    output: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    ts: Mapped[datetime] = mapped_column(DateTime)
-
-
-class GhostComparison(Base):
-    __tablename__ = "ghost_comparisons"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    trip_id: Mapped[str] = mapped_column(String(32), index=True)
-    batch_id: Mapped[str] = mapped_column(String(32))
-    ts: Mapped[datetime] = mapped_column(DateTime)
-    ghost: Mapped[dict] = mapped_column(JSON)
-    reroute: Mapped[dict] = mapped_column(JSON)
-    start_state: Mapped[dict] = mapped_column(JSON)
-    value_protected: Mapped[float] = mapped_column(Float)
-    food_protected_kg: Mapped[float] = mapped_column(Float, default=0)
-    label: Mapped[str] = mapped_column(String(120))
-    origin: Mapped[str] = mapped_column(String(24), default="simulated")
-
-
-class GroupShipment(Base):
-    __tablename__ = "group_shipments"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    dest_id: Mapped[str] = mapped_column(String(32))
-    created: Mapped[datetime] = mapped_column(DateTime)
-    total_cost: Mapped[float] = mapped_column(Float)
-    data: Mapped[dict] = mapped_column(JSON)
-    origin: Mapped[str] = mapped_column(String(24), default="simulated")
-
-
-class ShipmentMember(Base):
-    __tablename__ = "shipment_members"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    shipment_id: Mapped[int] = mapped_column(ForeignKey("group_shipments.id"))
-    batch_id: Mapped[str] = mapped_column(String(32))
-    share_inr: Mapped[float] = mapped_column(Float)
-    savings_inr: Mapped[float] = mapped_column(Float)
-
-
-class Notification(Base):
-    __tablename__ = "notifications"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    ts: Mapped[datetime] = mapped_column(DateTime, index=True)
-    batch_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    trip_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    kind: Mapped[str] = mapped_column(String(32))
-    severity: Mapped[str] = mapped_column(String(16))  # info | warning | critical | success
-    title: Mapped[str] = mapped_column(String(200))
-    body: Mapped[str] = mapped_column(Text)
-    body_kn: Mapped[str | None] = mapped_column(Text, nullable=True)
-    channel: Mapped[str] = mapped_column(String(24), default="in_app")  # in_app | telegram | whatsapp_preview
-    delivered: Mapped[bool] = mapped_column(Boolean, default=True)
-    delivery_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    read: Mapped[bool] = mapped_column(Boolean, default=False)
-    actions: Mapped[list] = mapped_column(JSON, default=list)
-    origin: Mapped[str] = mapped_column(String(24), default="simulated")
-
-
-class HarvestPassport(Base):
-    __tablename__ = "harvest_passports"
-    token: Mapped[str] = mapped_column(String(48), primary_key=True)
-    batch_id: Mapped[str] = mapped_column(String(32), index=True)
-    created: Mapped[datetime] = mapped_column(DateTime)
-
-
-class ValidationRecord(Base):
-    __tablename__ = "validation_records"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    batch_id: Mapped[str] = mapped_column(String(32))
-    produce: Mapped[str] = mapped_column(String(32))
-    prediction_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    predicted_quality: Mapped[float | None] = mapped_column(Float, nullable=True)
-    predicted_shelf_life: Mapped[float | None] = mapped_column(Float, nullable=True)
-    observed_quality: Mapped[float | None] = mapped_column(Float, nullable=True)
-    observed_shelf_life: Mapped[float | None] = mapped_column(Float, nullable=True)
-    observed_at: Mapped[datetime] = mapped_column(DateTime)
-    note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    origin: Mapped[str] = mapped_column(String(24), default="manual")
-
-
-class ImpactEvent(Base):
-    __tablename__ = "impact_events"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    ts: Mapped[datetime] = mapped_column(DateTime)
-    kind: Mapped[str] = mapped_column(String(32))  # value_protected | alert_handled | batch_monitored | loss
-    batch_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    trip_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    produce: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    district: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    value_inr: Mapped[float] = mapped_column(Float, default=0)
-    kg: Mapped[float] = mapped_column(Float, default=0)
-    origin: Mapped[str] = mapped_column(String(24), default="simulated")
-
-
-class Scenario(Base):
-    __tablename__ = "scenarios"
+# ---------------- storage ----------------
+class StorageFacility(TimestampMixin, Base):
+    __tablename__ = "storage_facilities"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
-    description: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(16))
+    location_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    zones: Mapped[list["StorageZone"]] = relationship(back_populates="facility", cascade="all, delete-orphan")
+    __table_args__ = (CheckConstraint("kind in ('traditional','cold')", name="ck_facility_kind"),)
+
+
+class StorageZone(TimestampMixin, Base):
+    __tablename__ = "storage_zones"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    facility_id: Mapped[int] = mapped_column(ForeignKey("storage_facilities.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    temp_min: Mapped[float] = mapped_column(Float)
+    temp_max: Mapped[float] = mapped_column(Float)
+    setpoint: Mapped[float] = mapped_column(Float)
+    rh_setpoint: Mapped[float] = mapped_column(Float)
+    capacity_kg: Mapped[float] = mapped_column(Float)
+    cooling_capacity_kw: Mapped[float] = mapped_column(Float, default=0)
+    ua_w_per_k: Mapped[float] = mapped_column(Float)
+    volume_m3: Mapped[float] = mapped_column(Float)
+    air_changes_per_hour: Mapped[float] = mapped_column(Float, default=0.3)
+    cost_per_kg_day: Mapped[float] = mapped_column(Float, default=0)
+    status: Mapped[str] = mapped_column(String(16), default="operational")
+    facility: Mapped[StorageFacility] = relationship(back_populates="zones")
+    __table_args__ = (CheckConstraint("capacity_kg > 0", name="ck_zone_capacity"), CheckConstraint("temp_min <= temp_max", name="ck_zone_temps"))
+
+
+class StorageAllocation(TimestampMixin, Base):
+    __tablename__ = "storage_allocations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    batch_id: Mapped[int] = mapped_column(ForeignKey("produce_batches.id", ondelete="CASCADE"), index=True)
+    zone_id: Mapped[int] = mapped_column(ForeignKey("storage_zones.id", ondelete="CASCADE"), index=True)
+    quantity_kg: Mapped[float] = mapped_column(Float)
+    setpoint: Mapped[float] = mapped_column(Float)
+    rh_setpoint: Mapped[float] = mapped_column(Float)
+    expected_shelf_life_days: Mapped[float | None] = mapped_column(Float, nullable=True)
+    estimated_cost: Mapped[float] = mapped_column(Float, default=0)
+    planned_days: Mapped[float] = mapped_column(Float, default=7)
+    status: Mapped[str] = mapped_column(String(16), default="active")
+    rationale: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+# ---------------- transport ----------------
+class Truck(TimestampMixin, Base):
+    __tablename__ = "trucks"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True)
+    name: Mapped[str] = mapped_column(String(120))
+    cooling_capacity_kw: Mapped[float] = mapped_column(Float)
+    ua_w_per_k: Mapped[float] = mapped_column(Float)
+    cargo_volume_m3: Mapped[float] = mapped_column(Float)
+    capacity_kg: Mapped[float] = mapped_column(Float)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+class TransportationRoute(TimestampMixin, Base):
+    __tablename__ = "transportation_routes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    origin_name: Mapped[str] = mapped_column(String(200))
+    origin_lat: Mapped[float] = mapped_column(Float)
+    origin_lng: Mapped[float] = mapped_column(Float)
+    dest_name: Mapped[str] = mapped_column(String(200))
+    dest_lat: Mapped[float] = mapped_column(Float)
+    dest_lng: Mapped[float] = mapped_column(Float)
+    distance_m: Mapped[float] = mapped_column(Float)
+    duration_s: Mapped[float] = mapped_column(Float)
+    geometry: Mapped[list] = mapped_column(JSON)
+    source: Mapped[str] = mapped_column(String(32))
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+# ---------------- simulation ----------------
+class Simulation(TimestampMixin, Base):
+    __tablename__ = "simulations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(24), index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    batch_id: Mapped[int | None] = mapped_column(ForeignKey("produce_batches.id", ondelete="SET NULL"), nullable=True, index=True)
+    zone_id: Mapped[int | None] = mapped_column(ForeignKey("storage_zones.id", ondelete="SET NULL"), nullable=True)
+    truck_id: Mapped[int | None] = mapped_column(ForeignKey("trucks.id", ondelete="SET NULL"), nullable=True)
+    route_id: Mapped[int | None] = mapped_column(ForeignKey("transportation_routes.id", ondelete="SET NULL"), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="created", index=True)
+    config: Mapped[dict] = mapped_column(JSON, default=dict)
+    sim_seconds: Mapped[float] = mapped_column(Float, default=0)
+    speed: Mapped[float] = mapped_column(Float, default=60)
+    scenario: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    __table_args__ = (CheckConstraint("kind in ('traditional_storage','cold_storage','cold_chain')", name="ck_sim_kind"),
+                      CheckConstraint("status in ('created','running','paused','completed','failed')", name="ck_sim_status"))
+
+
+class SimulationState(TimestampMixin, Base):
+    __tablename__ = "simulation_states"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    simulation_id: Mapped[int] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), index=True)
+    sim_seconds: Mapped[float] = mapped_column(Float)
+    state: Mapped[dict] = mapped_column(JSON)
+
+
+class VirtualSensorReading(Base):
+    __tablename__ = "virtual_sensor_readings"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    simulation_id: Mapped[int] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"))
+    sensor_id: Mapped[str] = mapped_column(String(48))
+    kind: Mapped[str] = mapped_column(String(24))
+    value: Mapped[float] = mapped_column(Float)
+    unit: Mapped[str] = mapped_column(String(16))
+    sim_seconds: Mapped[float] = mapped_column(Float)
+    origin: Mapped[str] = mapped_column(String(16), default="simulated")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    __table_args__ = (Index("ix_readings_sim_time", "simulation_id", "sim_seconds"),)
+
+
+class Prediction(TimestampMixin, Base):
+    __tablename__ = "predictions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    simulation_id: Mapped[int | None] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), nullable=True, index=True)
+    batch_id: Mapped[int | None] = mapped_column(ForeignKey("produce_batches.id", ondelete="CASCADE"), nullable=True, index=True)
+    sim_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    quality: Mapped[float] = mapped_column(Float)
+    shelf_life_days: Mapped[float | None] = mapped_column(Float, nullable=True)
+    shelf_life_p10: Mapped[float | None] = mapped_column(Float, nullable=True)
+    shelf_life_p90: Mapped[float | None] = mapped_column(Float, nullable=True)
+    spoilage_risk: Mapped[float] = mapped_column(Float, default=0)
+    model_version: Mapped[str] = mapped_column(String(32))
+    inputs: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class Alert(TimestampMixin, Base):
+    __tablename__ = "alerts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    simulation_id: Mapped[int | None] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), nullable=True, index=True)
+    batch_id: Mapped[int | None] = mapped_column(ForeignKey("produce_batches.id", ondelete="SET NULL"), nullable=True, index=True)
+    truck_id: Mapped[int | None] = mapped_column(ForeignKey("trucks.id", ondelete="SET NULL"), nullable=True)
+    zone_id: Mapped[int | None] = mapped_column(ForeignKey("storage_zones.id", ondelete="SET NULL"), nullable=True)
+    severity: Mapped[str] = mapped_column(String(10), index=True)
+    code: Mapped[str] = mapped_column(String(48))
+    title: Mapped[str] = mapped_column(String(200))
+    message: Mapped[str] = mapped_column(Text)
+    reading: Mapped[dict] = mapped_column(JSON, default=dict)
     expected: Mapped[dict] = mapped_column(JSON, default=dict)
+    risk: Mapped[str] = mapped_column(Text)
+    recommendation: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    sim_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    acknowledged_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    __table_args__ = (CheckConstraint("severity in ('INFO','WARNING','CRITICAL')", name="ck_alert_severity"),
+                      CheckConstraint("status in ('open','acknowledged','resolved')", name="ck_alert_status"))
 
 
-class IntegrationStatus(Base):
-    __tablename__ = "integration_status"
-    name: Mapped[str] = mapped_column(String(32), primary_key=True)
-    status: Mapped[str] = mapped_column(String(16))  # ok | demo | unavailable
-    provider: Mapped[str] = mapped_column(String(48))
-    detail: Mapped[str] = mapped_column(Text)
-    checked_at: Mapped[datetime] = mapped_column(DateTime)
+class CorrectiveAction(TimestampMixin, Base):
+    __tablename__ = "corrective_actions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    alert_id: Mapped[int | None] = mapped_column(ForeignKey("alerts.id", ondelete="SET NULL"), nullable=True, index=True)
+    simulation_id: Mapped[int | None] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(Text)
+    parameters: Mapped[dict] = mapped_column(JSON, default=dict)
+    automatic: Mapped[bool] = mapped_column(Boolean, default=False)
+    applied: Mapped[bool] = mapped_column(Boolean, default=False)
+    actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+# ---------------- market ----------------
+class MarketPrice(TimestampMixin, Base):
+    __tablename__ = "market_prices"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    commodity_id: Mapped[str] = mapped_column(ForeignKey("commodities.id"), index=True)
+    market: Mapped[str] = mapped_column(String(120), index=True)
+    district: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    state: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    variety: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    price_min: Mapped[float | None] = mapped_column(Float, nullable=True)
+    price_max: Mapped[float | None] = mapped_column(Float, nullable=True)
+    price_modal: Mapped[float] = mapped_column(Float)
+    unit: Mapped[str] = mapped_column(String(24), default="Rs/quintal")
+    observation_date: Mapped[datetime] = mapped_column(DateTime, index=True)
+    source: Mapped[str] = mapped_column(String(200))
+    origin: Mapped[str] = mapped_column(String(16), default="live")
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    __table_args__ = (UniqueConstraint("commodity_id", "market", "variety", "observation_date", "source", name="uq_price_obs"),)
+
+
+class PriceForecast(TimestampMixin, Base):
+    __tablename__ = "price_forecasts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    commodity_id: Mapped[str] = mapped_column(ForeignKey("commodities.id"), index=True)
+    market: Mapped[str] = mapped_column(String(120))
+    model: Mapped[str] = mapped_column(String(64))
+    horizon_days: Mapped[int] = mapped_column(Integer)
+    trained_points: Mapped[int] = mapped_column(Integer)
+    metrics: Mapped[dict] = mapped_column(JSON, default=dict)
+    points: Mapped[list] = mapped_column(JSON, default=list)
+
+
+class MarketEvent(TimestampMixin, Base):
+    __tablename__ = "market_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    commodity_id: Mapped[str | None] = mapped_column(ForeignKey("commodities.id"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(300))
+    summary: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(48))
+    source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    event_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    extracted_by: Mapped[str] = mapped_column(String(48))
+
+
+class ProfitScenario(TimestampMixin, Base):
+    __tablename__ = "profit_scenarios"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    batch_id: Mapped[int | None] = mapped_column(ForeignKey("produce_batches.id", ondelete="CASCADE"), nullable=True, index=True)
+    inputs: Mapped[dict] = mapped_column(JSON)
+    results: Mapped[dict] = mapped_column(JSON)
+    recommendation: Mapped[str] = mapped_column(String(32))
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+# ---------------- access & audit ----------------
+class QRAccessSession(TimestampMixin, Base):
+    __tablename__ = "qr_access_sessions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    pin_hash: Mapped[str] = mapped_column(String(255))
+    resource_type: Mapped[str] = mapped_column(String(16))
+    resource_id: Mapped[int] = mapped_column(Integer)
+    permissions: Mapped[list] = mapped_column(JSON, default=list)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    failed_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    uses: Mapped[int] = mapped_column(Integer, default=0)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    __table_args__ = (CheckConstraint("resource_type in ('batch','simulation','zone','truck')", name="ck_qr_resource"),)
+
+
+class NotificationSubscription(TimestampMixin, Base):
+    __tablename__ = "notification_subscriptions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    qr_session_id: Mapped[int | None] = mapped_column(ForeignKey("qr_access_sessions.id", ondelete="CASCADE"), nullable=True, index=True)
+    endpoint: Mapped[str] = mapped_column(String(1000), unique=True)
+    p256dh: Mapped[str] = mapped_column(String(255))
+    auth: Mapped[str] = mapped_column(String(255))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    actor_label: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    entity: Mapped[str] = mapped_column(String(48))
+    entity_id: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
