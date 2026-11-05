@@ -196,7 +196,9 @@ function GodownTab({ lot, refresh }: { lot: any; refresh: () => void }) {
   };
   const active = ["intake", "storage"].includes(lot.stage);
   const activeCodes = new Set(Object.keys(st.active_alerts || {}).map((c) => c.toLowerCase()));
-  const alerts = active ? (lot.events || []).filter((e: any) => e.severity !== "INFO" && activeCodes.has(e.kind)).slice(-6).reverse() : [];
+  const latest = new Map<string, any>();
+  for (const e of lot.events || []) if (e.severity !== "INFO" && activeCodes.has(e.kind)) latest.set(e.kind, e);   // newest per alert type
+  const alerts = active ? [...latest.values()].reverse() : [];
   return (
     <div className="space-y-4 p-4 pb-28">
       {st.loading && !st.loading.done && (

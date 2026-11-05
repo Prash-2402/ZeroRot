@@ -55,14 +55,15 @@ function Rig({ view, ship, focus }: { view: Exclude<CamView, "auto">; ship?: num
         tmpT.copy(t.pos).addScaledVector(dir, 10);
         c.setLookAt(tmpP.x, tmpP.y, tmpP.z, tmpT.x, tmpT.y, tmpT.z, true);
       }
+      prev.current = key;
     } else if (view === "mandi" && ship != null) {
       const m = mandiSpots.get(ship);
-      if (m && prev.current !== key) c.setLookAt(m.x + 34, 28, m.z + 44, m.x, 0, m.z, true);
+      if (m && prev.current !== key) { c.setLookAt(m.x + 34, 28, m.z + 44, m.x, 0, m.z, true); prev.current = key; }   // retry until the mandi is placed
     } else if (FIXED[view] && prev.current !== key) {
       const [p, t] = FIXED[view];
       c.setLookAt(p.x, p.y, p.z, t.x, t.y, t.z, true);
+      prev.current = key;
     }
-    prev.current = key;
     c.getTarget(focus);
   });
   return <CameraControls ref={ref} makeDefault />;

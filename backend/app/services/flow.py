@@ -385,9 +385,12 @@ def _name_checkpoints_async(shipment_id: int):
             if sh is None:
                 return
             cps = [dict(c) for c in sh.checkpoints]
+            used = {c["name"] for c in cps if c.get("name")}
             for c in cps:
                 if not c.get("name"):
-                    c["name"] = places.reverse(c["lat"], c["lng"]) or f"Km {c['km']:.0f}"
+                    n = places.reverse(c["lat"], c["lng"]) or f"Km {c['km']:.0f}"
+                    c["name"] = n if n not in used else f"{n} (km {c['km']:.0f})"
+                    used.add(c["name"])
             sh2 = db.get(Shipment, shipment_id)
             # merge names only (passed flags may have changed meanwhile)
             merged = [dict(c) for c in sh2.checkpoints]

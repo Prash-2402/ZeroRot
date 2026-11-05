@@ -23,11 +23,12 @@ def reverse(lat: float, lng: float) -> str | None:
             time.sleep(wait)
         _last[0] = time.time()
         try:
-            r = httpx.get("https://nominatim.openstreetmap.org/reverse", params={"lat": lat, "lon": lng, "format": "jsonv2", "zoom": 12},
+            r = httpx.get("https://nominatim.openstreetmap.org/reverse", params={"lat": lat, "lon": lng, "format": "jsonv2", "zoom": 14},
                           headers={"User-Agent": UA}, timeout=8)
             r.raise_for_status()
             a = r.json().get("address", {})
-            name = a.get("town") or a.get("city") or a.get("village") or a.get("suburb") or a.get("county") or a.get("state_district")
+            name = (a.get("village") or a.get("hamlet") or a.get("town") or a.get("suburb") or a.get("city") or a.get("county")
+                    or a.get("state_district"))
         except (httpx.HTTPError, ValueError):
             name = None
     _cache[key] = name
