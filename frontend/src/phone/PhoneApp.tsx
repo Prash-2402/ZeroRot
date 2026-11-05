@@ -18,7 +18,7 @@ export const CROPS = [
   { id: "banana", name: "Banana", kn: "ಬಾಳೆಹಣ್ಣು", img: "/produce/banana_fresh.jpg" },
   { id: "potato", name: "Potato", kn: "ಆಲೂಗಡ್ಡೆ", img: null },
 ];
-export const STAGE_LABEL: Record<string, string> = { intake: "Loading", storage: "Stored", grading: "Scan & bag", graded: "Bagged", dispatched: "In transit", arrived: "Arrived", delivered: "Delivered" };
+export const STAGE_LABEL: Record<string, string> = { intake: "Loading", storage: "Stored", grading: "Scanning", graded: "Sorted", dispatched: "In transit", arrived: "Arrived", delivered: "Delivered" };
 
 /* ---------------- pairing ---------------- */
 function Pair({ token }: { token: string }) {
@@ -262,7 +262,7 @@ const TABS = [
   { id: "entry", label: "New entry", icon: Plus },
   { id: "godown", label: "Godown", icon: Warehouse },
   { id: "predict", label: "Predict", icon: LineChart },
-  { id: "bag", label: "Scan & bag", icon: ScanLine },
+  { id: "bag", label: "Scan & sort", icon: ScanLine },
   { id: "track", label: "Track", icon: Truck },
   { id: "help", label: "Help", icon: Bot },
 ] as const;

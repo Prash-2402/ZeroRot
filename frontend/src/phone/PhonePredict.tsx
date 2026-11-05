@@ -151,7 +151,7 @@ function Decide({ lot, onDispatched }: { lot: any; onDispatched: () => void }) {
                 {["A1", "A2", "A3"].map((g) => {
                   const kgv = lot.grading.kg[g];
                   return <button key={g} disabled={shipped.has(g) || kgv <= 0} onClick={() => setGrade(g)} className={cn("border-2 p-2 text-xs disabled:opacity-30", grade === g ? "border-teal bg-teal/10" : "border-paper-300")}>
-                    <div className="font-bold">{g}</div>{lot.grading.bags[g]} bags<div className="text-ink-400">{shipped.has(g) ? "sent" : kg(kgv)}</div></button>;
+                    <div className="font-bold">{g}</div>{lot.grading.bags[g]} boxes<div className="text-ink-400">{shipped.has(g) ? "sent" : kg(kgv)}</div></button>;
                 })}
               </div>
             )}

@@ -1,59 +1,61 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, CheckCircle2, Circle, ImageIcon, MapPin, Send, Truck } from "lucide-react";
+import { CheckCircle2, Circle, MapPin, ScanLine, Send, Truck } from "lucide-react";
 import { post } from "../lib/api";
 import { kg, num, qualityColor, tempColor } from "../lib/format";
 import { ErrorBox, Spinner, cn } from "../components/ui";
 import { useLang, useT } from "./i18n";
-import { uploadPhotos } from "./usePhone";
 
-const GRADE_COLOR: Record<string, string> = { A1: "#5FB37C", A2: "#FFC900", A3: "#F2994A", rejected: "#EB4D3D", uncertain: "#8A9099" };
+const GRADE_COLOR: Record<string, string> = { A1: "#3f9b62", A2: "#e0a92e", A3: "#e07a3a", rejected: "#EB4D3D", uncertain: "#8A9099" };
 
 export function BagTab({ lot }: { lot: any }) {
   const t = useT();
-  const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<any>(null);
   const g = lot.grading;
-  const scan = async (sample: boolean) => {
+  const start = async () => {
     setBusy(true); setError(null);
-    try { sample ? await post(`/flow/lots/${lot.id}/grade-sample`, {}, true) : await uploadPhotos(`/flow/lots/${lot.id}/grade`, files, true); }
-    catch (e) { setError(e); } finally { setBusy(false); }
+    try { await post(`/flow/lots/${lot.id}/scan`, {}, true); } catch (e) { setError(e); } finally { setBusy(false); }
   };
   if (lot.stage === "intake") return <div className="p-6 text-ink-400">Wait until loading into the godown finishes.</div>;
   return (
     <div className="space-y-4 p-4 pb-28">
       {!g ? (
         <>
-          <div className="text-sm text-ink-400">Photograph the produce on a plain background (several items per photo). Each item is graded A1 (best), A2 (medium), A3 (low) or rejected; the grades are then applied to the whole lot and bagged in {25} kg bags.</div>
-          <label className="flex cursor-pointer flex-col items-center gap-2 border-2 border-dashed border-gold/60 bg-gold/5 p-8 text-center">
-            <Camera className="h-10 w-10 text-teal" /><span className="font-bold">{files.length ? `${files.length} photo(s) ready` : t("Scan produce")}</span>
-            <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, 20))} />
-          </label>
-          <button className="w-full bg-gold py-4 text-lg font-bold text-ink disabled:opacity-40" disabled={!files.length || busy} onClick={() => scan(false)}>{busy ? <Spinner /> : "Grade & start bagging"}</button>
-          <button className="ph-btn-line w-full text-xs" disabled={busy} onClick={() => scan(true)}><ImageIcon className="h-4 w-4" /> Test with the bundled sample photos</button>
+          <div className="rounded-2xl border border-paper-300 bg-white p-4 text-sm text-ink-400">
+            The lot moves to the scan &amp; sort house. Every item passes the scanner and drops into a box:
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+              {[["A1", "Best · ≥ 85"], ["A2", "Medium · 70–85"], ["A3", "Low · below 70"]].map(([k, d]) => (
+                <div key={k} className="rounded-xl border-2 p-2" style={{ borderColor: GRADE_COLOR[k] }}><div className="font-display text-xl font-black" style={{ color: GRADE_COLOR[k] }}>{k}</div><div className="text-ink-400">{d}</div></div>
+              ))}
+            </div>
+            <div className="mt-2 text-[11px]">Below saleable quality is rejected. Watch it happen on the laptop.</div>
+          </div>
+          <button className="w-full rounded-2xl bg-gold py-4 text-lg font-bold text-ink disabled:opacity-40" disabled={busy || lot.stage !== "storage"} onClick={start}>
+            {busy ? <Spinner /> : <span className="inline-flex items-center gap-2"><ScanLine className="h-5 w-5" /> {t("Start scanning")}</span>}
+          </button>
           {error && <ErrorBox error={error} />}
         </>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2">
             {["A1", "A2", "A3"].map((k) => (
-              <div key={k} className="border-2 p-3 text-center" style={{ borderColor: GRADE_COLOR[k] }}>
+              <div key={k} className="rounded-2xl border-2 bg-white p-3 text-center" style={{ borderColor: GRADE_COLOR[k] }}>
                 <div className="font-display text-2xl font-black" style={{ color: GRADE_COLOR[k] }}>{k}</div>
                 <div className="font-mono text-2xl font-bold">{g.bags_filled[k]}<span className="text-sm text-ink-400">/{g.bags[k]}</span></div>
-                <div className="text-[11px] text-ink-400">{t("Bags")} · {kg(g.kg[k])}</div>
+                <div className="text-[11px] text-ink-400">{t("Boxes")} · {kg(g.kg[k])}</div>
               </div>
             ))}
           </div>
           <div>
-            <div className="flex justify-between text-xs text-ink-400"><span>{lot.stage === "grading" ? "Bagging in progress" : "Bagging complete"}</span><span>{kg(g.processed_kg)} / {kg(g.total_kg)}</span></div>
-            <div className="mt-1 h-2 bg-paper-200"><div className="h-2 bg-teal transition-all" style={{ width: `${(g.processed_kg / g.total_kg) * 100}%` }} /></div>
+            <div className="flex justify-between text-xs text-ink-400"><span>{lot.stage === "grading" ? "Scanning and sorting…" : "Sorting complete"}</span><span>{kg(g.processed_kg)} / {kg(g.total_kg)}</span></div>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-paper-200"><div className="h-2 rounded-full bg-teal transition-all" style={{ width: `${(g.processed_kg / g.total_kg) * 100}%` }} /></div>
           </div>
-          <div className="border border-paper-300 p-3 text-xs">
-            <div className="mb-2 font-bold">Scanned sample: {g.objects} items</div>
-            <div className="flex flex-wrap gap-1">{(g.items || []).map((it: any, i: number) => <span key={i} title={`${it.grade} ${(it.confidence * 100).toFixed(0)}%`} className="h-4 w-4 rounded-full" style={{ background: GRADE_COLOR[it.grade] }} />)}</div>
-            <div className="mt-2 text-ink-400">{t("Rejected")}: {g.counts.rejected} items ({kg(g.kg.rejected)}) · uncertain: {g.counts.uncertain}</div>
+          <div className="rounded-2xl border border-paper-300 bg-white p-3 text-xs">
+            <div className="mb-2 font-bold">Items on the line</div>
+            <div className="flex flex-wrap gap-1">{(g.items || []).map((it: any, i: number) => <span key={i} title={`${it.grade}${it.quality ? ` · Q ${it.quality}` : ""}`} className="h-3.5 w-3.5 rounded-full" style={{ background: GRADE_COLOR[it.grade] }} />)}</div>
+            <div className="mt-2 text-ink-400">{t("Rejected")}: {kg(g.kg.rejected)}</div>
           </div>
-          <div className="text-[10px] text-ink-400">{g.label} Method: {g.method === "opencv_classical" ? "classical OpenCV colour/texture analysis" : g.method}.</div>
+          <div className="text-[10px] text-ink-400">{g.label}</div>
         </>
       )}
     </div>
@@ -85,7 +87,14 @@ export function TrackTab({ lot, onHelp }: { lot: any; onHelp: () => void }) {
                 </div>
                 <div className="mt-1 text-[11px] text-ink-400">{s.status === "in_transit" ? `ETA ${eta != null ? num(eta) + " h" : "—"}${lv.route?.delay_s > 600 ? ` · delay ${num(lv.route.delay_s / 3600)} h` : ""}` : ""}</div>
               </div>
-              {lv.readings && (
+              {!lv.refrigerated && <div className="rounded-xl bg-paper-200 px-3 py-2 text-xs text-ink-400">Open truck from traditional storage: tracked by location and checkpoints.</div>}
+              {lv.refrigerated && lv.produce && (
+                <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                  <div className="rounded-xl border border-paper-300 p-2"><div className="font-mono text-lg font-bold">{num(lv.flows?.decay_rate_per_day, 2)}</div>spoilage rate (quality/day)</div>
+                  <div className="rounded-xl border border-paper-300 p-2"><div className="font-mono text-lg font-bold">{lv.prediction ? `${num(lv.prediction.shelf_life_days, 1)} d` : "—"}</div>shelf life left{lv.prediction ? ` · risk ${num(lv.prediction.spoilage_probability * 100, 0)}%` : ""}</div>
+                </div>
+              )}
+              {lv.refrigerated && lv.readings && (
                 <div className="grid grid-cols-3 gap-2 text-center text-xs">
                   <div className="border border-paper-300 p-2"><div className="font-mono text-lg font-bold" style={{ color: tempColor(lv.readings.max_zone_c ?? lv.readings.temperature_c, sp) }}>{num(lv.readings.max_zone_c ?? lv.readings.temperature_c)}°</div>warmest cargo</div>
                   <div className="border border-paper-300 p-2"><div className="font-mono text-lg font-bold">{num(lv.readings.rh_pct, 0)}%</div>humidity</div>

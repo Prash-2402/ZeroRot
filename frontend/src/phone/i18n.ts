@@ -7,7 +7,7 @@ export const useLang = create<{ lang: "en" | "kn"; set: (l: "en" | "kn") => void
 }));
 
 const KN: Record<string, string> = {
-  "New entry": "ಹೊಸ ನಮೂದು", Godown: "ಗೋದಾಮು", Predict: "ಮುನ್ಸೂಚನೆ", "Scan & bag": "ಸ್ಕ್ಯಾನ್ & ಚೀಲ", Track: "ಟ್ರ್ಯಾಕ್", Help: "ಸಹಾಯ",
+  "New entry": "ಹೊಸ ನಮೂದು", Godown: "ಗೋದಾಮು", Predict: "ಮುನ್ಸೂಚನೆ", "Scan & bag": "ಸ್ಕ್ಯಾನ್ & ಚೀಲ", "Scan & sort": "ಸ್ಕ್ಯಾನ್ & ವಿಂಗಡಣೆ", "Start scanning": "ಸ್ಕ್ಯಾನ್ ಪ್ರಾರಂಭಿಸಿ", Boxes: "ಪೆಟ್ಟಿಗೆಗಳು", Track: "ಟ್ರ್ಯಾಕ್", Help: "ಸಹಾಯ",
   Crop: "ಬೆಳೆ", Quantity: "ಪ್ರಮಾಣ", Location: "ಸ್ಥಳ", "Use my location": "ನನ್ನ ಸ್ಥಳ ಬಳಸಿ", "Search place": "ಸ್ಥಳ ಹುಡುಕಿ",
   "Harvest condition": "ಕೊಯ್ಲಿನ ಸ್ಥಿತಿ", Excellent: "ಅತ್ಯುತ್ತಮ", Good: "ಉತ್ತಮ", Fair: "ಸಾಧಾರಣ", Maturity: "ಪಕ್ವತೆ",
   "Mature green": "ಹಸಿರು ಪಕ್ವ", Turning: "ಬಣ್ಣ ಬದಲು", Ripe: "ಹಣ್ಣಾದ", "Choose godown": "ಗೋದಾಮು ಆಯ್ಕೆ ಮಾಡಿ",

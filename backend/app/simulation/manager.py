@@ -91,6 +91,12 @@ class Manager:
         if out.get("error"):
             sim.status = "paused"
             sim.config = {**sim.config, "last_error": out["error"]}
+        if out["actions"]:
+            try:
+                from app.services import flow
+                flow.on_sim_actions(db, sim, out["actions"])
+            except Exception:
+                log.exception("flow action forward failed")
         db.commit()
         return new_alerts
 

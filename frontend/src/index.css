@@ -39,3 +39,10 @@ input[type="range"] { accent-color: #FF684A; }
   .hud { @apply border border-paper-300 bg-paper/95 text-ink shadow-[0_8px_30px_rgba(10,38,36,0.18)] backdrop-blur-md; }
   .hud-label { @apply text-[10px] font-semibold uppercase tracking-[0.16em] text-teal; }
 }
+
+/* ---------- simulation page: curved edges everywhere ---------- */
+.world-ui .hud { border-radius: 16px; }
+.world-ui button, .world-ui select, .world-ui input, .world-ui .input { border-radius: 10px; }
+.world-ui .chip, .world-ui span[class*="px-1.5"] { border-radius: 9999px; }
+.world-ui img { border-radius: 8px; }
+.world-ui [class*="h-1.5"] { border-radius: 9999px; }

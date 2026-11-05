@@ -248,6 +248,12 @@ class Runtime:
                "spoilage_probability": (self.s.last_prediction or {}).get("spoilage_probability"),
                "decay_ratio": (self.last_flows.get("decay_rate_per_day", 0) / self.ref_rate) if self.ref_rate else None}
         findings = {f.code: f for f in event_manager.evaluate(self.s, r, self.kind, self.cfg, ctx)}
+        pc = self.meta.get("precool")
+        if pc and not pc.get("done"):
+            if self.s.air.t <= pc["target"] + 0.5:
+                pc["done"] = True
+            else:
+                findings.pop("TEMP_EXCURSION", None)   # planned pull-down of warm produce, not an excursion
         active = self.meta["active_alerts"]
         for code, f in findings.items():
             prev = active.get(code)

@@ -4,7 +4,7 @@ const ROWS: [string, string][] = [
   ["1 · Live entry (phone)", "Crop, quantity, harvest condition and location (GPS or place search). Choose a traditional or advanced godown. The laptop shows the tractor bringing the crates and the godown filling at 2000 kg/h with the door open."],
   ["2 · Godown", "Traditional: no sensors; inside conditions follow the live Open-Meteo forecast through brick walls and vents; alerts and suggestions. Advanced: insulated chamber with refrigeration and automatic control of temperature, humidity and gases (every action logged)."],
   ["3 · Predict (phone)", "Mandi rates (Agmarknet via data.gov.in, DATA UNAVAILABLE without a key), spoilage (shelf life now vs at recommended storage, P10–P90) and the sell-now vs store decision. Groq explains; numbers come from the models."],
-  ["4 · Scan & bag (advanced)", "Photos are analysed with OpenCV; each item is graded A1 / A2 / A3 / rejected / uncertain. Shares are applied to the lot (estimate) and bagged in 25 kg bags at 1500 kg/h."],
+  ["4 · Scan & sort (advanced)", "In the scan & sort house every item passes a simulated scanner that reads its quality from the lot's digital twin (lot quality ± 7). A1 ≥ 85, A2 ≥ 70, A3 down to the minimum saleable quality; the rest is rejected. Packed in 20 kg boxes at 1500 kg/h. Traditional lots skip this and go straight to the truck."],
   ["5 · Track", "Dispatch to a mandi: real OSRM road route, weather along the route, 6-zone cargo heat model (reefer) or open truck, checkpoints, ETA and delay. 'Road blocked' finds an alternative road from the truck's position. Arrival, unloading and delivery are notified."],
 ];
 

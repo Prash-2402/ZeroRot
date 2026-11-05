@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three-stdlib";
 import { qualityColor, tempColor } from "../lib/format";
-import { asphaltTex, beltTex, brickTex, concreteTex, crateTex, fieldTex, metalRoofTex, panelTex, roofTex, sackTex, softDotTex } from "./textures";
+import { asphaltTex, beltTex, brickTex, concreteTex, crateTex, fieldTex, metalRoofTex, panelTex, roofTex, softDotTex } from "./textures";
 import { HUB_RADIUS, seeded } from "./geo";
 import { TractorTrolley } from "./Vehicles";
 
@@ -21,7 +22,7 @@ export function Label({ position, children, show = true, dim = false }: { positi
   if (!show) return null;
   return (
     <Html position={position} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
-      <div className={`whitespace-nowrap border px-1.5 py-0.5 font-mono text-[10px] leading-tight shadow-xl ${dim ? "border-paper-300 bg-paper/75 text-ink-500" : "border-gold/70 bg-paper/95 text-ink"}`}>{children}</div>
+      <div className={`whitespace-nowrap rounded-lg border px-2 py-0.5 font-mono text-[10px] leading-tight shadow-xl ${dim ? "border-paper-300 bg-paper/75 text-ink-500" : "border-gold/70 bg-paper/95 text-ink"}`}>{children}</div>
     </Html>
   );
 }
@@ -38,6 +39,7 @@ function CrateStack({ count, max, w, d, quality, commodity, rack = false }: { co
     return out.slice(0, max);
   }, [w, d, max, rack]);
   const tex = crateTex();
+  const crateGeo = useMemo(() => new RoundedBoxGeometry(1.2, 0.8, 0.85, 3, 0.07), []);
   const topColor = useMemo(() => new THREE.Color(PRODUCE[commodity] || "#c0503a").lerp(new THREE.Color("#4a3a22"), Math.max(0, (85 - quality) / 60)), [commodity, quality]);
   useEffect(() => {
     const m = new THREE.Matrix4();
@@ -50,7 +52,7 @@ function CrateStack({ count, max, w, d, quality, commodity, rack = false }: { co
   }, [count, slots]);
   return (
     <>
-      <instancedMesh ref={ref} args={[undefined, undefined, slots.length]} castShadow receiveShadow><boxGeometry args={[1.2, 0.8, 0.85]} /><meshStandardMaterial map={tex} /></instancedMesh>
+      <instancedMesh ref={ref} args={[crateGeo, undefined, slots.length]} castShadow receiveShadow><meshStandardMaterial map={tex} /></instancedMesh>
       <instancedMesh ref={tops} args={[undefined, undefined, slots.length]}><boxGeometry args={[1.05, 0.12, 0.7]} /><meshStandardMaterial color={topColor} roughness={0.5} /></instancedMesh>
     </>
   );
@@ -238,29 +240,35 @@ function AdvancedGodown({ lot, cutaway, labels, night }: { lot: any; cutaway: bo
   );
 }
 
-/* ---------- grading & bagging hall ---------- */
-function Bags({ grade, filled, total, origin }: { grade: string; filled: number; total: number; origin: [number, number, number] }) {
+/* ---------- scan & sort house (enclosed) ---------- */
+const BOX_COLOR: Record<string, string> = { A1: "#3f9b62", A2: "#e0a92e", A3: "#e07a3a" };
+const TUNNEL_GEO = new RoundedBoxGeometry(2.4, 1.6, 2.0, 4, 0.3);
+const REJECT_GEO = new RoundedBoxGeometry(2.2, 1.1, 1.8, 3, 0.15);
+
+function GradeBoxes({ grade, filled, total, origin }: { grade: string; filled: number; total: number; origin: [number, number, number] }) {
   const ref = useRef<THREE.InstancedMesh>(null);
-  const MAX = 54;
+  const MAX = 48;
   const shown = total > 0 ? Math.round((filled / total) * Math.min(MAX, total)) : 0;
+  const geo = useMemo(() => new RoundedBoxGeometry(0.9, 0.55, 0.65, 3, 0.08), []);
   useEffect(() => {
     const m = new THREE.Matrix4();
     for (let i = 0; i < MAX; i++) {
-      const l = Math.floor(i / 9), k = i % 9;
-      m.compose(new THREE.Vector3((k % 3) * 0.95, i < shown ? 0.32 + l * 0.55 : -50, Math.floor(k / 3) * 0.75), new THREE.Quaternion(), new THREE.Vector3(1, 0.62, 0.8));
+      const l = Math.floor(i / 12), k = i % 12;
+      m.makeTranslation((k % 4) * 0.95 - 1.4, i < shown ? 0.42 + l * 0.58 : -50, Math.floor(k / 4) * 0.7 - 0.7);
       ref.current!.setMatrixAt(i, m);
     }
     ref.current!.instanceMatrix.needsUpdate = true;
   }, [shown]);
   return (
     <group position={origin}>
-      <instancedMesh ref={ref} args={[undefined, undefined, MAX]} castShadow><sphereGeometry args={[0.5, 12, 10]} /><meshStandardMaterial map={sackTex()} color={GRADE_COLOR[grade]} /></instancedMesh>
-      <mesh position={[0.95, 0.02, 0.75]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[3.4, 2.8]} /><meshStandardMaterial color={GRADE_COLOR[grade]} transparent opacity={0.35} /></mesh>
+      <mesh position={[0, 0.07, 0]} receiveShadow><boxGeometry args={[4.1, 0.14, 2.3]} /><meshStandardMaterial color="#9b7a4e" /></mesh>
+      <instancedMesh ref={ref} args={[geo, undefined, MAX]} castShadow><meshStandardMaterial color={BOX_COLOR[grade]} roughness={0.6} /></instancedMesh>
     </group>
   );
 }
 
-function GradingHall({ lot, labels, night }: { lot: any; labels: boolean; night: boolean }) {
+function ScanHouse({ lot, labels, night, inside }: { lot: any; labels: boolean; night: boolean; inside: boolean }) {
+  const W = 28, D = 16, H = 7;
   const g = lot?.grading;
   const running = lot?.stage === "grading";
   const items = useRef<THREE.Group>(null);
@@ -268,50 +276,72 @@ function GradingHall({ lot, labels, night }: { lot: any; labels: boolean; night:
   const belt = beltTex();
   const seq = useMemo(() => (g?.items?.length ? g.items.map((x: any) => x.grade) : []), [g?.items]);
   const color = PRODUCE[lot?.commodity] || "#c0503a";
-  const BIN_Z: Record<string, number> = { A1: -4.5, A2: -1.5, A3: 1.5, rejected: 4.5, uncertain: 4.5 };
+  const LANE: Record<string, number> = { A1: -5, A2: -1.7, A3: 1.6, rejected: 5, uncertain: 5 };
+  const fruit = useMemo(() => new THREE.SphereGeometry(0.22, 14, 12), []);
   useFrame((st, dt) => {
     if (!running) return;
     belt.offset.x -= dt * 0.6;
     const t = st.clock.elapsedTime;
     if (scan.current) (scan.current.material as THREE.MeshBasicMaterial).opacity = 0.25 + 0.25 * Math.sin(t * 10);
     items.current?.children.forEach((m, i) => {
-      const period = 14;
-      const ph = ((t * 1.6 + i * 1.4) % period) - 7;   // -7 .. 7 along the belt
-      const grade = seq.length ? seq[(i + Math.floor((t * 1.6 + i * 1.4) / period) * 10) % seq.length] : "A1";
+      const period = 16;
+      const raw = t * 1.6 + i * 1.6;
+      const ph = (raw % period) - 9;                       // -9 .. 7 along the belt
+      const grade = seq.length ? seq[(i + Math.floor(raw / period) * 10) % seq.length] : "A1";
       const mat = (m as THREE.Mesh).material as THREE.MeshStandardMaterial;
-      mat.color.set(ph > -1 ? GRADE_COLOR[grade] : color);
-      if (ph < 4.5) m.position.set(ph, 1.25, 0);
-      else { const k = Math.min(1, (ph - 4.5) / 2.5); m.position.set(4.5 + k * 2.5, 1.25 - k * 0.9, BIN_Z[grade] * k); }
+      const scanned = ph > -3;
+      mat.color.set(scanned ? (GRADE_COLOR[grade] || color) : color);
+      mat.emissive.set(scanned ? (GRADE_COLOR[grade] || "#000") : "#000");
+      mat.emissiveIntensity = scanned ? 0.25 : 0;
+      if (ph < 3.5) m.position.set(ph, 1.25, 0);
+      else { const k = Math.min(1, (ph - 3.5) / 3); m.position.set(3.5 + k * 3.2, 1.25 - k * 0.8, LANE[grade] * k); }
     });
   });
+  const panel = panelTex();
+  const wallOp = inside ? 0.16 : 1;
+  const wallMat = (op = 1) => <meshStandardMaterial map={panel} color="#f3eee8" transparent={op < 1} opacity={op} depthWrite={op === 1} />;
   return (
     <group position={SITES.grading.toArray()}>
-      <mesh position={[0, 0.05, 0]} receiveShadow><boxGeometry args={[24, 0.1, 15]} /><meshStandardMaterial map={concreteTex()} /></mesh>
-      {[-11.5, 11.5].flatMap((x) => [-7, 0, 7].map((z) => <mesh key={`${x}${z}`} position={[x, 3.5, z]} castShadow><boxGeometry args={[0.35, 7, 0.35]} /><meshStandardMaterial color="#3a3f47" /></mesh>))}
-      <mesh position={[0, 7.2, 0]} castShadow><boxGeometry args={[24.5, 0.25, 15.5]} /><meshStandardMaterial map={metalRoofTex()} /></mesh>
-      {g && <pointLight position={[-2, 6.2, 0]} intensity={night ? 600 : 120} distance={30} color="#fff1d6" />}
-      {g && night && <pointLight position={[6, 6.2, 0]} intensity={450} distance={22} color="#fff1d6" />}
+      <mesh position={[0, 0.05, 0]} receiveShadow><boxGeometry args={[W, 0.1, D]} /><meshStandardMaterial map={concreteTex()} /></mesh>
+      {/* back + side walls (front wall faces the yard, glass) */}
+      <mesh position={[0, H / 2, -D / 2]} castShadow receiveShadow><boxGeometry args={[W, H, 0.3]} />{wallMat()}</mesh>
+      <mesh position={[-W / 2, H / 2, 0]} castShadow><boxGeometry args={[0.3, H, D]} />{wallMat(wallOp)}</mesh>
+      <mesh position={[W / 2, H / 2, 0]} castShadow><boxGeometry args={[0.3, H, D]} />{wallMat(wallOp)}</mesh>
+      <mesh position={[0, 1.0, D / 2]}><boxGeometry args={[W, 2.0, 0.3]} />{wallMat(wallOp)}</mesh>
+      <mesh position={[0, 4.4, D / 2]}><boxGeometry args={[W, 2.8, 0.12]} /><meshPhysicalMaterial color="#cfe7e3" transmission={0.6} roughness={0.08} transparent opacity={inside ? 0.12 : 0.45} depthWrite={false} /></mesh>
+      <mesh position={[0, H - 0.15, D / 2]}><boxGeometry args={[W, 0.3, 0.32]} />{wallMat(wallOp)}</mesh>
+      {!inside && <mesh position={[0, H - 0.9, D / 2 + 0.2]}><boxGeometry args={[W - 1, 0.4, 0.05]} /><meshStandardMaterial color="#17645F" emissive="#17645F" emissiveIntensity={0.3} /></mesh>}
+      {/* curved roof */}
+      <mesh position={[0, H, 0]} rotation={[0, 0, Math.PI / 2]} scale={[1, 1, 1]} castShadow={!inside}>
+        <cylinderGeometry args={[D / 2 + 0.4, D / 2 + 0.4, W + 0.6, 32, 1, true, -Math.PI / 2, Math.PI]} />
+        <meshStandardMaterial map={metalRoofTex()} side={THREE.DoubleSide} transparent={inside} opacity={inside ? 0.08 : 1} depthWrite={!inside} />
+      </mesh>
+      {g && <pointLight position={[-2, H - 0.8, 0]} intensity={night ? 650 : 160} distance={32} color="#fff1d6" />}
+      {g && night && <pointLight position={[7, H - 0.8, 0]} intensity={450} distance={22} color="#fff1d6" />}
+      {/* conveyor + scanner tunnel */}
       <group position={[-3, 0, 0]}>
-        <mesh position={[0, 1.0, 0]} castShadow><boxGeometry args={[15, 0.18, 1.3]} /><meshStandardMaterial map={belt} /></mesh>
-        {Array.from({ length: 8 }, (_, i) => <mesh key={i} position={[-7 + i * 2, 0.5, 0]}><boxGeometry args={[0.15, 1, 1.4]} /><meshStandardMaterial color="#5b616b" /></mesh>)}
-        <group position={[-1, 0, 0]}>
-          {[-0.95, 0.95].map((z) => <mesh key={z} position={[0, 1.7, z]}><boxGeometry args={[0.15, 3.4, 0.15]} /><meshStandardMaterial color="#0A2624" /></mesh>)}
-          <mesh position={[0, 3.35, 0]}><boxGeometry args={[0.6, 0.4, 2.1]} /><meshStandardMaterial color="#0A2624" /></mesh>
-          <mesh position={[0, 3.05, 0]}><boxGeometry args={[0.4, 0.3, 0.4]} /><meshStandardMaterial color="#FF684A" emissive="#FF684A" emissiveIntensity={running ? 2 : 0.3} /></mesh>
-          <mesh ref={scan} position={[0, 2.05, 0]}><coneGeometry args={[0.8, 1.9, 4, 1, true]} /><meshBasicMaterial color="#FF684A" transparent opacity={running ? 0.35 : 0} side={THREE.DoubleSide} depthWrite={false} /></mesh>
+        <mesh position={[0, 1.0, 0]} castShadow><boxGeometry args={[18, 0.18, 1.3]} /><meshStandardMaterial map={belt} /></mesh>
+        {Array.from({ length: 10 }, (_, i) => <mesh key={i} position={[-9 + i * 2, 0.5, 0]}><boxGeometry args={[0.15, 1, 1.4]} /><meshStandardMaterial color="#5b616b" /></mesh>)}
+        <group position={[-2.5, 0, 0]}>
+          <mesh position={[0, 1.75, 0]} castShadow><primitive object={TUNNEL_GEO} attach="geometry" /><meshStandardMaterial color="#17645F" roughness={0.4} /></mesh>
+          <mesh position={[0, 1.2, 0]}><boxGeometry args={[2.42, 0.7, 1.4]} /><meshStandardMaterial color="#0a2624" /></mesh>
+          <mesh position={[0, 2.62, 0]}><boxGeometry args={[0.5, 0.12, 0.5]} /><meshStandardMaterial color="#FF684A" emissive="#FF684A" emissiveIntensity={running ? 3 : 0.3} /></mesh>
+          <mesh ref={scan} position={[0, 1.3, 0]} rotation={[0, 0, Math.PI / 2]}><planeGeometry args={[0.6, 1.3]} /><meshBasicMaterial color="#FF684A" transparent opacity={running ? 0.35 : 0} side={THREE.DoubleSide} depthWrite={false} /></mesh>
         </group>
-        <group ref={items}>{Array.from({ length: 10 }, (_, i) => <mesh key={i} position={[-20, 1.25, 0]} castShadow><sphereGeometry args={[0.22, 14, 12]} /><meshStandardMaterial color={color} roughness={0.45} visible={running} /></mesh>)}</group>
+        <group ref={items}>{Array.from({ length: 12 }, (_, i) => <mesh key={i} geometry={fruit} position={[-20, 1.25, 0]} castShadow visible={running}><meshStandardMaterial color={color} roughness={0.45} /></mesh>)}</group>
       </group>
-      {(["A1", "A2", "A3"] as const).map((k, i) => (
+      {/* sorting chutes to crates */}
+      {(["A1", "A2", "A3"] as const).map((k) => (
         <group key={k}>
-          <Bags grade={k} filled={g?.bags_filled?.[k] ?? 0} total={g?.bags?.[k] ?? 0} origin={[5.3, 0.05, -6 + i * 3.3]} />
-          <Label position={[7, 4.2, -5.2 + i * 3.3]} show={labels && !!g}>{k}: {g?.bags_filled?.[k] ?? 0}/{g?.bags?.[k] ?? 0} bags</Label>
+          <GradeBoxes grade={k} filled={g?.bags_filled?.[k] ?? 0} total={g?.bags?.[k] ?? 0} origin={[8.8, 0.05, LANE[k]]} />
+          <Label position={[10.9, 1.2 + Math.ceil(Math.min(48, g?.bags_filled?.[k] ?? 0) / 12) * 0.58, LANE[k]]} show={labels && !!g}>{k}: {g?.bags_filled?.[k] ?? 0}/{g?.bags?.[k] ?? 0} boxes</Label>
         </group>
       ))}
-      <mesh position={[6.2, 0.6, 5.2]} castShadow><boxGeometry args={[2.2, 1.2, 1.8]} /><meshStandardMaterial color="#7a2a22" /></mesh>
-      <Label position={[0, 9.5, 0]} show={labels} dim={!g}>
-        <div className="font-sans text-[10px] uppercase tracking-widest text-gold">Scan & bag hall</div>
-        {g ? <>{running ? "Bagging" : "Done"} · {(g.processed_kg / 1000).toFixed(2)} / {(g.total_kg / 1000).toFixed(2)} t · rejected {(g.kg.rejected).toFixed(0)} kg</> : "waiting for a scan"}
+      <mesh position={[8.8, 0.55, LANE.rejected]} castShadow><primitive object={REJECT_GEO} attach="geometry" /><meshStandardMaterial color="#7a2a22" /></mesh>
+      <Label position={[8.8, 2.4, LANE.rejected]} show={labels && !!g}>Rejected {g ? Math.round(g.kg.rejected) : 0} kg</Label>
+      <Label position={[0, H + 4.5, 0]} show={labels} dim={!g}>
+        <div className="font-sans text-[10px] uppercase tracking-widest text-gold">Scan &amp; sort house</div>
+        {g ? <>{running ? "Scanning" : "Done"} · {(g.processed_kg / 1000).toFixed(2)} / {(g.total_kg / 1000).toFixed(2)} t</> : "waiting for an advanced lot"}
       </Label>
     </group>
   );
@@ -384,7 +414,7 @@ function LightPole({ position, night }: { position: [number, number, number]; ni
   );
 }
 
-export function Hub({ lots, activeId, cutaway, labels, night }: { lots: any[]; activeId: number | null; cutaway: "trad" | "adv" | null; labels: boolean; night: boolean }) {
+export function Hub({ lots, activeId, cutaway, labels, night }: { lots: any[]; activeId: number | null; cutaway: "trad" | "adv" | "scan" | null; labels: boolean; night: boolean }) {
   lots = [...lots].sort((a, b) => (a.id === activeId ? -1 : b.id === activeId ? 1 : 0));
   const trad = lots.find((l) => l.mode === "traditional" && ["intake", "storage"].includes(l.stage));
   const adv = lots.find((l) => l.mode === "advanced" && ["intake", "storage", "grading", "graded"].includes(l.stage));
@@ -400,7 +430,7 @@ export function Hub({ lots, activeId, cutaway, labels, night }: { lots: any[]; a
       <Farm />
       <TraditionalGodown lot={trad} cutaway={cutaway === "trad"} labels={labels} night={night} />
       <AdvancedGodown lot={adv} cutaway={cutaway === "adv"} labels={labels} night={night} />
-      <GradingHall lot={grading} labels={labels} night={night} />
+      <ScanHouse lot={grading} labels={labels} night={night} inside={cutaway === "scan"} />
       <IntakeTractor lot={intake} />
       {[[-40, 0, 16], [-14, 0, 16], [14, 0, 16], [40, 0, 16], [4, 0, 40]].map((p, i) => <LightPole key={i} position={p as [number, number, number]} night={night} />)}
       {night && <pointLight position={[0, 9, 10]} intensity={300} distance={70} color="#ffe2a0" />}

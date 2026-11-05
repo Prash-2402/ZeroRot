@@ -212,3 +212,72 @@ def test_groq_key_rotation(monkeypatch):
     groq_ai._next_key[0] = 0
     assert groq_ai._chat([{"role": "user", "content": "hi"}], json_mode=False) == "ok"
     assert calls == ["Bearer k1", "Bearer k2"]
+
+
+TOWNS = {"Kolar": KOLAR, "Bengaluru": BLR, "Chik Ballapur": (13.4355, 77.7315), "Chintamani": (13.4000, 78.0560)}
+
+
+def _geocode(q, count=6):
+    name = next((k for k in TOWNS if q.startswith(k)), "Kolar")
+    lat, lng = TOWNS[name]
+    return [{"name": name, "admin1": "Karnataka", "country": "India", "lat": lat, "lng": lng, "elevation": 800}]
+
+
+def test_virtual_scan_precooling_and_auto_control(H, monkeypatch):
+    monkeypatch.setattr(weather, "geocode", _geocode)
+    _, P = pair(H)
+    lot = client.post("/api/v1/flow/lots", headers=P, json={"commodity": "mango", "quantity_kg": 1500, "mode": "advanced", "lat": KOLAR[0],
+                                                            "lng": KOLAR[1], "location_name": "Kolar", "speed": 600}).json()
+    kinds = [e["kind"] for e in lot["events"]]
+    assert "precooling" in kinds                       # crates arrive warm, chamber pulls down
+    t0 = lot["storage"]["readings"]["temperature_c"]
+    assert t0 > lot["storage"]["setpoint"] + 1
+    s = step(P, lot["id"], 3 * 3600)
+    assert s["storage"]["readings"]["temperature_c"] < t0
+    for _ in range(6):
+        s = step(P, lot["id"], 6 * 3600)
+        if any(e["kind"] == "target_reached" for e in s["events"]):
+            break
+    assert any(e["kind"] == "target_reached" for e in s["events"])
+    # cooling failure -> automatic backup cooling is notified
+    client.post(f"/api/v1/flow/lots/{lot['id']}/scenario", headers=P, json={"scenario": "cooling_failure"})
+    s = step(P, lot["id"], 1800)
+    assert any(e["kind"].startswith("auto_") for e in s["events"]), [e["kind"] for e in s["events"]]
+    # no photo upload: the simulated scanner grades from the twin
+    r = client.post(f"/api/v1/flow/lots/{lot['id']}/scan", headers=P)
+    assert r.status_code == 201, r.text
+    g = r.json()
+    assert g["method"] == "virtual_scan" and abs(sum(g["shares"].values()) - 1) < 1e-6
+    assert g["thresholds"]["A1"] > g["thresholds"]["A2"] > g["thresholds"]["A3"]
+    assert sum(g["bags"].values()) > 0 and g["bag_kg"] == 20
+
+
+def test_traditional_lot_cannot_be_scanned(H):
+    _, P = pair(H)
+    lot = client.post("/api/v1/flow/lots", headers=P, json={"commodity": "potato", "quantity_kg": 500, "mode": "traditional", "lat": KOLAR[0],
+                                                            "lng": KOLAR[1], "location_name": "Kolar", "speed": 600}).json()
+    step(P, lot["id"], 1200)
+    assert client.post(f"/api/v1/flow/lots/{lot['id']}/scan", headers=P).status_code == 409
+
+
+@pytest.mark.parametrize("name", ["monsoon_tomato", "heatwave_banana"])
+def test_sample_situations_play_to_the_end(H, monkeypatch, name):
+    monkeypatch.setattr(weather, "geocode", _geocode)
+    from app.services import flow as flow_svc
+    flow_svc._geo_cache.clear()
+    sid, P = pair(H)
+    assert name in [x["name"] for x in client.get("/api/v1/flow/scripts", headers=P).json()["scripts"]]
+    lot = client.post(f"/api/v1/flow/scripts/{name}", headers=P, json={}).json()
+    assert lot["script"]["step"] == 0
+    for _ in range(400):   # 15-minute steps, like a few seconds of real play at 300x
+        s = step(P, lot["id"], 900)
+        if s["script"]["done"]:
+            break
+    assert s["script"]["done"], s["script"]
+    titles = [e["title"] for e in s["events"]]
+    assert not any(t == "Step skipped" for t in titles), [e["message"] for e in s["events"] if e["title"] == "Step skipped"]
+    assert any(e["kind"] == "rerouted" for e in s["events"]) and any(e["kind"] == "dispatched" for e in s["events"])
+    if name == "monsoon_tomato":
+        assert {sh["grade"] for sh in s["shipments"]} == {"A1", "A2", "A3"}
+    else:
+        assert s["shipments"][0]["grade"] == "ALL" and s["shipments"][0]["live"]["refrigerated"] is False

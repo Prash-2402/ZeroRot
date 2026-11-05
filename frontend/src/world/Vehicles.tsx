@@ -1,6 +1,10 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three-stdlib";
+
+const CAB_GEO = new RoundedBoxGeometry(2.3, 2.1, 1.9, 4, 0.28);
+const BOX_GEO = new RoundedBoxGeometry(2.45, 2.6, 6.2, 4, 0.22);
 import { tempColor } from "../lib/format";
 
 function Wheel({ position, r = 0.5, spin }: { position: [number, number, number]; r?: number; spin: React.MutableRefObject<number> }) {
@@ -36,7 +40,7 @@ export function TruckModel({ refrigerated, zones, setpoint, coolingOn, doorOpen,
       <mesh position={[0, 0.75, 0.3]} castShadow><boxGeometry args={[2.0, 0.35, 8.4]} /><meshStandardMaterial color="#1b1d21" /></mesh>
       {/* cab */}
       <group position={[0, 0, 3.4]}>
-        <mesh position={[0, 1.9, 0.2]} castShadow><boxGeometry args={[2.3, 2.1, 1.9]} /><meshStandardMaterial color="#0A2624" metalness={0.5} roughness={0.35} /></mesh>
+        <mesh position={[0, 1.9, 0.2]} castShadow geometry={CAB_GEO}><meshStandardMaterial color="#0A2624" metalness={0.5} roughness={0.35} /></mesh>
         <mesh position={[0, 2.35, 1.16]}><boxGeometry args={[2.1, 0.9, 0.04]} /><meshStandardMaterial color="#9fc6e8" metalness={0.9} roughness={0.05} /></mesh>
         <mesh position={[0, 1.05, 1.18]}><boxGeometry args={[2.3, 0.35, 0.1]} /><meshStandardMaterial color="#FF684A" /></mesh>
         {[-0.85, 0.85].map((x) => (
@@ -46,7 +50,7 @@ export function TruckModel({ refrigerated, zones, setpoint, coolingOn, doorOpen,
       {/* body */}
       {refrigerated ? (
         <group position={[0, 2.25, -0.9]}>
-          <mesh castShadow><boxGeometry args={[2.45, 2.6, 6.2]} /><meshStandardMaterial color="#F3EEE8" roughness={0.6} /></mesh>
+          <mesh castShadow geometry={BOX_GEO}><meshStandardMaterial color="#F3EEE8" roughness={0.6} /></mesh>
           <mesh position={[0, 0.85, 0]}><boxGeometry args={[2.47, 0.18, 6.22]} /><meshStandardMaterial color="#FF684A" /></mesh>
           {/* zone heat strip, front (unit, +z) -> rear */}
           {(zones?.length ? zones : Array(6).fill(sp)).map((z, i, a) => {

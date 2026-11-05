@@ -31,7 +31,9 @@ log = logging.getLogger("zerorot.flow")
 
 LOADING_KG_PER_H = 2000.0
 GRADING_KG_PER_H = 1500.0
-BAG_KG = 25.0
+BAG_KG = 20.0              # one sorting box (crate)
+ITEM_Q_SD = 7.0            # item-to-item quality spread within a lot (assumption)
+SCAN_LIMITS = (("A1", 85.0), ("A2", 70.0))   # A3 down to the commodity's minimum saleable quality
 UNLOAD_KG_PER_H = 3000.0
 REROUTE_TURNAROUND_S = 600.0
 TRANSPORT_RS_PER_KM = 45.0
@@ -39,7 +41,7 @@ GRADES = ("A1", "A2", "A3")
 # A1 best, A2 medium, A3 low; defect score = lesion share + 1.5 x mould share (from the OpenCV analysis)
 GRADE_LIMITS = (("A1", 0.03), ("A2", 0.08), ("A3", 0.20))
 # Karnataka APMC market towns; coordinates are resolved live with Open-Meteo geocoding (not hardcoded)
-MARKET_TOWNS = ["Bengaluru", "Kolar", "Chikkaballapur", "Chintamani", "Tumakuru", "Mysuru", "Mandya", "Hassan", "Davanagere",
+MARKET_TOWNS = ["Bengaluru", "Kolar", "Chik Ballapur", "Chintamani", "Tumakuru", "Mysuru", "Mandya", "Hassan", "Davangere",
                 "Shivamogga", "Hubballi", "Belagavi", "Kalaburagi", "Ballari", "Vijayapura", "Mangaluru", "Chitradurga", "Ramanagara"]
 _geo_cache: dict[str, dict | None] = {}
 
@@ -75,6 +77,9 @@ def saleable_kg(rt) -> float:
 
 def add_event(db: Session, lot: Lot, kind: str, title: str, message: str, severity: str = "INFO", sim_id: int | None = None, push_it: bool = True):
     sim_time = None
+    if sim_id is None:   # narrate on the clock of whatever is moving now (truck), else the godown
+        moving = db.scalars(select(Shipment).where(Shipment.lot_id == lot.id, Shipment.status != "delivered").order_by(Shipment.id.desc())).first()
+        sim_id = moving.simulation_id if moving and lot.stage not in ("intake", "storage") else None
     sid = sim_id or lot.storage_sim_id
     if sid and sid in _manager().runtimes:
         rt = _manager().runtimes[sid]
@@ -93,6 +98,22 @@ def add_event(db: Session, lot: Lot, kind: str, title: str, message: str, severi
                 if not ok and ("410" in msg or "404" in msg):
                     s.active = False
     return ev
+
+
+ACTION_TITLE = {"activate_backup_cooling": "Auto-control: backup cooling on", "adjust_setpoint": "Auto-control: setpoint lowered",
+                "ventilate": "Auto-control: ventilation increased"}
+
+
+def on_sim_actions(db: Session, sim: Simulation, actions: list[dict]):
+    """Automatic corrective actions of the advanced godown / reefer become notifications on the phone and laptop."""
+    lot = db.scalars(select(Lot).where(Lot.storage_sim_id == sim.id)).first()
+    if lot is None:
+        sh = db.scalars(select(Shipment).where(Shipment.simulation_id == sim.id)).first()
+        lot = db.get(Lot, sh.lot_id) if sh else None
+    if lot is None:
+        return
+    for a in actions:
+        add_event(db, lot, "auto_" + a["action"], ACTION_TITLE.get(a["action"], "Auto-control action"), a["reason"], severity="INFO", sim_id=sim.id)
 
 
 def on_sim_alerts(db: Session, sim: Simulation, alerts: list):
@@ -202,13 +223,26 @@ def create_lot(db: Session, *, commodity: str, quantity_kg: float, quality: floa
     db.add(lot)
     db.flush()
     try:
-        _manager().runtime(db, sim)
+        rt = _manager().runtime(db, sim)
     except ValueError as ex:
         db.rollback()
         raise FlowError(422, "invalid_input", str(ex))
     add_event(db, lot, "intake_started", "Intake started",
               f"{quantity_kg:.0f} kg of {p.display_name.lower()} entering the {mode} godown at {location_name} "
               f"(about {loading_s / 60:.0f} min of loading at {LOADING_KG_PER_H:.0f} kg/h).", push_it=False)
+    if mode == "advanced":
+        # crates carry field heat: the chamber air starts at the outside temperature and is pulled down to the target
+        from app.simulation.engine import ambient
+        from app.simulation.environment import humidity_ratio
+        from app.simulation.state import AirState
+        amb = ambient(cfg, rt.s)
+        if amb["t"] is not None and amb["t"] > cfg["setpoint"] + 1:
+            rt.s.air = AirState(t=float(amb["t"]), w=humidity_ratio(float(amb["t"]), min(100.0, float(amb["rh"])), amb["p"]), x_o2=rt.s.air.x_o2, x_co2=rt.s.air.x_co2)
+            rt.meta["precool"] = {"from": round(amb["t"], 1), "target": cfg["setpoint"], "done": False}
+            rt.last_readings = {}
+            add_event(db, lot, "precooling", "Pre-cooling started",
+                      f"Produce arrives at {amb['t']:.1f} °C; automatic control is pulling the chamber down to {cfg['setpoint']:.1f} °C "
+                      f"({cfg['cooling_kw']:.0f} kW refrigeration).", push_it=False)
     db.commit()
     return lot
 
@@ -272,6 +306,56 @@ def grade(db: Session, lot: Lot, images: list[tuple[str, bytes]], user_id: int |
     add_event(db, lot, "grading_started", "Scan & bag started",
               f"Sample: {counts['A1']} A1, {counts['A2']} A2, {counts['A3']} A3, {counts['rejected']} rejected, {counts['uncertain']} uncertain. "
               f"Estimated {bags['A1']} A1 / {bags['A2']} A2 / {bags['A3']} A3 bags of {BAG_KG:.0f} kg.", push_it=False)
+    db.commit()
+    return lot.grading
+
+
+def scan(db: Session, lot: Lot) -> dict:
+    """Simulated scanning line: every item passes a virtual camera that reads its quality from the lot's digital twin.
+    Item quality ~ Normal(lot quality, ITEM_Q_SD); the model's rejected (decayed) fraction goes straight to rejects.
+    Grades: A1 >= 85, A2 >= 70, A3 >= minimum saleable quality, otherwise rejected."""
+    import random
+    from statistics import NormalDist
+    if lot.mode != "advanced":
+        raise FlowError(409, "not_applicable", "Scanning and sorting is part of the advanced godown path; traditional lots go straight to the truck")
+    if lot.stage != "storage":
+        raise FlowError(409, "wrong_stage", f"Lot is in stage '{lot.stage}'; scanning needs the produce stored in the godown")
+    b = db.get(ProduceBatch, lot.batch_id)
+    sim, rt = _runtime(db, lot.storage_sim_id)
+    if rt is None:
+        raise FlowError(409, "no_state", "Storage state unavailable")
+    p = rt.s.produce
+    q_min = get_produce(b.commodity_id).v("q_min")
+    nd = NormalDist(p.q, ITEM_Q_SD)
+    good = (1 - p.r)
+    cdf = lambda x: nd.cdf(x)
+    shares = {"A1": good * (1 - cdf(SCAN_LIMITS[0][1])), "A2": good * (cdf(SCAN_LIMITS[0][1]) - cdf(SCAN_LIMITS[1][1])),
+              "A3": good * (cdf(SCAN_LIMITS[1][1]) - cdf(q_min))}
+    shares["rejected"] = max(0.0, 1 - sum(shares.values()))
+    total = p.mass_kg * (1 - p.w)
+    kg = {k: round(total * v, 1) for k, v in shares.items()}
+    bags = {g: math.ceil(kg[g] / BAG_KG) if kg[g] >= 1 else 0 for g in GRADES}
+    rnd = random.Random(f"scan-{lot.id}")
+    items = []
+    for _ in range(80):   # items shown on the line, drawn from the same distribution
+        if rnd.random() < p.r:
+            items.append({"grade": "rejected", "quality": 0.0})
+            continue
+        qi = rnd.gauss(p.q, ITEM_Q_SD)
+        g = "A1" if qi >= SCAN_LIMITS[0][1] else "A2" if qi >= SCAN_LIMITS[1][1] else "A3" if qi >= q_min else "rejected"
+        items.append({"grade": g, "quality": round(qi, 1)})
+    counts = {k: sum(1 for i in items if i["grade"] == k) for k in (*GRADES, "rejected")} | {"uncertain": 0}
+    if sim is not None and sim.status == "running":
+        sim.status = "paused"     # stock leaves the chamber for the scanning house
+    lot.grading = {"objects": len(items), "counts": counts, "items": items, "shares": {k: round(v, 4) for k, v in shares.items()},
+                   "kg": kg, "bags": bags, "bag_kg": BAG_KG, "total_kg": round(total, 1), "processed_kg": 0.0, "bags_filled": {g: 0 for g in GRADES},
+                   "rate_kg_h": GRADING_KG_PER_H, "quality_at_grading": round(p.q, 2), "method": "virtual_scan", "item_sd": ITEM_Q_SD,
+                   "thresholds": {"A1": SCAN_LIMITS[0][1], "A2": SCAN_LIMITS[1][1], "A3": q_min},
+                   "label": f"SIMULATED scan: item quality drawn from the lot's modelled quality ({p.q:.0f} ± {ITEM_Q_SD:.0f}); A1 ≥ 85, A2 ≥ 70, A3 ≥ {q_min:.0f}."}
+    lot.stage = "grading"
+    add_event(db, lot, "grading_started", "Scanning started",
+              f"Lot quality {p.q:.0f}/100 → estimated {bags['A1']} A1, {bags['A2']} A2, {bags['A3']} A3 boxes of {BAG_KG:.0f} kg; "
+              f"{kg['rejected']:.0f} kg rejected.", push_it=False)
     db.commit()
     return lot.grading
 
@@ -467,7 +551,7 @@ def dispatch(db: Session, lot: Lot, *, grade: str, dest_name: str, dest_lat: flo
             ssim.config = {**ssim.config, "summary": srt.summary()}
     b.status = "in_transit"
     add_event(db, lot, "dispatched", "Dispatched",
-              f"{qty:.0f} kg ({'all produce' if grade == 'ALL' else grade + ' bags'}) left for {dest_name} by {truck.name[0].lower() + truck.name[1:]}: "
+              f"{qty:.0f} kg ({'all produce' if grade == 'ALL' else grade + ' boxes'}) left for {dest_name} by {truck.name[0].lower() + truck.name[1:]}: "
               f"{r0['distance_m'] / 1000:.1f} km, about {r0['duration_s'] / 3600:.1f} h by road.", sim_id=sim.id)
     db.commit()
     _name_checkpoints_async(sh.id)
@@ -535,6 +619,140 @@ def reroute(db: Session, sh: Shipment, reason: str = "Road blocked ahead") -> di
     return info
 
 
+# ---------------- playable sample situations ----------------
+H = 3600
+SCRIPTS = {
+    "monsoon_tomato": {
+        "title": "Monsoon tomato · advanced cold chain",
+        "summary": "2 t tomato from Kolar into the advanced godown: pre-cooling, compressor failure with backup cooling, door left open, "
+                   "scanning into A1/A2/A3, quoted-price decision, three trucks to three markets, reefer failure and a road block on the highway.",
+        "lot": {"commodity": "tomato", "quantity_kg": 2000, "quality": 92, "maturity": "turning", "mode": "advanced", "plan_days": 5, "speed": 300},
+        "steps": [
+            {"when": "stored", "after": 1 * H, "do": "godown_scenario", "args": {"scenario": "cooling_failure"}, "say": "Compressor trips in the cold godown. Watch backup cooling switch on automatically."},
+            {"when": "stored", "after": 3 * H, "do": "godown_scenario", "args": {"scenario": "normal"}, "say": "Technician repairs the compressor; normal cooling resumes."},
+            {"when": "stored", "after": 4 * H, "do": "godown_control", "args": {"name": "door_open", "value": True}, "say": "A worker leaves the chamber door open."},
+            {"when": "stored", "after": 4.8 * H, "do": "godown_control", "args": {"name": "door_open", "value": False}, "say": "Door closed after the alert."},
+            {"when": "stored", "after": 5.5 * H, "do": "scan", "say": "The lot moves to the scanning house: every item is scanned and sorted into A1, A2 and A3 boxes."},
+            {"when": "graded", "after": 600, "do": "decide", "args": {"price": 22}, "say": "The farmer checks the decision with today's quoted price of Rs 22/kg."},
+            {"when": "graded", "after": 900, "do": "dispatch", "args": {"grade": "A1", "town": "Bengaluru"}, "say": "A1 boxes go to the highest-price market: Bengaluru APMC."},
+            {"when": "graded", "after": 1200, "do": "dispatch", "args": {"grade": "A2", "town": "Chik Ballapur"}, "say": "A2 boxes go to a standard market: Chikkaballapur APMC."},
+            {"when": "graded", "after": 1500, "do": "dispatch", "args": {"grade": "A3", "town": "Chintamani"}, "say": "A3 boxes go to the nearby low-budget market: Chintamani APMC."},
+            {"when": "in_transit:A1", "after": 600, "do": "truck_scenario", "args": {"grade": "A1", "scenario": "refrigeration_failure"}, "say": "The A1 reefer's compressor fails on the highway; cargo starts warming from the rear."},
+            {"when": "in_transit:A1", "after": 1500, "do": "truck_scenario", "args": {"grade": "A1", "scenario": "normal"}, "say": "The driver restarts the refrigeration unit."},
+            {"when": "in_transit:A1", "after": 1800, "do": "road_block", "args": {"grade": "A1"}, "say": "Road blocked ahead of the A1 truck. Finding an alternative road."},
+        ],
+    },
+    "heatwave_banana": {
+        "title": "Heat-wave banana · traditional storage",
+        "summary": "3 t banana in a brick godown during a heat wave: rising temperature, vents closed and gas build-up, spoilage risk, "
+                   "sell-now decision, open truck straight from the godown, traffic delay and a road block.",
+        "lot": {"commodity": "banana", "quantity_kg": 3000, "quality": 90, "maturity": "mature_green", "mode": "traditional", "plan_days": 5, "speed": 300},
+        "steps": [
+            {"when": "stored", "after": 1 * H, "do": "godown_scenario", "args": {"scenario": "heat_wave"}, "say": "Heat wave: outside air is 8 degC hotter than forecast. The brick godown warms through the walls."},
+            {"when": "stored", "after": 3 * H, "do": "godown_scenario", "args": {"scenario": "vents_closed"}, "say": "Vents are closed to keep dust out; CO2 from respiring bananas builds up."},
+            {"when": "stored", "after": 5 * H, "do": "godown_scenario", "args": {"scenario": "normal"}, "say": "Vents reopened and the heat wave eases."},
+            {"when": "stored", "after": 6 * H, "do": "decide", "args": {"price": 30}, "say": "The farmer checks the decision with today's quoted price of Rs 30/kg."},
+            {"when": "stored", "after": 6.3 * H, "do": "dispatch", "args": {"grade": "ALL", "town": "Bengaluru"}, "say": "Traditional storage has no scanning: the lot goes straight onto an open truck to Bengaluru APMC."},
+            {"when": "in_transit:ALL", "after": 1200, "do": "truck_scenario", "args": {"grade": "ALL", "scenario": "extended_delay"}, "say": "The truck is stuck in traffic for 4 hours."},
+            {"when": "in_transit:ALL", "after": 4.5 * H, "do": "road_block", "args": {"grade": "ALL"}, "say": "Road blocked ahead. Finding an alternative road."},
+        ],
+    },
+}
+
+
+def start_script(db: Session, name: str, station_id: int | None, user_id: int | None) -> Lot:
+    sc = SCRIPTS.get(name)
+    if sc is None:
+        raise FlowError(404, "not_found", "Unknown sample situation")
+    g = geocode_town("Kolar")
+    if g is None:
+        raise FlowError(503, "geocoding_unavailable", "Could not locate Kolar (geocoding unavailable)")
+    lot = create_lot(db, station_id=station_id, user_id=user_id, lat=g["lat"], lng=g["lng"], location_name=f"{g['name']}, Karnataka", **sc["lot"])
+    lot.script = {"name": name, "idx": 0, "clock": 0.0, "since": {}, "done": False}
+    add_event(db, lot, "script", f"Sample situation: {sc['title']}", sc["summary"], push_it=False)
+    db.commit()
+    return lot
+
+
+def _ship_by_grade(db: Session, lot: Lot, grade: str) -> Shipment | None:
+    return db.scalars(select(Shipment).where(Shipment.lot_id == lot.id, Shipment.grade == grade).order_by(Shipment.id.desc())).first()
+
+
+def _script_condition(db: Session, lot: Lot, when: str) -> bool:
+    if when == "stored":
+        return lot.stage != "intake"
+    if when == "graded":
+        return lot.stage in ("graded", "dispatched", "arrived", "delivered") and bool(lot.grading)
+    if when.startswith("in_transit:"):
+        return _ship_by_grade(db, lot, when.split(":", 1)[1]) is not None
+    return True
+
+
+def _run_script(db: Session, lot: Lot, dt: float):
+    st = dict(lot.script)
+    sc = SCRIPTS[st["name"]]
+    st["clock"] += dt
+    since = dict(st.get("since") or {})
+    for w in {x["when"] for x in sc["steps"]}:   # step delays count from when their condition FIRST became true
+        if w not in since and _script_condition(db, lot, w):
+            since[w] = st["clock"]
+    st["since"] = since
+    lot.script = st
+    while st["idx"] < len(sc["steps"]):
+        step = sc["steps"][st["idx"]]
+        if step["when"] not in since or st["clock"] - since[step["when"]] < step["after"]:
+            break
+        st["idx"] += 1
+        lot.script = dict(st)
+        add_event(db, lot, "script", f"Step {st['idx']}/{len(sc['steps'])}", step["say"], push_it=False)
+        try:
+            _script_action(db, lot, step)
+        except FlowError as e:
+            add_event(db, lot, "script", "Step skipped", e.message, severity="WARNING", push_it=False)
+        except Exception as e:   # keep the situation running
+            log.exception("script step failed")
+            add_event(db, lot, "script", "Step skipped", f"{type(e).__name__}: {e}", severity="WARNING", push_it=False)
+        st = dict(lot.script)
+    if st["idx"] >= len(sc["steps"]) and not st["done"]:
+        st["done"] = True
+        add_event(db, lot, "script", "Sample situation: all events played", "The remaining trucks continue to their markets. Watch the phone for deliveries.", push_it=False)
+    lot.script = dict(st)
+
+
+def _script_action(db: Session, lot: Lot, step: dict):
+    a, args = step["do"], step.get("args", {})
+    if a in ("godown_scenario", "godown_control"):
+        sim, rt = _runtime(db, lot.storage_sim_id)
+        if rt is None or lot.stage not in ("intake", "storage"):
+            raise FlowError(409, "wrong_stage", "The godown is no longer active")
+        with _manager().lock:
+            if a == "godown_scenario":
+                rt.scenario(args["scenario"])
+                sim.scenario = None if args["scenario"] == "normal" else args["scenario"]
+            else:
+                rt.control(args["name"], args["value"])
+    elif a == "scan":
+        scan(db, lot)
+    elif a == "decide":
+        decision(db, lot, args.get("price"), None)
+    elif a == "dispatch":
+        g = geocode_town(args["town"])
+        if g is None:
+            raise FlowError(503, "geocoding_unavailable", f"Could not locate {args['town']}")
+        dispatch(db, lot, grade=args["grade"], dest_name=f"{g['name']} APMC", dest_lat=g["lat"], dest_lng=g["lng"], user_id=None)
+    elif a in ("truck_scenario", "road_block"):
+        sh = _ship_by_grade(db, lot, args["grade"])
+        if sh is None or sh.status != "in_transit":
+            raise FlowError(409, "not_in_transit", "That truck is no longer on the road")
+        if a == "road_block":
+            reroute(db, sh, "Road blocked ahead")
+        else:
+            sim, rt = _runtime(db, sh.simulation_id)
+            with _manager().lock:
+                rt.scenario(args["scenario"])
+            sim.scenario = None if args["scenario"] == "normal" else args["scenario"]
+
+
 # ---------------- per-tick progress (called by the simulation manager) ----------------
 def tick(db: Session, dt_real: float):
     lots = db.scalars(select(Lot).where(Lot.stage.in_(("intake", "storage", "grading", "graded", "dispatched", "arrived")))).all()
@@ -564,13 +782,22 @@ def _tick_lot(db: Session, lot: Lot, dt_real: float):
     if lot.paused:
         return
     dt = lot.speed * dt_real
+    if lot.script and not lot.script.get("done"):
+        _run_script(db, lot, dt)
     if lot.stage == "intake":
         sim, rt = _runtime(db, lot.storage_sim_id)
         if rt and (rt.loading() or {}).get("done"):
             lot.stage = "storage"
             add_event(db, lot, "stored", "Stored in godown", f"All {rt.s.produce.mass_kg:.0f} kg loaded; door closed. "
                       + ("Automatic climate control is active." if lot.mode == "advanced" else "Monitoring with live weather."))
-    elif lot.stage == "grading":
+    if lot.mode == "advanced" and lot.stage in ("intake", "storage"):
+        sim, rt = _runtime(db, lot.storage_sim_id)
+        pc = rt.meta.get("precool") if rt else None
+        if pc and pc.get("done") and not pc.get("notified"):
+            pc["notified"] = True
+            add_event(db, lot, "target_reached", "Target temperature reached",
+                      f"Chamber at {rt.s.air.t:.1f} °C (target {pc['target']:.1f} °C) after {rt.s.t_seconds / 3600:.1f} h of pre-cooling from {pc['from']:.1f} °C.")
+    if lot.stage == "grading":
         g = dict(lot.grading)
         g["processed_kg"] = min(g["total_kg"], g["processed_kg"] + GRADING_KG_PER_H * dt / 3600.0)
         g["elapsed_s"] = g.get("elapsed_s", 0.0) + dt
@@ -581,7 +808,7 @@ def _tick_lot(db: Session, lot: Lot, dt_real: float):
             g["bags_filled"] = dict(g["bags"])
             lot.grading = g
             lot.stage = "graded"
-            add_event(db, lot, "bagged", "Bagging complete", f"{g['bags']['A1']} A1, {g['bags']['A2']} A2 and {g['bags']['A3']} A3 bags ready "
+            add_event(db, lot, "bagged", "Sorting complete", f"{g['bags']['A1']} A1, {g['bags']['A2']} A2 and {g['bags']['A3']} A3 boxes ready "
                       f"({g['kg']['rejected']:.0f} kg rejected). Open Predict to choose where to sell each grade.")
     if lot.stage in ("graded", "dispatched", "arrived"):
         ships = db.scalars(select(Shipment).where(Shipment.lot_id == lot.id, Shipment.status != "cancelled")).all()
@@ -637,7 +864,9 @@ def lot_payload(db: Session, lot: Lot, full: bool = False) -> dict:
     out = {"id": lot.id, "code": b.code, "commodity": b.commodity_id, "quantity_kg": b.quantity_kg, "initial_quality": b.initial_quality,
            "maturity": b.maturity, "location": {"name": b.location_name, "lat": b.lat, "lng": b.lng}, "mode": lot.mode, "stage": lot.stage,
            "speed": lot.speed, "paused": lot.paused, "grading": lot.grading, "decision": lot.decision, "events": (lot.events or [])[-30:],
-           "created_at": lot.created_at.isoformat(timespec="seconds"), "storage": None, "shipments": []}
+           "created_at": lot.created_at.isoformat(timespec="seconds"), "storage": None, "shipments": [],
+           "script": ({"name": lot.script["name"], "title": SCRIPTS[lot.script["name"]]["title"], "step": lot.script["idx"],
+                       "steps": len(SCRIPTS[lot.script["name"]]["steps"]), "done": lot.script["done"]} if lot.script else None)}
     sim, rt = _runtime(db, lot.storage_sim_id)
     if rt is not None:
         lv = rt.live()

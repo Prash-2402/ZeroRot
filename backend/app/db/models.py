@@ -369,6 +369,7 @@ class Lot(TimestampMixin, Base):
     grading: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     decision: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     events: Mapped[list] = mapped_column(JSON, default=list)
+    script: Mapped[dict | None] = mapped_column(JSON, nullable=True)   # playable sample situation progress
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     __table_args__ = (CheckConstraint("mode in ('traditional','advanced')", name="ck_lot_mode"),
                       CheckConstraint("stage in ('intake','storage','grading','graded','dispatched','arrived','delivered')", name="ck_lot_stage"))

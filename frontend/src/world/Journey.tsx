@@ -175,7 +175,7 @@ function ShipmentVisual({ ship, geo, proj, night, labels, commodity }: { ship: a
         <TruckModel refrigerated={!!lv.refrigerated} zones={zones} setpoint={lv.setpoint} coolingOn={(lv.flows?.q_cool_w ?? 0) > 0} doorOpen={!!lv.equipment?.door_open} night={night} distRef={dist} cargo={ship.grade === "ALL" ? "crates" : "bags"} />
         <Label position={[0, 6.5, 0]} show={labels}>
           <span className="text-gold">{ship.grade === "ALL" ? commodity : ship.grade}</span> · {lv.total_done_km?.toFixed(1)} / {lv.total_km?.toFixed(1)} km<br />
-          cargo {(lv.readings?.max_zone_c ?? lv.readings?.temperature_c)?.toFixed(1)} °C · Q {lv.produce?.quality?.toFixed(0)}{lv.route?.delay_remaining_s > 0 ? " · STOPPED" : ""}
+          {lv.refrigerated ? <>reefer · cargo {(lv.readings?.max_zone_c ?? lv.readings?.temperature_c)?.toFixed(1)} °C · Q {lv.produce?.quality?.toFixed(1)}</> : <>open truck</>}{lv.route?.delay_remaining_s > 0 ? " · STOPPED" : ""}
         </Label>
       </group>
     </group>

@@ -9,8 +9,8 @@ driven to the mandi, from one authoritative backend simulation, in sync within a
 | 1 · Live entry | Crop, quantity, condition, sell-within days, location (GPS / search), traditional or advanced godown | Tractor brings crates; godown fills at 2 t/h with the door open |
 | 2 · Godown | Live temperature, humidity, quality, shelf life, alerts + suggestions, door/vent/setpoint controls | Brick godown (weather-driven) or cold godown (auto climate control): heat haze, vents, cooling fans, cold mist, sensor tags |
 | 3 · Predict | Mandi rates, spoilage (now vs recommended storage), sell-now vs store decision, AI explanation | — |
-| 4 · Scan & bag (advanced) | Camera photos → A1 / A2 / A3 / rejected | Conveyor, scanner, bags stacking per grade |
-| 5 · Track | Checkpoints, ETA, cargo temperature, reroute notice, arrival/delivery notifications, Kannada/English help chat | Real road route, truck by true distance, checkpoint gantries, road-block barricade and reroute, mandi unloading |
+| 4 · Scan & sort (advanced) | One tap: simulated scanner grades every item from the lot's modelled quality | Enclosed scan house: conveyor, scanner tunnel, A1 / A2 / A3 boxes stacking, reject bin |
+| 5 · Track | Checkpoints, ETA; reefer trucks also cargo temperature, spoilage rate, shelf life; reroute notice, arrival/delivery notifications, Kannada/English help chat | Real road route, truck by true distance, checkpoint gantries, road-block barricade and reroute, mandi unloading |
 
 The sky follows the simulated time and location (real sun position), and rain and cloud come from the live forecast.
 
@@ -32,7 +32,7 @@ without it, use place search.
 
 **Testing slowly** (laptop bottom bar): pause, step +1 min / +10 min / +1 h of simulated time, speed from real time to
 1 h per second, per-stage test scenarios (door open, cooling failure, heat wave, road blocked, refrigeration failure,
-delay), and a raw-values debug panel. "Start from the laptop" creates a lot without a phone.
+delay), Sim time / Day / Night view, and a raw-values debug panel. Two playable sample situations (monsoon tomato · advanced, heat-wave banana · traditional) run every stage automatically. "Start from the laptop" creates a lot without a phone.
 
 Docker with PostgreSQL: `docker compose up --build` (set `POSTGRES_PASSWORD` and `JWT_SECRET` in `.env`).
 

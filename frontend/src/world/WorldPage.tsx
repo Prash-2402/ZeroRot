@@ -9,14 +9,14 @@ import { useAuth } from "../stores/auth";
 import { useStationLive } from "../phone/usePhone";
 import { cn } from "../components/ui";
 import { LocationPicker, type Loc } from "../components/shared";
-import { WorldScene, autoView, type CamView, type Quality } from "./WorldScene";
+import { WorldScene, autoView, type CamView, type Daylight, type Quality } from "./WorldScene";
 
-const STAGES = [["intake", "Intake"], ["storage", "Godown"], ["grading", "Scan & bag"], ["dispatched", "Transit"], ["delivered", "Delivered"]] as const;
+const STAGES = [["intake", "Intake"], ["storage", "Godown"], ["grading", "Scan & sort"], ["dispatched", "Transit"], ["delivered", "Delivered"]] as const;
 const STAGE_IDX: Record<string, number> = { intake: 0, storage: 1, grading: 2, graded: 2, dispatched: 3, arrived: 3, delivered: 4 };
 const SPEEDS: [number, string][] = [[1, "1× real time"], [10, "10×"], [60, "1 min/s"], [300, "5 min/s"], [900, "15 min/s"], [3600, "1 h/s"]];
 const GODOWN_SCEN: Record<string, string[]> = { traditional: ["normal", "heat_wave", "vents_closed", "door_open"], advanced: ["normal", "cooling_failure", "door_open", "cooling_degradation", "heat_wave", "humidity_deviation"] };
 const TRUCK_SCEN = ["road_blocked", "refrigeration_failure", "door_open", "high_external_temp", "extended_delay", "cooling_degradation", "normal"];
-const VIEWS: [CamView, string][] = [["auto", "Auto"], ["overview", "Overview"], ["farm", "Farm"], ["trad", "Traditional"], ["adv", "Advanced"], ["grading", "Scan & bag"], ["truck", "Truck"], ["mandi", "Mandi"]];
+const VIEWS: [CamView, string][] = [["auto", "Auto"], ["overview", "Overview"], ["farm", "Farm"], ["trad", "Traditional"], ["adv", "Advanced"], ["grading", "Scan & sort"], ["truck", "Truck"], ["mandi", "Mandi"]];
 
 type Station = { id: number; token: string; pin: string; url: string; expires_at: string };
 
@@ -109,15 +109,23 @@ function ContextPanel({ lot }: { lot: any }) {
             <div key={s.id} className="space-y-2 border-b border-ink/10 pb-3 last:border-0">
               <div className="flex items-center justify-between text-sm"><b>{s.grade === "ALL" ? "All produce" : s.grade} → {s.destination.name}</b><span className={cn("px-1.5 text-[10px] font-bold", s.status === "delivered" ? "bg-ok" : s.status === "arrived" ? "bg-coldlight text-ink" : "bg-gold text-ink")}>{s.status.replace("_", " ").toUpperCase()}</span></div>
               <div className="h-1.5 bg-ink/10"><div className="h-1.5 bg-gold" style={{ width: `${Math.min(100, ((lv.total_done_km || 0) / (lv.total_km || 1)) * 100)}%` }} /></div>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 <Stat label="Distance" value={num(lv.total_done_km)} unit={`/${num(lv.total_km, 0)} km`} />
                 <Stat label="ETA" value={lv.route?.eta_h != null ? num(lv.route.eta_h) : "—"} unit="h" sub={lv.route?.delay_s > 300 ? `delay ${num(lv.route.delay_s / 3600)} h` : undefined} />
-                <Stat label="Quality" value={num(lv.produce?.quality, 0)} color={lv.produce ? qualityColor(lv.produce.quality) : undefined} />
               </div>
-              {lv.readings?.zone_temperatures_c && (
+              {!lv.refrigerated && <div className="rounded-lg bg-ink/5 px-2.5 py-2 text-[11px] text-ink-500">Open truck from traditional storage: tracked by location and checkpoints only (no temperature monitoring).</div>}
+              {lv.refrigerated && (
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Stat label="Warmest cargo" value={num(lv.readings?.max_zone_c)} unit="°C" color={lv.readings ? tempColor(lv.readings.max_zone_c, sp) : undefined} sub={`set ${num(sp)} °C · ${num(lv.readings?.rh_pct, 0)}% RH`} />
+                  <Stat label="Quality" value={num(lv.produce?.quality, 1)} color={lv.produce ? qualityColor(lv.produce.quality) : undefined} sub={`loss ${num(lv.produce?.weight_loss_pct, 2)}%`} />
+                  <Stat label="Spoilage rate" value={num(lv.flows?.decay_rate_per_day, 2)} unit="Q/day" sub="quality points lost per day now" />
+                  <Stat label="Shelf life left" value={lv.prediction ? days(lv.prediction.shelf_life_days) : "—"} sub={lv.prediction ? `risk ${num(lv.prediction.spoilage_probability * 100, 0)}%` : undefined} />
+                </div>
+              )}
+              {lv.refrigerated && lv.readings?.zone_temperatures_c && (
                 <div>
-                  <div className="hud-label mb-1">{lv.refrigerated ? "Cargo zones (front → door)" : "Cargo zones (open truck)"}</div>
-                  <div className="flex gap-0.5">{lv.readings.zone_temperatures_c.map((z: number, i: number) => <div key={i} className="flex-1 py-1 text-center font-mono text-[10px] font-bold text-ink" style={{ background: tempColor(z, sp) }}>{num(z)}°</div>)}</div>
+                  <div className="hud-label mb-1">Cargo zones (front → door)</div>
+                  <div className="flex gap-0.5">{lv.readings.zone_temperatures_c.map((z: number, i: number) => <div key={i} className="flex-1 rounded py-1 text-center font-mono text-[10px] font-bold text-ink" style={{ background: tempColor(z, sp) }}>{num(z)}°</div>)}</div>
                 </div>
               )}
               <div className="space-y-0.5 text-[11px]">
@@ -135,9 +143,9 @@ function ContextPanel({ lot }: { lot: any }) {
     const g = lot.grading;
     return (
       <div className="space-y-2">
-        <div className="grid grid-cols-3 gap-1.5">{["A1", "A2", "A3"].map((k) => <Stat key={k} label={`${k} bags`} value={`${g.bags_filled[k]}/${g.bags[k]}`} sub={kg(g.kg[k])} />)}</div>
+        <div className="grid grid-cols-3 gap-1.5">{["A1", "A2", "A3"].map((k) => <Stat key={k} label={`${k} boxes`} value={`${g.bags_filled[k]}/${g.bags[k]}`} sub={kg(g.kg[k])} />)}</div>
         <div className="h-1.5 bg-ink/10"><div className="h-1.5 bg-gold" style={{ width: `${(g.processed_kg / g.total_kg) * 100}%` }} /></div>
-        <div className="text-[11px] text-ink-500">Sample of {g.objects} items · rejected {g.counts.rejected} · uncertain {g.counts.uncertain} · {g.method === "opencv_classical" ? "OpenCV classical" : g.method}</div>
+        <div className="text-[11px] text-ink-500">Sample of {g.objects} items · rejected {g.counts.rejected} · uncertain {g.counts.uncertain} · {g.method === "virtual_scan" ? "simulated scanner" : g.method === "opencv_classical" ? "OpenCV classical" : g.method}</div>
       </div>
     );
   }
@@ -180,6 +188,10 @@ export default function WorldPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [actErr, setActErr] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [daylight, setDaylight] = useState<Daylight>("auto");
+  const [scripts, setScripts] = useState<any[]>([]);
+  useEffect(() => { api("/flow/scripts").then((d) => setScripts(d.scripts)).catch(() => undefined); }, []);
+  const startScript = (name: string) => act(`script-${name}`, () => post(`/flow/scripts/${name}`, { station_id: station?.id }));
   const lots = state?.lots || [];
   const lot = useMemo(() => lots.find((l: any) => l.id === activeId) || lots[0] || null, [lots, activeId]);
   useEffect(() => { if (lots[0] && (!activeId || !lots.some((l: any) => l.id === activeId))) setActiveId(lots[0].id); }, [lots.map((l: any) => l.id).join(",")]);
@@ -203,8 +215,8 @@ export default function WorldPage() {
   const amb = moving?.live?.ambient || lot?.storage?.ambient;
   const wx = moving?.live?.weather_extras || lot?.storage?.weather_extras || {};
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-ink text-ink">
-      <div className="absolute inset-0"><WorldScene lots={lots} activeLot={lot} view={resolved.view} ship={resolved.ship} quality={quality} labels={labels} onQuality={setQuality} onReady={() => setReady(true)} /></div>
+    <div className="world-ui relative h-screen w-screen overflow-hidden bg-ink text-ink">
+      <div className="absolute inset-0"><WorldScene lots={lots} activeLot={lot} view={resolved.view} ship={resolved.ship} quality={quality} labels={labels} onQuality={setQuality} onReady={() => setReady(true)} daylight={daylight} /></div>
       {!ready && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-paper">
           <img src="/logo.png" alt="ZERO ROT" className="h-14 w-auto animate-pulse drop-shadow-[0_0_8px_rgba(243,238,232,0.35)]" />
@@ -250,8 +262,19 @@ export default function WorldPage() {
               <div className="hud p-5">
                 <div className="font-display text-3xl font-bold leading-tight">Field to market,<br /><span className="text-gold">live.</span></div>
                 <p className="mt-2 text-sm text-ink-500">Scan the QR code with a phone and enter a crop. This world then shows it being loaded into the godown, stored, graded, sold and driven to the mandi — all from the backend's live simulation.</p>
-                <ol className="mt-3 space-y-1 text-xs text-ink-500">{["Live entry on the phone", "Godown: traditional or advanced", "Predict: mandi rates, spoilage, decision", "Scan & bag into A1 / A2 / A3", "Track the truck to the mandi"].map((x, i) => <li key={i}><span className="text-gold">{i + 1}.</span> {x}</li>)}</ol>
+                <ol className="mt-3 space-y-1 text-xs text-ink-500">{["Live entry on the phone", "Godown: traditional or advanced", "Predict: mandi rates, spoilage, decision", "Scan & sort into A1 / A2 / A3 boxes (advanced)", "Track the truck to the mandi"].map((x, i) => <li key={i}><span className="text-gold">{i + 1}.</span> {x}</li>)}</ol>
               </div>
+              {scripts.length > 0 && (
+                <div className="hud space-y-2 p-4">
+                  <div className="hud-label">Play a sample situation</div>
+                  {scripts.map((sc) => (
+                    <button key={sc.name} disabled={!!busy} onClick={() => startScript(sc.name)} className="block w-full rounded-xl border border-paper-300 bg-white p-3 text-left hover:border-teal">
+                      <div className="flex items-center justify-between text-sm font-semibold"><span>▶ {sc.title}</span><span className="text-[10px] text-ink-500">{sc.steps} events</span></div>
+                      <div className="mt-1 text-[11px] leading-snug text-ink-500">{sc.summary}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
               <LaptopEntry stationId={station.id} onDone={() => undefined} />
             </div>
             <Pairing station={station} big />
@@ -267,6 +290,9 @@ export default function WorldPage() {
             <div className="flex items-start justify-between">
               <div><div className="hud-label">{lot.code} · {lot.mode} godown</div><div className="font-display text-xl font-bold capitalize">{lot.commodity} · {kg(lot.quantity_kg)}</div></div>
               <span className="bg-gold px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink">{lot.stage}</span>
+            </div>
+            {lot.script && <div className="mt-1 rounded-full bg-teal/10 px-2 py-0.5 text-[10px] font-semibold text-teal">▶ {lot.script.title} · {lot.script.done ? "all events played" : `event ${lot.script.step}/${lot.script.steps}`}</div>}
+            <div className="hidden">
             </div>
             <div className="mt-3 flex items-center gap-1">
               {STAGES.map(([k, l], i) => {
@@ -331,6 +357,13 @@ export default function WorldPage() {
           )}
           <div className="hud ml-auto flex items-center gap-1 p-1 text-[11px]">
             <button className="px-2 py-1.5 hover:text-gold" title="Labels" onClick={() => setLabels((x) => !x)}>{labels ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
+            <div className="flex overflow-hidden rounded-lg border border-ink/10">{(["auto", "day", "night"] as const).map((d) => <button key={d} onClick={() => setDaylight(d)} className={cn("px-2 py-1 text-[11px] font-semibold capitalize", daylight === d ? "bg-teal text-white" : "hover:text-teal")}>{d === "auto" ? "Sim time" : d}</button>)}</div>
+            {scripts.length > 0 && (
+              <select className="border border-ink/10 bg-white px-2 py-1" value="" onChange={(e) => e.target.value && startScript(e.target.value)} aria-label="Play a sample situation">
+                <option value="">▶ Sample situation…</option>
+                {scripts.map((sc) => <option key={sc.name} value={sc.name}>{sc.title}</option>)}
+              </select>
+            )}
             <select className="border border-ink/10 bg-white px-2 py-1" value={quality} onChange={(e) => setQuality(e.target.value as Quality)} aria-label="Graphics quality"><option value="high">GPU high</option><option value="medium">medium</option><option value="low">low</option></select>
             <button className={cn("px-2 py-1.5", debug ? "text-gold" : "hover:text-gold")} title="Debug values" onClick={() => setDebug((x) => !x)}><Bug className="h-4 w-4" /></button>
             <Link to="/docs" className="px-2 py-1.5 text-ink-500 hover:text-gold">Docs</Link>

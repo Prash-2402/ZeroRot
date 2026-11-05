@@ -21,7 +21,7 @@ const FIXED: Record<string, [THREE.Vector3, THREE.Vector3]> = {
   "trad-in": [V(-30, 27, 2), V(-30, 0.5, -21)],
   adv: [V(10, 18, 22), V(2, 3, -24)],
   "adv-in": [V(2, 24, -4), V(2, 0.5, -24.5)],
-  grading: [V(54, 7.5, 3), V(36, 1.5, -20)],
+  grading: [V(52, 20, 6), V(38, 1, -20)],
   yard: [V(28, 22, 52), V(0, 0, 28)],
 };
 
@@ -75,8 +75,10 @@ function FirstFrame({ onReady }: { onReady: () => void }) {
   return null;
 }
 
-export function WorldScene({ lots, activeLot, view, ship, quality, labels, onQuality, onReady }: {
-  lots: any[]; activeLot: any; view: Exclude<CamView, "auto">; ship?: number; quality: Quality; labels: boolean; onQuality: (q: Quality) => void; onReady?: () => void;
+export type Daylight = "auto" | "day" | "night";
+
+export function WorldScene({ lots, activeLot, view, ship, quality, labels, onQuality, onReady, daylight = "auto" }: {
+  lots: any[]; activeLot: any; view: Exclude<CamView, "auto">; ship?: number; quality: Quality; labels: boolean; onQuality: (q: Quality) => void; onReady?: () => void; daylight?: Daylight;
 }) {
   const focus = useMemo(() => new THREE.Vector3(), []);
   const [geos, setGeos] = useState<Record<number, any>>({});
@@ -88,10 +90,12 @@ export function WorldScene({ lots, activeLot, view, ship, quality, labels, onQua
   const wx = live?.weather_extras || st?.weather_extras || {};
   const loc = activeLot?.location || { lat: 13.0, lng: 77.6 };
   const date = simTime ? new Date(simTime + "Z") : new Date();
-  const sun = sunPosition(date, loc.lat, loc.lng);
+  const real = sunPosition(date, loc.lat, loc.lng);
+  // Day / Night override is a display choice only: the physics keeps using the real simulated time
+  const sun = daylight === "day" ? { elevation: 52, azimuth: 150 } : daylight === "night" ? { elevation: -28, azimuth: 300 } : real;
   const env = envFrom(sun, wx.cloud_pct ?? null, wx.precip_mm ?? null, amb?.rh ?? null);
   const roads = useMemo(() => roadsFor(activeLot, geos, proj), [geos, proj, activeLot?.id]);
-  const cutaway = view === "trad-in" ? "trad" : view === "adv-in" ? "adv" : null;
+  const cutaway = view === "trad-in" ? "trad" : view === "adv-in" ? "adv" : view === "grading" ? "scan" : null;
   return (
     <Canvas shadows={quality !== "low"} dpr={quality === "high" ? [1, 2] : [1, 1.25]} gl={{ antialias: false, powerPreference: "high-performance", stencil: false }}
       camera={{ position: [95, 85, 125], fov: 45, near: 0.5, far: 9000 }}>

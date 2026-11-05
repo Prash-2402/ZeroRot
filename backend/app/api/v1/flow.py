@@ -237,7 +237,16 @@ def lot_step(lot_id: int, body: StepIn, p: Principal = Depends(current_principal
     return flow.lot_payload(db, lot, full=True)
 
 
-# ---------------- scan & bag ----------------
+# ---------------- scan & sort ----------------
+@router.post("/lots/{lot_id}/scan", status_code=201)
+def lot_scan(lot_id: int, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
+    lot = get_lot(db, lot_id, p)
+    res = _flow_call(flow.scan, db, lot)
+    audit(db, p, "lot_scan", "lot", lot.id, {}, request)
+    db.commit()
+    return res
+
+
 @router.post("/lots/{lot_id}/grade", status_code=201)
 async def lot_grade(lot_id: int, request: Request, files: list[UploadFile] = File(...), p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
     lot = get_lot(db, lot_id, p)
@@ -356,6 +365,26 @@ def shipment_scenario(shid: int, body: ScenarioIn, request: Request, p: Principa
     audit(db, p, "shipment_scenario", "shipment", sh.id, {"scenario": body.scenario}, request)
     db.commit()
     return {"lot": flow.lot_payload(db, lot)}
+
+
+# ---------------- playable sample situations ----------------
+@router.get("/scripts")
+def scripts(p: Principal = Depends(current_principal)):
+    return {"scripts": [{"name": k, "title": v["title"], "summary": v["summary"], "steps": len(v["steps"]), "mode": v["lot"]["mode"]}
+                        for k, v in flow.SCRIPTS.items()]}
+
+
+class ScriptIn(BaseModel):
+    station_id: int | None = None
+
+
+@router.post("/scripts/{name}", status_code=201)
+def start_script(name: str, body: ScriptIn, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
+    sid = station_id_of(p) if p.kind == "qr" else body.station_id
+    lot = _flow_call(flow.start_script, db, name, sid, p.user.id if p.user else None)
+    audit(db, p, "start_script", "lot", lot.id, {"script": name}, request)
+    db.commit()
+    return flow.lot_payload(db, lot, full=True)
 
 
 # ---------------- assistant ----------------
