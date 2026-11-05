@@ -76,6 +76,8 @@ def test_invalid_batch_rejected():
 
 # 13 — Scenario 2: reefer failure and rescue
 def test_scenario_2_reefer_failure_and_rescue():
+    h = client.post("/api/v1/farm/handover/ZR-BAN-001")
+    assert h.status_code == 200 and h.json()["reefer"]
     advance(20)
     r = client.post("/api/v1/trips/TRIP-S2/inject-failure")
     assert r.status_code == 200, r.text
@@ -100,18 +102,19 @@ def test_scenario_2_reefer_failure_and_rescue():
 def test_scenario_3_market_shift():
     r = client.post("/api/v1/demo/scenario/3").json()
     assert r["condition"] == "price_crash"
-    crash = client.get("/api/v1/decide/ZR-TOM-101/market-shift").json()
+    crash = client.get("/api/v1/decide/ZR-MAN-001/market-shift").json()
     assert crash["condition"] == "price_crash" and crash["recommended"] == "DAY_0" and len(crash["periods"]) == 4
     other = next(p for p in crash["periods"] if not p["recommended"])
-    c = client.post("/api/v1/decide/ZR-TOM-101/choice", json={"kind": "market_shift", "plan_id": crash["plan_id"], "chosen_key": other["key"]}).json()
+    c = client.post("/api/v1/decide/ZR-MAN-001/choice", json={"kind": "market_shift", "plan_id": crash["plan_id"], "chosen_key": other["key"]}).json()
     assert c["difference"] < 0 and "your call" in c["message"]
-    fest = client.get("/api/v1/decide/ZR-TOM-101/market-shift?condition=festival").json()
+    fest = client.get("/api/v1/decide/ZR-MAN-001/market-shift?condition=festival").json()
     assert fest["recommended"] != crash["recommended"]
 
 
 # 14
 def test_reset_restores_exact_start_state():
     start = snapshot()
+    client.post("/api/v1/farm/handover/ZR-BAN-001")
     advance(15)
     client.post("/api/v1/trips/TRIP-S2/inject-failure")
     assert snapshot() != start
@@ -122,16 +125,20 @@ def test_reset_restores_exact_start_state():
 
 # 15
 def test_whatif_echoes_latest_request_and_is_live():
-    a = client.post("/api/v1/simulations/recalculate", json={"batch_id": "ZR-TOM-101", "temperature": 10.0, "request_id": 41}).json()
-    b = client.post("/api/v1/simulations/recalculate", json={"batch_id": "ZR-TOM-101", "temperature": 30.0, "request_id": 42}).json()
+    a = client.post("/api/v1/simulations/recalculate", json={"batch_id": "ZR-MAN-001", "temperature": 10.0, "request_id": 41}).json()
+    b = client.post("/api/v1/simulations/recalculate", json={"batch_id": "ZR-MAN-001", "temperature": 30.0, "request_id": 42}).json()
     assert a["request_id"] == 41 and b["request_id"] == 42
     assert b["whatif"]["quality_at"] < a["whatif"]["quality_at"]
     with SessionLocal() as db:  # what-if never changes the batch
-        assert db.get(Batch, "ZR-TOM-101").quantity_kg == 2500
+        assert db.get(Batch, "ZR-MAN-001").quantity_kg == 1800
 
 
 def test_dashboard_and_impact_from_records():
     d = client.get("/api/v1/dashboard").json()
-    assert d["stats"]["active_batches"] == 21 and len(d["trips"]) == 15
+    assert d["stats"]["active_batches"] == 3 and len(d["trips"]) == 0
+    f = client.get("/api/v1/farm?fresh=true").json()
+    assert [len(f["places"][k]) for k in ("shed", "cold", "truck")] == [1, 1, 1] and f["truck"]["state"] == "parked"
+    for c in f["places"]["shed"] + f["places"]["cold"] + f["places"]["truck"]:
+        assert c["quality"] > 0 and c["value_now"] and c["action"]["kind"] in ("SELL", "STORE", "SHIP") and c["photo_stage"]
     v = client.get("/api/v1/validation").json()
     assert v["message"] == "Validation data not yet available."

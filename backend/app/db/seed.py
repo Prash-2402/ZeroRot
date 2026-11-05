@@ -102,99 +102,47 @@ def seed(db=None):
     db.flush()
 
     readings = []
-    counters = {"tomato": 0, "mango": 0, "banana": 0}
-
-    def next_id(produce, base=0):
-        counters[produce] += 1
-        return f"ZR-{CODE[produce]}-{base + counters[produce]:03d}"
-
     pts = geo.points()
-    # ---- in-transit batches (15 trucks) ----
-    for i, lane in enumerate(loc["lanes"]):
-        produce = lane["produce"]
-        p = reg[produce]
-        scenario = lane.get("scenario") == 2
-        bid = "ZR-TOM-S02" if scenario else next_id(produce)
-        coords, dist_m, dur_s, src = lane_route(lane["from"], lane["to"])
-        frac = 0.10 if scenario else round((0.07 + (i * 0.37) % 0.78), 3)
-        progress = frac * dur_s
-        mass = 6000 if scenario else float(1000 * (2 + (i * 3) % 7))
-        maturity = "turning" if scenario else ["mature_green", "turning", "mature_green", "mature_green"][i % 4]
-        q0 = 95.0 if scenario else float(90 + (i * 7) % 7)
-        shed_h = 10 + (i * 5) % 14
-        start_trip = now - timedelta(seconds=progress)
-        harvest = start_trip - timedelta(hours=shed_h)
-        segs = [Segment("weather", shed_h, point=lane["from"])]
-        trip_h = max(1, round(progress / 3600))
-        rh_mid = (p.v("rh_low") + p.v("rh_high")) / 2
-        trip_seg = Segment("setpoint", trip_h, t=p.v("t_ref"), rh=rh_mid) if lane["reefer"] else Segment("weather", trip_h, point=lane["from"])
-        st, T, RH = integrate(produce, maturity, q0, segs + [trip_seg], harvest)
-        lng, lat, _ = position(coords, frac)
-        dname = pts[lane["from"]]
-        farmer = "FPO" if scenario else FARMERS[i % 12][0]
-        db.add(Batch(id=bid, farmer_id=farmer, produce=produce, variety=p.meta["varieties"][i % 3], quantity_kg=mass,
-                     harvest_time=harvest, maturity=maturity, initial_quality=q0, district=lane["from"], lat=dname["lat"], lng=dname["lng"],
-                     storage_type="reefer" if lane["reefer"] else "open_shed", status="in_transit", q=st.q, w=st.w, r=st.r, e=st.e,
-                     state_at=now, passport_token=token(bid), lane_id=lane["id"], origin="simulated", mode="demo"))
-        db.add(StorageRecord(batch_id=bid, storage_type="open_shed", label=f"Farm shed, {dname['name']}", start=harvest, end=start_trip))
-        db.add(StorageRecord(batch_id=bid, storage_type="reefer" if lane["reefer"] else "truck",
-                             label=f"{'Reefer' if lane['reefer'] else 'Open'} truck to {pts[lane['to']]['name']}", start=start_trip))
-        db.add(Trip(id=f"TRIP-{lane['id']}", batch_id=bid, lane_id=lane["id"], origin_id=lane["from"], dest_id=lane["to"],
-                    dest_name=pts[lane["to"]]["name"], route=coords, route_source=src, distance_m=dist_m, duration_s=dur_s,
-                    progress_s=progress, reefer=lane["reefer"], reefer_status="ok" if lane["reefer"] else "na",
-                    cargo_temp=float(T[-1]), cargo_rh=float(RH[-1]), lat=lat, lng=lng, started_at=start_trip,
-                    is_scenario=scenario, loop=not scenario, origin="simulated"))
-        if lane["reefer"]:
-            # simulated reefer feed since departure, every 15 min
-            for k in range(int(progress // 900)):
-                ts = start_trip + timedelta(minutes=15 * k)
-                readings.append({"batch_id": bid, "trip_id": f"TRIP-{lane['id']}", "ts": ts,
-                                 "temp_c": round(p.v("t_ref") + float(rng.normal(0, 0.35)), 2),
-                                 "rh": round(rh_mid + float(rng.normal(0, 1.2)), 1), "origin": "simulated"})
-
-    # ---- stored batches ----
-    stored = [
-        ("tomato", 2500, "cold_storage", "cs_malur", "kolar", "mature_green", 97.0, 30, 24, "F01"),
-        ("mango", 1800, "cold_storage", "cs_hubballi", "dharwad", "mature_green", 94.0, 120, 110, "F06"),
-        ("banana", 3000, "open_shed", None, "tumakuru", "turning", 92.0, 48, 0, "F03"),
-        ("tomato", 1200, "open_shed", None, "chikkaballapur", "ripe", 90.0, 36, 0, "F02"),
-        ("banana", 4000, "cold_storage", "cs_davanagere", "davanagere", "mature_green", 95.0, 96, 90, "F11"),
-        ("mango", 900, "open_shed", None, "ramanagara", "turning", 93.0, 50, 0, "F09"),
+    kolar = pts["kolar"]
+    # ---- one farmer, three batches (farmer-centric demo) ----
+    # (batch id, produce, kg, place, storage, facility, maturity, initial quality, hours since harvest, hours in cold store)
+    farm = [
+        ("ZR-TOM-001", "tomato", 500, "shed", "open_shed", None, "mature_green", 95.0, 6, 0),
+        ("ZR-MAN-001", "mango", 1800, "cold", "cold_storage", "cs_malur", "mature_green", 96.0, 30, 24),
+        ("ZR-BAN-001", "banana", 6000, "yard", "open_shed", None, "turning", 94.0, 8, 0),
     ]
-    stored_n = {"tomato": 100, "mango": 100, "banana": 100}
-    for produce, mass, stype, fac, dist, maturity, q0, age_h, store_h, farmer in stored:
+    for bid, produce, mass, place, stype, fac, maturity, q0, age_h, store_h in farm:
         p = reg[produce]
-        stored_n[produce] += 1
-        bid = f"ZR-{CODE[produce]}-{stored_n[produce]}"
         harvest = now - timedelta(hours=age_h)
         rh_mid = (p.v("rh_low") + p.v("rh_high")) / 2
         if stype == "cold_storage":
-            segs = [Segment("weather", age_h - store_h, point=dist), Segment("setpoint", store_h, t=p.v("t_ref"), rh=rh_mid)]
+            segs = [Segment("weather", age_h - store_h, point="kolar"), Segment("setpoint", store_h, t=p.v("t_ref"), rh=rh_mid)]
         else:
-            segs = [Segment("weather", age_h, point=dist)]
+            segs = [Segment("weather", age_h, point="kolar")]
         st, _, _ = integrate(produce, maturity, q0, segs, harvest)
-        d = pts[dist]
-        db.add(Batch(id=bid, farmer_id=farmer, produce=produce, variety=p.meta["varieties"][0], quantity_kg=mass, harvest_time=harvest,
-                     maturity=maturity, initial_quality=q0, district=dist, lat=d["lat"], lng=d["lng"], storage_type=stype, facility_id=fac,
-                     status="stored", q=st.q, w=st.w, r=st.r, e=st.e, state_at=now, passport_token=token(bid), origin="simulated", mode="demo"))
+        db.add(Batch(id=bid, farmer_id="F01", produce=produce, variety=p.meta["varieties"][0], quantity_kg=mass, harvest_time=harvest,
+                     maturity=maturity, initial_quality=q0, district="kolar", lat=kolar["lat"], lng=kolar["lng"], storage_type=stype,
+                     facility_id=fac, status="stored", q=st.q, w=st.w, r=st.r, e=st.e, state_at=now, passport_token=token(bid),
+                     lane_id="S2" if place == "yard" else None, origin="simulated", mode="demo"))
         if stype == "cold_storage":
             s_start = now - timedelta(hours=store_h)
-            db.add(StorageRecord(batch_id=bid, storage_type="open_shed", label=f"Farm shed, {d['name']}", start=harvest, end=s_start))
+            db.add(StorageRecord(batch_id=bid, storage_type="open_shed", label="Farm shed, Kolar", start=harvest, end=s_start))
             db.add(StorageRecord(batch_id=bid, facility_id=fac, storage_type="cold_storage", label=pts[fac]["name"], start=s_start))
             for k in range(store_h * 2):
                 readings.append({"batch_id": bid, "trip_id": None, "ts": s_start + timedelta(minutes=30 * k),
                                  "temp_c": round(p.v("t_ref") + float(rng.normal(0, 0.4)), 2), "rh": round(rh_mid + float(rng.normal(0, 1.5)), 1),
                                  "origin": "simulated"})
         else:
-            db.add(StorageRecord(batch_id=bid, storage_type="open_shed", label=f"Farm shed, {d['name']} (conditions estimated from regional weather)", start=harvest))
+            label = "Loading bay, Kolar farm (waiting for the mandi company truck)" if place == "yard" else "Farm shed, Kolar (conditions estimated from regional weather)"
+            db.add(StorageRecord(batch_id=bid, storage_type="open_shed", label=label, start=harvest))
     db.bulk_insert_mappings(Reading, readings)
     db.add_all([
-        Scenario(id=1, name="Prediction and decision", description="Register 500 kg tomato in Kolar (open shed), open the twin, move the slider, set an arbitrary temperature, get Sell / Store / Ship.",
-                 expected={"produce": "tomato", "quantity_kg": 500, "district": "kolar", "storage_type": "open_shed", "maturity": "mature_green", "initial_quality": 95}),
-        Scenario(id=2, name="Reefer failure and rescue", description="6 t tomato reefer trip Kolar -> Hubballi APMC (via Bengaluru, Tumakuru, Chitradurga). Inject failure, watch recalculation, approve reroute, see ghost comparison.",
-                 expected={"trip_id": "TRIP-S2", "batch_id": "ZR-TOM-S02"}),
-        Scenario(id=3, name="Market shift", description="Price crash at Kolar APMC. Market Shift Planner for ZR-TOM-101 (2.5 t, Malur cold store). Switch to Festival demand and see the recommendation flip.",
-                 expected={"batch_id": "ZR-TOM-101", "mandi_id": "m_kolar"}),
+        Scenario(id=1, name="Prediction and decision", description="500 kg tomatoes in the Kolar farm shed: twin, future slider, what-if, Sell / Store / Ship.",
+                 expected={"batch_id": "ZR-TOM-001"}),
+        Scenario(id=2, name="Reefer failure and rescue", description="6 t bananas handed to the mandi company's reefer truck, Kolar -> Hubballi APMC. Simulate a breakdown, approve the reroute, see value protected.",
+                 expected={"trip_id": "TRIP-S2", "batch_id": "ZR-BAN-001"}),
+        Scenario(id=3, name="Market shift", description="Price crash at Kolar APMC. When should the farmer sell the mangoes in the cold store? Switch to Festival demand and see it flip.",
+                 expected={"batch_id": "ZR-MAN-001", "mandi_id": "m_kolar"}),
     ])
     db.commit()
     from app.simulation.loop import refresh_status

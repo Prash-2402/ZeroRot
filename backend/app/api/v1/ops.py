@@ -358,11 +358,17 @@ async def scenario(n: int):
     took = await asyncio.to_thread(do_reset)
     out = {"scenario": n, "reset_seconds": took}
     if n == 1:
-        out.update({"navigate": "/batches?new=1", "prefill": {"produce": "tomato", "quantity_kg": 500, "district": "kolar", "storage_type": "open_shed",
+        out.update({"navigate": "/?focus=shed", "batch_id": "ZR-TOM-001", "prefill": {"produce": "tomato", "quantity_kg": 500, "district": "kolar", "storage_type": "open_shed",
                                                               "maturity": "mature_green", "initial_quality": 95, "variety": "Local hybrid", "farmer_name": "Demo farmer"}})
     elif n == 2:
-        out.update({"navigate": "/transport?trip=TRIP-S2", "trip_id": "TRIP-S2", "batch_id": "ZR-TOM-S02",
-                    "hint": "Press F (or 'Inject reefer failure') to fail the reefer on TRIP-S2."})
+        def _hand():
+            from app.api.v1.farm import handover
+            with sim.world_lock:
+                with SessionLocal() as db:
+                    handover(db, "ZR-BAN-001")
+        await asyncio.to_thread(_hand)
+        out.update({"navigate": "/?focus=truck", "trip_id": "TRIP-S2", "batch_id": "ZR-BAN-001",
+                    "hint": "Simulate a breakdown on the mandi company's truck (or press F)."})
     else:
         def _cond():
             with SessionLocal() as db:
@@ -371,7 +377,7 @@ async def scenario(n: int):
                        body=MARKET_CONDITIONS["price_crash"]["banner"])
                 db.commit()
         await asyncio.to_thread(_cond)
-        out.update({"navigate": "/decide?batch=ZR-TOM-101&planner=1", "batch_id": "ZR-TOM-101", "condition": "price_crash"})
+        out.update({"navigate": "/?focus=cold", "batch_id": "ZR-MAN-001", "condition": "price_crash"})
     await hub.broadcast({"type": "reset", "data": out})
     return out
 
