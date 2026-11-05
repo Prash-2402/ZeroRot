@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
@@ -13,6 +13,7 @@ import { FarmScene } from "./FarmScene";
 import { BatchPanel } from "./BatchPanel";
 import { TruckPanel } from "./TruckPanel";
 import { DecideSheet } from "./DecideSheet";
+import { MitraPanel } from "../mitra/MitraPanel";
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (b: boolean) => void; label: string }) {
   return (
@@ -98,7 +99,8 @@ export default function FarmPage() {
   const futureIdx = useUI((s) => s.futureIdx);
   const version = useLive((s) => s.version);
   const { data } = useQuery({ queryKey: ["farm", version], queryFn: () => api("/farm"), refetchInterval: 6000, placeholderData: (p) => p });
-  const [deciding, setDeciding] = useState<string | null>(null);
+  const deciding = useUI((s) => s.decideId);
+  const setDeciding = useUI((s) => s.openDecide);
   useEffect(() => { const f = sp.get("focus") as Place | null; if (f) setFocus(f); }, [sp, setFocus]);
   const cards = useMemo(() => [...(data?.places?.shed || []), ...(data?.places?.cold || []), ...(data?.places?.truck || [])], [data]);
   const byPlace = (p: Place) => (p === "yard" ? null : (data?.places?.[p] || [])[0]);
@@ -145,6 +147,7 @@ export default function FarmPage() {
         )}
       </AnimatePresence>
       <AnimatePresence>{deciding && <DecideSheet batchId={deciding} onClose={() => setDeciding(null)} />}</AnimatePresence>
+      <MitraPanel />
     </div>
   );
 }

@@ -104,6 +104,22 @@ Opening the app shows **one Kolar farmer's farm in 3D** (Three.js via React Thre
 
 Produce photos are from Wikimedia Commons (CC BY-SA / public domain). Credits are in `frontend/public/produce/credits.json`. They illustrate the freshness stage, not the actual batch.
 
+## Mitra (ಮಿತ್ರ) — Kannada voice assistant
+
+The **ಮಿತ್ರ / Mitra** button (bottom left of the farm screen) opens a 3D face built in code. You can speak or type in **Kannada or English**. Mitra answers in the same language and **moves the app to the right place**: it flies to the shed, opens the choices sheet, or sets the future slider.
+
+* **Numbers come only from the engine.** Mitra calls the same tools as the app (batch status, future, what-if, choices, when-to-sell, truck), so it never makes up a quality, a number of days or a rupee figure.
+* **Actions need your tap.** Handover and route approval come back as a confirm button. Mitra never acts on its own.
+* **Knowledge answers are cited (RAG).** General questions ("why do bananas get damaged in cold?") are answered from `data/knowledge/` (UC Davis fact sheets and app docs, written in English and Kannada) and list their sources. Retrieval uses character n-gram TF-IDF, which handles Kannada script without downloading a model.
+
+| Capability | Without keys (works now) | With keys |
+|---|---|---|
+| Thinking | Rule-based Kannada/English intents, labelled "Rule-based" | `GROQ_API_KEY`: the Groq model chooses the tools itself (agentic), labelled "AI · Groq". Falls back automatically if Groq fails |
+| Voice in | Browser speech recognition (Chrome/Edge, `kn-IN`) | `GROQ_API_KEY`: Groq Whisper `whisper-large-v3` on the server |
+| Voice out | Browser voice if the device has one (most Windows PCs have **no Kannada voice**, so the reply is shown as text) | `GROQ_API_KEY` is not used for voice; set `GOOGLE_TTS_API_KEY` for Google Cloud `kn-IN` voice. The mouth then follows the real audio |
+
+Microphones only work on `localhost` or HTTPS. For phones, use the HTTPS tunnel command above.
+
 ## Demo script (deterministic, all in DEMO MODE)
 
 **Reset demo** (top right) restores the start state in under 2 seconds. With Detailed mode on, the *Demo scenario* menu jumps straight to each story.
@@ -163,7 +179,7 @@ Value    = M·(1−W)·(1−R) · price(t) · grade(Q)
 
 ## Test results
 
-`python -m pytest -q` gives **30 passed**. These cover brief tests 1–15 and 12a–12g: monotonic decay, temperature, chilling, humidity, spikes, invalid inputs, missing data lowers confidence, coverage vs burst, reading de-duplication, infeasible SHIP, insufficient data, Market Shift choice, the confidence reference value, value protected = difference (never positive when worse), the ±15% short-history band, k_ref reproducing storage life within 1%, confidence edge cases, an exact value-loss breakdown, comparable price series, Scenarios 1–3 offline with no keys, Reset Demo restoring the exact state in under 2 s, and what-if latest-request handling.
+`python -m pytest -q` gives **37 passed** (30 engine/system + 7 Mitra). These cover brief tests 1–15 and 12a–12g: monotonic decay, temperature, chilling, humidity, spikes, invalid inputs, missing data lowers confidence, coverage vs burst, reading de-duplication, infeasible SHIP, insufficient data, Market Shift choice, the confidence reference value, value protected = difference (never positive when worse), the ±15% short-history band, k_ref reproducing storage life within 1%, confidence edge cases, an exact value-loss breakdown, comparable price series, Scenarios 1–3 offline with no keys, Reset Demo restoring the exact state in under 2 s, and what-if latest-request handling.
 
 ## Repository
 

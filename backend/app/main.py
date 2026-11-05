@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect
 
-from app.api.v1 import core, farm, ops, prove
+from app.api.v1 import assistant, core, farm, ops, prove
 from app.core.config import ROOT
 from app.db.session import SessionLocal, engine
 from app.simulation.loop import simulator
@@ -37,7 +37,7 @@ async def value_handler(_: Request, exc: ValueError):
     return JSONResponse(status_code=422, content={"detail": {"error": "invalid_input", "message": str(exc)}})
 
 
-for r in (core.router, ops.router, prove.router, farm.router):
+for r in (core.router, ops.router, prove.router, farm.router, assistant.router):
     app.include_router(r, prefix="/api/v1")
 
 
