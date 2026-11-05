@@ -18,6 +18,7 @@ from app.core import deps  # noqa: E402
 from app.core.config import settings  # noqa: E402
 
 settings.groq_api_key = ""
+settings.data_gov_api_key = ""   # tests never call data.gov.in
 deps.limiter.per_minute = 100000
 deps.ai_limiter.per_minute = 100000
 from app.db.bootstrap import sync_commodities  # noqa: E402

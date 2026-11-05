@@ -510,20 +510,54 @@ def market_towns(lat: float, lng: float) -> list[dict]:
     return sorted([t for t in out if t["distance_km"] >= 3.0], key=lambda x: x["distance_km"])   # skip the town you are already in
 
 
+def refresh_prices(db: Session, commodity: str, state: str = "Karnataka", max_age_h: float = 6.0) -> str | None:
+    """Pull today's verified Agmarknet prices when none are stored or the latest retrieval is older than max_age_h."""
+    from datetime import timedelta
+    from app.db.models import MarketPrice
+    from app.integrations import market
+    last = db.scalar(select(MarketPrice.retrieved_at).where(MarketPrice.commodity_id == commodity).order_by(MarketPrice.retrieved_at.desc()))
+    if last and datetime.utcnow() - last < timedelta(hours=max_age_h):
+        return None
+    errors = []
+    for src in market.sources():
+        try:
+            recs = src.fetch(commodity, state)
+        except market.Unavailable as e:
+            errors.append(str(e))
+            continue
+        for r in recs:
+            exists = db.scalar(select(MarketPrice.id).where(MarketPrice.commodity_id == commodity, MarketPrice.market == r["market"],
+                                                           MarketPrice.variety == r["variety"], MarketPrice.observation_date == r["observation_date"],
+                                                           MarketPrice.source == r["source"]))
+            if exists:
+                continue
+            db.add(MarketPrice(commodity_id=commodity, market=r["market"], district=r["district"], state=r["state"], variety=r["variety"],
+                               price_min=r["price_min"], price_max=r["price_max"], price_modal=r["price_modal"], unit=r["unit"],
+                               observation_date=r["observation_date"], source=r["source"], origin="live", retrieved_at=datetime.utcnow()))
+    db.commit()
+    return "; ".join(errors) or None
+
+
 def mandi_rates(db: Session, commodity: str, lat: float, lng: float) -> dict:
     from app.db.models import MarketPrice
+    refresh_error = refresh_prices(db, commodity)
     rows = db.scalars(select(MarketPrice).where(MarketPrice.commodity_id == commodity).order_by(MarketPrice.observation_date.desc()).limit(2000)).all()
     if not rows:
-        return {"status": "data_unavailable", "message": "No verified mandi prices stored. Configure DATA_GOV_API_KEY (data.gov.in) and refresh prices.",
-                "markets": []}
+        return {"status": "data_unavailable", "message": "No verified mandi prices available for this crop"
+                + (f" ({refresh_error})" if refresh_error else " in Karnataka today") + ".", "markets": []}
     latest = {}
     for r in rows:
         latest.setdefault(r.market, r)
     markets = []
     for r in latest.values():
-        g = geocode_town(r.district or r.market)
+        import re as _re
+        town = _re.sub(r"\(.*?\)|APMC|F&V", "", r.market).strip(" ,-")   # "Bangarpet APMC" -> "Bangarpet"
+        town = town.split()[-1] if town and len(town.split()) > 1 and town.split()[-1] in ("Bengaluru", "Hubballi", "Mysuru") else town
+        gt = geocode_town(town) if town else None
+        g = gt or geocode_town(r.district or r.market)
         d = round(rg.haversine_m(lat, lng, g["lat"], g["lng"]) / 1000, 1) if g else None
         markets.append({"market": r.market, "district": r.district, "lat": g["lat"] if g else None, "lng": g["lng"] if g else None, "distance_km": d,
+                        "distance_basis": "town" if gt else ("district" if g else None),
                         "modal_per_kg": round(r.price_modal / 100, 2), "min_per_kg": round((r.price_min or r.price_modal) / 100, 2),
                         "max_per_kg": round((r.price_max or r.price_modal) / 100, 2), "date": r.observation_date.date().isoformat(),
                         "age_days": (datetime.utcnow() - r.observation_date).days, "source": r.source})

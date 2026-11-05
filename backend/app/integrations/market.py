@@ -12,7 +12,12 @@ import httpx
 
 from app.core.config import settings
 
-AGMARK_NAMES = {"tomato": "Tomato", "mango": "Mango", "banana": "Banana", "potato": "Potato", "onion": "Onion"}
+AGMARK_NAMES = {"tomato": "Tomato", "mango": "Mango", "banana": "Banana", "potato": "Potato", "onion": "Onion", "cabbage": "Cabbage",
+                "cauliflower": "Cauliflower", "carrot": "Carrot", "brinjal": "Brinjal", "okra": "Bhindi(Ladies Finger)", "green_chilli": "Green Chilli",
+                "grapes": "Grapes", "papaya": "Papaya", "pomegranate": "Pomegranate", "orange": "Orange", "rice": "Paddy(Dhan)(Common)",
+                "wheat": "Wheat", "maize": "Maize"}
+# data.gov.in stalls requests carrying the default python-httpx User-Agent; identify the client plainly
+HEADERS = {"User-Agent": "ZeroRot/2.0 (post-harvest platform)", "Accept": "application/json"}
 
 
 class Unavailable(Exception):
@@ -48,7 +53,7 @@ class DataGovAgmarknet(MarketSource):
         if state:
             params["filters[state.keyword]"] = state
         try:
-            r = httpx.get(f"https://api.data.gov.in/resource/{self.resource_id}", params=params, timeout=15)
+            r = httpx.get(f"https://api.data.gov.in/resource/{self.resource_id}", params=params, headers=HEADERS, timeout=30)
             r.raise_for_status()
             j = r.json()
         except httpx.HTTPError as e:

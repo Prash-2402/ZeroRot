@@ -30,7 +30,7 @@ function Rates({ lot }: { lot: any }) {
         <div className="divide-y divide-paper-300 border border-paper-300">
           {d.markets.map((m: any) => (
             <div key={m.market} className="flex items-center justify-between p-3">
-              <div><div className="font-bold">{m.market}</div><div className="text-[11px] text-ink-400">{m.distance_km != null ? `${m.distance_km} km` : "distance unknown"} · {m.date}{m.age_days > 3 ? ` (${m.age_days} d old)` : ""}</div></div>
+              <div><div className="font-bold">{m.market}</div><div className="text-[11px] text-ink-400">{m.distance_km != null ? (m.distance_basis === "district" ? `~${m.distance_km} km (district)` : `${m.distance_km} km`) : "distance unknown"} · {m.date}{m.age_days > 3 ? ` (${m.age_days} d old)` : ""}</div></div>
               <div className="text-right"><div className="font-mono text-xl font-bold text-gold">{inr(m.modal_per_kg)}<span className="text-xs text-ink-400">/kg</span></div><div className="text-[10px] text-ink-400">{m.min_per_kg}–{m.max_per_kg}</div></div>
             </div>
           ))}
