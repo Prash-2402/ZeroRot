@@ -1378,9 +1378,46 @@ def station_payload(db: Session, station_id: int) -> dict:
             "history": [history_entry(db, l) for l in done]}
 
 
-def chat_context(db: Session, lot: Lot | None) -> dict:
+def station_summary(db: Session, station_id: int) -> dict:
+    """What the station has done so far: finished lots, trucks, destinations and estimated money, for the assistant."""
+    done = db.scalars(select(Lot).where(Lot.station_id == station_id, Lot.stage.in_(("delivered", "discarded"))).order_by(Lot.id)).all()
+    active = db.scalars(select(Lot).where(Lot.station_id == station_id, Lot.stage.notin_(("delivered", "discarded")))).all()
+    lots, by_market, trucks, kg_delivered, value, quals, reroutes, discarded_kg = [], {}, 0, 0.0, 0.0, [], 0, 0.0
+    for l in done:
+        h = history_entry(db, l)
+        if l.stage == "discarded":
+            discarded_kg += h["quantity_kg"]
+        for sh in h["shipments"]:
+            if sh["status"] != "delivered":
+                continue
+            trucks += 1
+            kg_delivered += sh["kg"] or 0
+            reroutes += sh["reroutes"] or 0
+            m = by_market.setdefault(sh["to"], {"trucks": 0, "kg": 0.0})
+            m["trucks"] += 1
+            m["kg"] += sh["kg"] or 0
+            if sh["final_quality"] is not None:
+                quals.append(sh["final_quality"])
+        net = (h.get("decision") or {}).get("net_now")
+        if l.stage == "delivered" and net is not None:
+            value += net
+        lots.append({"code": h["code"], "crop": h["commodity"], "kg": h["quantity_kg"], "storage": h["mode"], "result": h["stage"],
+                     "date": h["created_at"][:10], "shipments": [{k: sh[k] for k in ("grade", "kg", "to", "status", "final_quality", "reroutes")} for sh in h["shipments"]],
+                     "estimated_earning_rs": net if l.stage == "delivered" else None,
+                     "note": "discarded: nothing was sold" if l.stage == "discarded" else None})
+    return {"finished_lots": len(done), "active_lots": [{"code": db.get(ProduceBatch, l.batch_id).code, "crop": db.get(ProduceBatch, l.batch_id).commodity_id, "stage": l.stage} for l in active],
+            "trucks_delivered": trucks, "kg_delivered": round(kg_delivered, 1), "deliveries_by_market": {k: {"trucks": v["trucks"], "kg": round(v["kg"], 1)} for k, v in by_market.items()},
+            "average_final_quality": round(sum(quals) / len(quals), 1) if quals else None, "reroutes": reroutes, "kg_discarded": round(discarded_kg, 1),
+            "estimated_net_value_rs": round(value, 0) if value else None,
+            "money_note": "Estimated from each lot's selling decision (net profit at the price used then); actual sale receipts are not recorded.",
+            "recent_lots": lots[-8:]}
+
+
+def chat_context(db: Session, lot: Lot | None, station_id: int | None = None) -> dict:
+    station_id = station_id or (lot.station_id if lot else None)
+    hist = station_summary(db, station_id) if station_id else None
     if lot is None:
-        return {"platform": "ZERO ROT", "note": "No lot selected"}
+        return {"platform": "ZERO ROT", "note": "No active lot selected", "station_history": hist}
     p = lot_payload(db, lot)
     st = p.get("storage") or {}
     return {"lot": {k: p[k] for k in ("code", "commodity", "quantity_kg", "mode", "stage", "location")},
@@ -1389,4 +1426,5 @@ def chat_context(db: Session, lot: Lot | None) -> dict:
             "decision": p["decision"],
             "shipments": [{k: s.get(k) for k in ("grade", "quantity_kg", "destination", "status", "checkpoints")} |
                           {"live": {k: (s.get("live") or {}).get(k) for k in ("total_done_km", "total_km", "readings", "produce")}} for s in p["shipments"]],
-            "recent_events": [{k: e.get(k) for k in ("title", "message", "severity")} for e in p["events"][-10:]]}
+            "recent_events": [{k: e.get(k) for k in ("title", "message", "severity")} for e in p["events"][-10:]],
+            "station_history": hist}

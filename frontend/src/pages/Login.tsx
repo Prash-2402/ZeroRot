@@ -36,7 +36,7 @@ export default function Login() {
                 <p className="mt-1 text-sm text-ink-400">{needsAdmin ? "No users exist yet. The first account becomes the administrator; it can add operators and farmers later." : "Use the account your administrator created."}</p>
               </div>
               {needsAdmin && <Field label="Full name"><input className="input" required minLength={2} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoComplete="name" /></Field>}
-              <Field label="Email"><input className="input" type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} autoComplete="email" /></Field>
+              <Field label="Username or email"><input className="input" type="text" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} autoComplete="username" /></Field>
               <Field label="Password" hint={needsAdmin ? "At least 8 characters" : undefined}><input className="input" type="password" required minLength={needsAdmin ? 8 : 1} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoComplete={needsAdmin ? "new-password" : "current-password"} /></Field>
               <ErrorBox error={m.error} />
               <button className="btn-gold w-full py-2.5" disabled={m.isPending}>{m.isPending ? <Spinner /> : needsAdmin ? "Create admin & continue" : "Sign in"}</button>

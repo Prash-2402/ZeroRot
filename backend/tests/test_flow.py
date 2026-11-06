@@ -347,3 +347,16 @@ def test_old_produce_store_discard_history_and_reset(H, monkeypatch):
     assert lot["id"] not in [l["id"] for l in st["lots"]] and lot["id"] in [h["id"] for h in st["history"]]
     assert client.post(f"/api/v1/flow/stations/{sid}/reset", headers=H).json()["removed_lots"] == 2
     assert client.get(f"/api/v1/flow/stations/{sid}/state", headers=H).json()["lots"] == []
+
+
+def test_assistant_context_includes_station_history(H):
+    """After deliveries, the assistant still sees what was delivered, where, and the estimated money."""
+    from app.services import flow as fl
+    sid, P = pair(H)
+    lot = client.post("/api/v1/flow/lots", headers=P, json={"commodity": "tomato", "quantity_kg": 300, "quality": 90, "maturity": "turning",
+                                                             "mode": "traditional", "lat": KOLAR[0], "lng": KOLAR[1], "location_name": "Kolar", "speed": 600}).json()
+    client.post(f"/api/v1/flow/lots/{lot['id']}/choice", headers=P, json={"choice": "discard"})
+    with SessionLocal() as db:
+        ctx = fl.chat_context(db, None, sid)
+    h = ctx["station_history"]
+    assert h["finished_lots"] >= 1 and h["kg_discarded"] >= 300 and "money_note" in h and h["active_lots"] == []

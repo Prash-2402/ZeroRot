@@ -536,6 +536,7 @@ def chat(body: ChatIn, request: Request, p: Principal = Depends(current_principa
         err(429, "rate_limited", "Too many questions in a minute; wait a little")
     lot = get_lot(db, body.lot_id, p) if body.lot_id else None
     try:
-        return groq_ai.chat(body.message, flow.chat_context(db, lot), body.history, body.language)
+        sid = station_id_of(p)
+        return groq_ai.chat(body.message, flow.chat_context(db, lot, sid), body.history, body.language)
     except groq_ai.Unavailable as e:
         err(503, "ai_unavailable", f"Assistant unavailable: {e}")
