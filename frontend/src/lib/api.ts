@@ -1,6 +1,9 @@
 import { useAuth } from "../stores/auth";
 
-export const API = "/api/v1";
+/** Backend address. Empty = same server as the website (local dev, or the backend serving the built app).
+ *  Set VITE_API_BASE (e.g. https://your-tunnel.trycloudflare.com) when the website is hosted elsewhere, such as Vercel. */
+export const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/+$/, "");
+export const API = `${API_BASE}/api/v1`;
 
 export class ApiError extends Error {
   status: number;
@@ -54,6 +57,7 @@ export async function download(path: string, body: any, filename: string) {
 
 export function wsUrl(path: string, mobile = false) {
   const st = useAuth.getState();
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  return `${proto}://${location.host}${path}?token=${encodeURIComponent((mobile ? st.mobileToken : st.token) || "")}`;
+  const base = API_BASE ? new URL(API_BASE) : null;
+  const proto = (base ? base.protocol : location.protocol) === "https:" ? "wss" : "ws";
+  return `${proto}://${base ? base.host : location.host}${path}?token=${encodeURIComponent((mobile ? st.mobileToken : st.token) || "")}`;
 }

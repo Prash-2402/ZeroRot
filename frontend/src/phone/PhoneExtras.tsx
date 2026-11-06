@@ -6,7 +6,7 @@ const Avatar3D = lazy(() => import("./PhoneAvatar3D"));
 const hasWebGL = () => { try { return !!document.createElement("canvas").getContext("webgl2"); } catch { return false; } };
 import { motion } from "framer-motion";
 import { CheckCircle2, Mic, MicOff, Send, Trash2, Truck, Warehouse } from "lucide-react";
-import { api, post } from "../lib/api";
+import { API, api, post } from "../lib/api";
 import { COMMODITY_EMOJI, inr, kg, num, when } from "../lib/format";
 import { ErrorBox, Spinner, cn } from "../components/ui";
 import { useLang, useT } from "./i18n";
@@ -66,7 +66,7 @@ async function speakWithAppVoice(text: string, onStart?: () => void, onEnd?: () 
   };
   let current: AudioBufferSourceNode | null = null;
   playing = { stop: () => { stopped = true; try { current?.stop(); } catch { /* already stopped */ } } };
-  const fetchPart = (t: string) => fetch("/api/v1/flow/tts", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ text: t }) })
+  const fetchPart = (t: string) => fetch(`${API}/flow/tts`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ text: t }) })
     .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`voice ${r.status}`)))).then((b) => ctx.decodeAudioData(b));
   try {
     let next = fetchPart(parts[0]);
