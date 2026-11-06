@@ -136,13 +136,32 @@ FIX_LABEL = {
     "close_door": "Close the door", "adjust_setpoint": "Lower the setpoint by 1 °C", "raise_setpoint": "Raise the setpoint by 1 °C",
     "ventilate": "Increase ventilation", "open_vents": "Open the vents", "increase_humidity": "Raise humidity setpoint",
     "reduce_humidity": "Fix humidifier and ventilate", "replan_route": "Take an alternative road", "prioritise_batch": "Sell sooner (open the decision)",
+    "shade_cargo": "Cover the cargo with wet gunny sacks or a reflective tarpaulin", "open_tarp_sides": "Roll up the tarpaulin sides for airflow",
 }
+OPEN_TRUCK_SHADED_UA = 0.6   # assumption: wet gunny / reflective cover cuts heat gain through the tarpaulin by about 40%
+
+
+def _is_open_truck(sim: Simulation) -> bool:
+    return sim.kind == "cold_chain" and (sim.config or {}).get("refrigerated") is False
 
 
 def _fixes_for(sim: Simulation, a) -> list[str]:
     """Which fixes to offer for an alert. Traditional godowns have no cooling, so heat alerts can only be answered by selling sooner."""
     kind = sim.kind
     code = a.code
+    if _is_open_truck(sim):   # no cooling unit and no setpoint: only cover, airflow, the door flap and the road
+        if code == "TEMP_EXCURSION":
+            return ["shade_cargo"]
+        if code == "GAS_ABNORMAL":
+            return ["open_tarp_sides"]
+        if code == "HUMIDITY_DEVIATION":
+            low = (a.reading or {}).get("rh_pct", 100) < (a.expected or {}).get("min_pct", 0)
+            return [] if low else ["open_tarp_sides"]
+        if code == "DOOR_OPEN":
+            return ["close_door"]
+        if code == "ROUTE_DELAY":
+            return ["replan_route"]
+        return []
     if code == "COOLING_FAILURE":
         return ["restore_cooling", "activate_backup_cooling"]
     if code == "DOOR_OPEN":
@@ -194,6 +213,9 @@ def pending_fixes(db: Session, lot: Lot) -> list[dict]:
                             .where(CorrectiveAction.simulation_id == sid, CorrectiveAction.applied == False, CorrectiveAction.automatic == False,  # noqa: E712
                                    Alert.status == "open").order_by(CorrectiveAction.id.desc())).all() if sid else []:
             ca, al = c
+            sim_obj = db.get(Simulation, sid)
+            if sim_obj is not None and ca.action not in _fixes_for(sim_obj, al):
+                continue
             if ca.action in seen or ca.action not in FIX_LABEL or al.id in handled or not is_emergency(al.code, al.severity, lot.mode == "traditional" and where == "godown"):
                 continue
             seen.add(ca.action)
@@ -249,6 +271,17 @@ def approve_fix(db: Session, lot: Lot, cid: int) -> dict:
             eq.fresh_air_ach = max(eq.fresh_air_ach or 0.0, 2.0)
             rt.s.faults = [f for f in rt.s.faults if f != "humidity_deviation"]
             msg = "Humidifier fixed and ventilation increased."
+    if act == "shade_cargo" and _is_open_truck(sim):
+        with _manager().lock:
+            ua = rt.cfg.get("ua_w_per_k", 400.0)
+            rt.cfg["ua_w_per_k"] = round(max(150.0, ua * OPEN_TRUCK_SHADED_UA), 1)
+            sim.config = {**sim.config, "ua_w_per_k": rt.cfg["ua_w_per_k"], "cargo_shaded": True}
+        msg = f"Cargo covered: heat getting through the tarpaulin cut from {ua:.0f} to {rt.cfg['ua_w_per_k']:.0f} W/K."
+    if act == "open_tarp_sides" and _is_open_truck(sim):
+        with _manager().lock:
+            rt.cfg["ach"] = max(rt.cfg.get("ach", 6.0), 12.0)
+            sim.config = {**sim.config, "ach": rt.cfg["ach"]}
+        msg = "Tarpaulin sides rolled up: fresh air through the cargo doubled (12 air changes/h)."
     if act == "replan_route" and sh is not None:
         info = reroute(db, sh, "Delay ahead")
         msg = f"Alternative road taken: {info['new_remaining_km']:.1f} km to go."
