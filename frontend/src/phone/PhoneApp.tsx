@@ -298,6 +298,31 @@ function GodownTab({ lot, refresh }: { lot: any; refresh: () => void }) {
   );
 }
 
+/* ---------------- alerts: which part of the app they belong to, and a short ding ---------------- */
+const TRACK_KINDS = ["dispatched", "checkpoint", "rerouted", "arrived", "dispatch_failed", "route_delay", "road_blocked", "refrigeration_failure", "extended_delay", "high_external_temp"];
+function sectionOf(e: any): string {
+  if (e.kind === "delivered" || e.kind?.startsWith("choice_")) return "history";
+  if (e.where === "truck" || TRACK_KINDS.includes(e.kind)) return "track";
+  if (["unsellable_on_entry", "spoilage_risk", "high_spoilage_risk"].includes(e.kind)) return "predict";
+  return "godown";
+}
+let dingCtx: AudioContext | null = null;
+function ding(critical: boolean) {
+  try {
+    dingCtx = dingCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+    const ctx = dingCtx, t0 = ctx.currentTime;
+    (critical ? [988, 1319, 988] : [880, 1319]).forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0 + i * 0.14);
+      g.gain.exponentialRampToValueAtTime(0.25, t0 + i * 0.14 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + i * 0.14 + 0.45);
+      o.connect(g).connect(ctx.destination);
+      o.start(t0 + i * 0.14); o.stop(t0 + i * 0.14 + 0.5);
+    });
+  } catch { /* sound not available */ }
+}
+
 /* ---------------- shell ---------------- */
 const TABS = [
   { id: "entry", label: "New entry", icon: Plus },
@@ -315,6 +340,7 @@ function App({ stationId }: { stationId: number }) {
   const [tab, setTab] = useState<string>("entry");
   const [lotId, setLotId] = useState<number | null>(null);
   const [toasts, setToasts] = useState<any[]>([]);
+  const [flagged, setFlagged] = useState<Record<string, boolean>>({});   // tabs with an unseen alert (red dot)
   const [pushState, setPushState] = useState<string | null>(null);
   const lots = state?.lots || [];
   const lot = useMemo(() => lots.find((l: any) => l.id === lotId) || lots[0], [lots, lotId]);
@@ -322,10 +348,19 @@ function App({ stationId }: { stationId: number }) {
   useEffect(() => {
     const e = events[events.length - 1];
     if (!e || e.log) return;
-    setToasts([e]);
-    setTimeout(() => setToasts((x) => x.filter((y) => y.key !== e.key)), 6000);
+    const sec = sectionOf(e);
+    setToasts([{ ...e, section: sec }]);
+    setFlagged((f) => ({ ...f, [sec]: true }));
+    ding(e.severity === "CRITICAL");
+    setTimeout(() => setToasts((x) => x.filter((y) => y.key !== e.key)), 2200);
     if (e.kind === "delivered") setTab("history");
   }, [events]);
+  useEffect(() => { setFlagged((f) => (f[tab] ? { ...f, [tab]: false } : f)); }, [tab]);
+  const openAlert = (e: any) => {
+    if (e.lot_id) setLotId(e.lot_id);
+    setTab(e.section);
+    setToasts([]);
+  };
   const refresh = () => undefined;   // WebSocket pushes the new state within a second
   const visible = TABS;
   return (
@@ -369,20 +404,25 @@ function App({ stationId }: { stationId: number }) {
           : tab === "track" ? <TrackTab lot={lot} onHelp={() => setTab("help")} />
           : null}
       </main>
-      <div className="pointer-events-none fixed inset-x-3 bottom-20 z-40 mx-auto max-w-[420px] space-y-2">
+      <div className="pointer-events-none fixed inset-x-3 top-3 z-50 mx-auto flex max-w-[420px] justify-center">
         <AnimatePresence>
           {toasts.map((e) => (
-            <motion.div key={e.key} initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className={cn("border border-paper-300 border-l-4 bg-white p-3 shadow-2xl", e.severity === "CRITICAL" ? "border-critical" : e.severity === "WARNING" ? "border-gold" : "border-ok")}>
-              <div className="text-sm font-bold">{e.title}</div><div className="text-xs text-ink-400">{e.message}</div>
-            </motion.div>
+            <motion.button key={e.key} onClick={() => openAlert(e)} initial={{ opacity: 0, y: -70, scale: 0.85 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -70, scale: 0.9 }} transition={{ type: "spring", stiffness: 420, damping: 30 }}
+              className={cn("pointer-events-auto flex max-w-full items-center gap-2.5 rounded-full py-2 pl-2 pr-4 text-left text-white shadow-2xl",
+                e.severity === "CRITICAL" ? "bg-critical" : e.severity === "WARNING" ? "bg-[#e8542f]" : "bg-teal")} aria-label={`Open ${e.section}: ${e.title}`}>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20"><Bell className="h-4 w-4" /></span>
+              <span className="min-w-0"><span className="block truncate text-sm font-bold">{e.title}</span>
+                <span className="block truncate text-[11px] opacity-90">{e.message}</span></span>
+            </motion.button>
           ))}
         </AnimatePresence>
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-md border-t border-paper-300 bg-white/95 shadow-[0_-6px_24px_rgba(10,38,36,0.08)] backdrop-blur" style={{ gridTemplateColumns: `repeat(${visible.length}, 1fr)` }}>
         {visible.map((x) => (
           <button key={x.id} onClick={() => setTab(x.id)} disabled={!["entry", "history", "help"].includes(x.id) && !lot} className={cn("flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold disabled:opacity-30", tab === x.id ? "text-coral" : "text-ink-400")}>
-            <span className={cn("rounded-full px-3 py-1", tab === x.id && "bg-coral/15")}><x.icon className="h-5 w-5" /></span>{t(x.label)}
+            <span className={cn("relative rounded-full px-3 py-1", tab === x.id && "bg-coral/15", flagged[x.id] && tab !== x.id && "bg-critical/15 text-critical")}><x.icon className="h-5 w-5" />
+              {flagged[x.id] && tab !== x.id && <span className="absolute right-1 top-0.5 h-2.5 w-2.5 animate-pulse rounded-full bg-critical ring-2 ring-white" />}</span>{t(x.label)}
           </button>
         ))}
       </nav>

@@ -277,7 +277,7 @@ def on_sim_alerts(db: Session, sim: Simulation, alerts: list):
         fixes = _ensure_fixes(db, sim, a) if emergency else []
         ev = {"at": datetime.utcnow().isoformat(timespec="seconds"), "sim_time": None, "kind": a.code.lower(), "title": a.title,
               "message": a.message, "severity": a.severity if emergency else "INFO", "recommendation": a.recommendation, "fixes": fixes,
-              "log": not emergency}
+              "log": not emergency, "where": "godown" if sim.id == lot.storage_sim_id else "truck"}
         if fixes:
             for s_ in db.scalars(select(NotificationSubscription).where(NotificationSubscription.active == True,  # noqa: E712
                                                                         NotificationSubscription.qr_session_id == lot.station_id)).all():
