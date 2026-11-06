@@ -116,9 +116,10 @@ def migrate():
 async def startup():
     hub.loop = asyncio.get_running_loop()
     await asyncio.to_thread(migrate)
-    from app.db.bootstrap import sync_commodities
+    from app.db.bootstrap import ensure_admin, sync_commodities
     with SessionLocal() as db:
         sync_commodities(db)
+        ensure_admin(db)   # first admin from ADMIN_USERNAME / ADMIN_PASSWORD when the database has no users (fresh deploys)
     manager.start()
     from app.integrations import tts_kn
     tts_kn.warm_up()   # optional offline Kannada voice; loads in the background

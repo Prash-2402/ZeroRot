@@ -360,3 +360,15 @@ def test_assistant_context_includes_station_history(H):
         ctx = fl.chat_context(db, None, sid)
     h = ctx["station_history"]
     assert h["finished_lots"] >= 1 and h["kg_discarded"] >= 300 and "money_note" in h and h["active_lots"] == []
+
+
+def test_ensure_admin_only_when_no_users(monkeypatch):
+    from app.db.bootstrap import ensure_admin
+    monkeypatch.setenv("ADMIN_USERNAME", "someone-else")
+    monkeypatch.setenv("ADMIN_PASSWORD", "x")
+    with SessionLocal() as db:
+        from sqlalchemy import select
+        from app.db.models import User
+        before = db.scalars(select(User)).all()
+        ensure_admin(db)   # users already exist in this test database: nothing is created
+        assert len(db.scalars(select(User)).all()) == len(before)

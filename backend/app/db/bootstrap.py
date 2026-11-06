@@ -31,3 +31,19 @@ def sync_commodities(db: Session) -> int:
         n += 1
     db.commit()
     return n
+
+
+def ensure_admin(db) -> None:
+    """Create the first admin from the ADMIN_USERNAME and ADMIN_PASSWORD environment variables, only when no user exists.
+    Lets a fresh server (e.g. a Hugging Face Space whose storage resets) come up with a known login."""
+    import logging
+    import os
+    from sqlalchemy import func, select
+    from app.core.security import hash_password
+    from app.db.models import User
+    name, pw = os.environ.get("ADMIN_USERNAME", "").strip(), os.environ.get("ADMIN_PASSWORD", "")
+    if not name or not pw or db.scalar(select(func.count()).select_from(User)):
+        return
+    db.add(User(email=name.lower(), name="Admin", password_hash=hash_password(pw), role="admin"))
+    db.commit()
+    logging.getLogger("zerorot").warning("Created the first admin account '%s' from ADMIN_USERNAME", name)

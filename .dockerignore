@@ -9,3 +9,4 @@ frontend/dist
 backend/.vapid.json
 backend/.dev_admin
 .claude
+backend/models/tts_kn_female/*.pt
