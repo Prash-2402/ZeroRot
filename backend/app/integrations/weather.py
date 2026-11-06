@@ -22,7 +22,23 @@ def geocode(query: str, count: int = 6) -> list[dict]:
              "elevation": x.get("elevation")} for x in r.json().get("results", [])]
 
 
+_FC_CACHE: dict = {}
+FORECAST_TTL_S = 600
+
+
 def forecast(lat: float, lng: float, days: int = 16, name: str | None = None) -> dict:
+    """Hourly forecast, cached for 10 minutes per place so starting a lot or a truck never waits on the network twice."""
+    import time as _t
+    key = (round(lat, 3), round(lng, 3), min(16, days))
+    hit = _FC_CACHE.get(key)
+    if hit and _t.time() - hit[0] < FORECAST_TTL_S:
+        return {**hit[1], "name": name}
+    out = _forecast(lat, lng, days, name)
+    _FC_CACHE[key] = (_t.time(), out)
+    return out
+
+
+def _forecast(lat: float, lng: float, days: int = 16, name: str | None = None) -> dict:
     """Hourly temperature (degC), relative humidity (%) and surface pressure (Pa) from now through `days` days."""
     try:
         r = httpx.get(settings.open_meteo_url, params={"latitude": lat, "longitude": lng, "hourly": "temperature_2m,relative_humidity_2m,surface_pressure,precipitation,cloud_cover",

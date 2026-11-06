@@ -431,7 +431,9 @@ export function Hub({ lots, activeId, cutaway, labels, night }: { lots: any[]; a
   lots = [...lots].sort((a, b) => (a.id === activeId ? -1 : b.id === activeId ? 1 : 0));
   const trad = lots.find((l) => l.mode === "traditional" && ["intake", "storage"].includes(l.stage));
   const adv = lots.find((l) => l.mode === "advanced" && ["intake", "storage", "grading", "graded"].includes(l.stage));
-  const grading = lots.find((l) => l.mode === "advanced" && l.grading && ["grading", "graded", "dispatched", "arrived", "delivered"].includes(l.stage));
+  // the scan house shows produce being scanned right now first (any lot), then the selected lot's finished sort
+  const canShow = (l: any) => l.mode === "advanced" && l.grading;
+  const grading = lots.find((l) => canShow(l) && l.stage === "grading") || lots.find((l) => canShow(l) && ["graded", "dispatched", "arrived", "delivered"].includes(l.stage));
   const intake = lots.find((l) => l.stage === "intake");
   const asphalt = useMemo(() => { const t = asphaltTex().clone(); t.repeat.set(1, 60); t.needsUpdate = true; return t; }, []);
   return (

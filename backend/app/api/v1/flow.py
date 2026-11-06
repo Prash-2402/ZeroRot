@@ -37,9 +37,24 @@ def get_lot(db: Session, lot_id: int, p: Principal) -> Lot:
     return lot
 
 
-def _flow_call(fn, *a, **k):
+def _flow_call_unlocked(fn, *a, **k):
     try:
         return fn(*a, **k)
+    except flow.FlowError as e:
+        err(e.status, e.code, e.message)
+
+
+UNLOCKED = {"decision", "spoilage"}   # read-mostly and slow (network): must not hold up the simulation
+
+
+def _flow_call(fn, *a, **k):
+    """Run a flow operation. Anything that writes takes the simulation lock BEFORE its first database write, so a request
+    and the 1-second tick can never wait on each other (request holding the database, tick holding the lock)."""
+    try:
+        if fn.__name__ in UNLOCKED:
+            return fn(*a, **k)
+        with flow._manager().lock:
+            return fn(*a, **k)
     except flow.FlowError as e:
         err(e.status, e.code, e.message)
 
@@ -118,7 +133,9 @@ class LotIn(BaseModel):
 @router.post("/lots", status_code=201)
 def create_lot(body: LotIn, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
     sid = station_id_of(p) if p.kind == "qr" else body.station_id
-    lot = _flow_call(flow.create_lot, db, commodity=body.commodity, quantity_kg=body.quantity_kg, quality=body.quality, maturity=body.maturity,
+    aged = _flow_call_unlocked(flow.prefetch_lot_inputs, commodity=body.commodity, maturity=body.maturity, quality=body.quality,
+                               days_since_harvest=body.days_since_harvest, kept_as=body.kept_as, lat=body.lat, lng=body.lng)
+    lot = _flow_call(flow.create_lot, db, aged=aged, commodity=body.commodity, quantity_kg=body.quantity_kg, quality=body.quality, maturity=body.maturity,
                      mode=body.mode, lat=body.lat, lng=body.lng, location_name=body.location_name, station_id=sid,
                      user_id=p.user.id if p.user else None, speed=body.speed, manual_ambient=body.manual_ambient, plan_days=body.plan_days,
                      days_since_harvest=body.days_since_harvest, kept_as=body.kept_as)

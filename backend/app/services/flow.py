@@ -372,21 +372,37 @@ def preage(commodity: str, maturity: str | None, quality: float, days: float, ke
             "mean_temp_c": round(sum(temps) / len(temps), 1), "max_temp_c": round(max(temps), 1), "weather_source": source}
 
 
+def prefetch_lot_inputs(commodity: str, maturity: str | None, quality: float, days_since_harvest: float, kept_as: str, lat: float, lng: float):
+    """The slow, network-bound part of starting a lot (weather forecast, past weather for pre-ageing), done before any
+    database write so it never holds up the simulation. Returns the pre-aged state, or None for fresh produce."""
+    try:
+        weather.forecast(lat, lng)   # warms the 10-minute cache used by the godown set-up
+    except weather.Unavailable:
+        pass   # the set-up reports it properly
+    if not (days_since_harvest and days_since_harvest > 0):
+        return None
+    if kept_as not in KEPT:
+        raise FlowError(422, "invalid_input", "kept_as must be open, shade or cold")
+    return preage(commodity, maturity if commodity in ("tomato", "mango", "banana") else None, quality, days_since_harvest, kept_as, lat, lng)
+
+
 # ---------------- lots ----------------
 def create_lot(db: Session, *, commodity: str, quantity_kg: float, quality: float, maturity: str | None, mode: str,
                lat: float, lng: float, location_name: str, station_id: int | None, user_id: int | None, speed: float = 60.0,
-               manual_ambient: dict | None = None, plan_days: float = 5.0, days_since_harvest: float = 0.0, kept_as: str = "shade") -> Lot:
+               manual_ambient: dict | None = None, plan_days: float = 5.0, days_since_harvest: float = 0.0, kept_as: str = "shade",
+               aged: dict | None = None) -> Lot:
     try:
         p = get_produce(commodity)
     except ValueError as e:
         raise FlowError(422, "unsupported_commodity", str(e))
     if not 50 <= quantity_kg <= 50000:
         raise FlowError(422, "invalid_input", "Quantity must be between 50 kg and 50 tonnes")
-    aged = None
-    if days_since_harvest and days_since_harvest > 0:
-        if kept_as not in KEPT:
-            raise FlowError(422, "invalid_input", "kept_as must be open, shade or cold")
-        aged = preage(commodity, maturity if commodity in ("tomato", "mango", "banana") else None, quality, days_since_harvest, kept_as, lat, lng)
+    import time as _time
+    _t0 = _time.perf_counter()
+    _tm: dict = {}
+    if aged is None and days_since_harvest and days_since_harvest > 0:
+        aged = prefetch_lot_inputs(commodity, maturity, quality, days_since_harvest, kept_as, lat, lng)
+    _tm["preage"] = _time.perf_counter() - _t0
     seq = (db.scalar(select(ProduceBatch.id).order_by(ProduceBatch.id.desc())) or 0) + 1
     code = f"ZR-{commodity[:3].upper()}-{seq:05d}"
     from datetime import timedelta as _td
@@ -403,6 +419,7 @@ def create_lot(db: Session, *, commodity: str, quantity_kg: float, quality: floa
             req["manual_ambient"] = {"t": float(manual_ambient["t"]), "rh": float(manual_ambient["rh"])}
         except (KeyError, TypeError, ValueError):
             raise FlowError(422, "invalid_input", "manual_ambient needs numeric t and rh")
+    _t1 = _time.perf_counter()
     if mode == "traditional":
         cfg, e = sim_config.traditional(b, {**req, "structure": "brick"})
         zone_id = None
@@ -428,8 +445,12 @@ def create_lot(db: Session, *, commodity: str, quantity_kg: float, quality: floa
     lot = Lot(batch_id=b.id, station_id=station_id, mode=mode, stage="intake", storage_sim_id=sim.id, speed=speed, created_by=user_id, events=[])
     db.add(lot)
     db.flush()
+    _tm["weather_config"] = _time.perf_counter() - _t1
+    _t2 = _time.perf_counter()
     try:
-        rt = _manager().runtime(db, sim)
+        with _manager().lock:
+            _tm["lock_wait"] = _time.perf_counter() - _t2
+            rt = _manager().runtime(db, sim)
     except ValueError as ex:
         db.rollback()
         raise FlowError(422, "invalid_input", str(ex))
@@ -461,6 +482,8 @@ def create_lot(db: Session, *, commodity: str, quantity_kg: float, quality: floa
                       f"Produce arrives at {amb['t']:.1f} °C; automatic control is pulling the chamber down to {cfg['setpoint']:.1f} °C "
                       f"({cfg['cooling_kw']:.0f} kW refrigeration).", push_it=False)
     db.commit()
+    _tm["total"] = _time.perf_counter() - _t0
+    (log.warning if _tm["total"] > 2 else log.info)("create_lot %s timing: %s", lot.id, ", ".join(f"{k} {v:.2f}s" for k, v in _tm.items()))
     return lot
 
 

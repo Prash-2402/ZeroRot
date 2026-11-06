@@ -124,17 +124,21 @@ export function WorldScene({ lots, activeLot, view, ship, quality, labels, onQua
 /** Fetches road geometry for the lot's shipments (refetched on reroute) and builds the shared projection. */
 function useJourneyData(lot: any, setGeos: (g: Record<number, any>) => void) {
   const [g, setG] = useState<Record<number, any>>({});
+  const [attempt, setAttempt] = useState(0);
   const ships = lot?.shipments || [];
   const key = ships.map((s: any) => `${s.id}:${s.reroute_count}:${s.checkpoints.filter((c: any) => c.name).length}`).join("|");
+  useEffect(() => setAttempt(0), [key, lot?.id]);
   useEffect(() => {
-    let live = true;
+    let live = true, timer: number | undefined;
     Promise.all(ships.map((s: any) => api(`/flow/shipments/${s.id}`).then((x) => [s.id, x] as const).catch(() => null))).then((rows) => {
       if (!live) return;
       const out = Object.fromEntries(rows.filter(Boolean) as any);
       setG(out); setGeos(out);
+      // a route that failed to load (slow or busy server) is retried, so its truck still appears
+      if (rows.some((r) => r === null) && attempt < 10) timer = window.setTimeout(() => setAttempt((a) => a + 1), 3000);
     });
-    return () => { live = false; };
-  }, [key, lot?.id]);
+    return () => { live = false; clearTimeout(timer); };
+  }, [key, lot?.id, attempt]);
   return useMemo(() => {
     if (!lot) return null;
     const { lat, lng } = lot.location;

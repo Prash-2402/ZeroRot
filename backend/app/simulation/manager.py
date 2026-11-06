@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+
+from sqlalchemy.exc import OperationalError
 from datetime import datetime
 
 from sqlalchemy import delete, select
@@ -29,6 +31,9 @@ class Manager:
 
     # ---------- loading ----------
     def runtime(self, db, sim: Simulation) -> Runtime:
+        rt = self.runtimes.get(sim.id)   # already loaded: no need to wait for the tick
+        if rt is not None:
+            return rt
         with self.lock:
             rt = self.runtimes.get(sim.id)
             if rt is not None:
@@ -130,10 +135,15 @@ class Manager:
 
     # ---------- loop ----------
     def tick_once(self) -> list[tuple[int, dict]]:
+        import time as _time
         updates = []
+        t0 = _time.perf_counter()
+        timing: dict = {}
         with self.lock, SessionLocal() as db:
+            timing["lock_wait"] = _time.perf_counter() - t0
             sims = db.scalars(select(Simulation).where(Simulation.status == "running")).all()
             for sim in sims:
+                sim_id = sim.id
                 try:
                     rt = self.runtime(db, sim)
                     out = rt.advance(sim.speed * TICK_SECONDS)
@@ -143,23 +153,34 @@ class Manager:
                     if hub.has_subscribers(f"sim:{sim.id}"):
                         updates.append((f"sim:{sim.id}", {"type": "state", "status": sim.status, "speed": sim.speed, "data": rt.live(),
                                                           "error": out.get("error")}))
+                except OperationalError as e:   # a brief database collision: retry on the next tick, never fail the simulation
+                    log.warning("tick for simulation %s skipped (%s)", sim_id, str(e).splitlines()[0][:120])
+                    db.rollback()
                 except Exception as e:
                     log.exception("simulation %s failed", sim.id)
                     db.rollback()
                     sim.status = "failed"
                     sim.config = {**sim.config, "last_error": f"{type(e).__name__}: {e}"}
                     db.commit()
+            timing["sims"] = _time.perf_counter() - t0 - timing["lock_wait"]
             from app.services import flow
+            t1 = _time.perf_counter()
             try:
                 flow.tick(db, TICK_SECONDS)
             except Exception:
                 log.exception("flow tick failed")
                 db.rollback()
+            timing["flow"] = _time.perf_counter() - t1
+            t2 = _time.perf_counter()
             for topic in [t for t in list(hub.topics) if t.startswith("station:") and hub.has_subscribers(t)]:
                 try:
                     updates.append((topic, flow.station_payload(db, int(topic.split(":")[1]))))
                 except Exception:
                     log.exception("station payload failed")
+            timing["payloads"] = _time.perf_counter() - t2
+        total = _time.perf_counter() - t0
+        if total > 0.5:   # a tick should take well under its 1 s budget
+            log.warning("slow tick %.2fs (%s; %d running sims)", total, ", ".join(f"{k} {v:.2f}s" for k, v in timing.items()), len(sims))
         return updates
 
     async def run(self):
